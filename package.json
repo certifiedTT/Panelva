@@ -1,0 +1,22 @@
+{
+  "name": "panelva",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "framer-motion": "^12.40.0"
+  }
+}

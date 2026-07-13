@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme Variables (Dark by default) */
+:root {
+  --bg-color: #08090c;
+  --panel-color: #0d0e12;
+  --border-color: #1c1e24;
+  --text-color: #ffffff;
+  --text-muted-color: #8a8d98;
+  --header-bg: #060709;
+  --header-border: #121318;
+  --header-text: #8a8d98;
+  --header-text-hover: #ffffff;
+  --input-bg: #121318;
+  --card-bg: #0d0e12;
+  --wcoins-bg: rgba(241, 196, 15, 0.1);
+  --wcoins-text: #f1c40f;
+  --dropdown-bg: rgba(13, 14, 18, 0.95);
+  --sidebar-active: #1d4ed8;
+}
+
+/* Light Theme Overrides */
+.light-theme {
+  --bg-color: #f8fafc;
+  --panel-color: #ffffff;
+  --border-color: #e2e8f0;
+  --text-color: #0f172a;
+  --text-muted-color: #64748b;
+  --header-bg: #ffffff;
+  --header-border: #e2e8f0;
+  --header-text: #64748b;
+  --header-text-hover: #0f172a;
+  --input-bg: #f1f5f9;
+  --card-bg: #ffffff;
+  --wcoins-bg: rgba(217, 119, 6, 0.1);
+  --wcoins-text: #d97706;
+  --dropdown-bg: rgba(255, 255, 255, 0.98);
+  --sidebar-active: #2563eb;
+}
+
+/* Base body adjustments */
+body {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Shared transition classes */
+.theme-transition {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Theme overrides for pages */
+.home-page, .explore-page, .profile-page, .settings-page, .creator-page, .admin-page, .reader-page {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+/* Override cards, panels, and borders */
+.home-page .glass-panel, .explore-page .glass-panel, .profile-page .glass-panel, 
+.settings-page .glass-panel, .creator-page .glass-panel, .admin-page .glass-panel, 
+.reader-page .glass-panel, .home-page .interactive-card, .explore-page .interactive-card,
+.profile-page .interactive-card, .settings-page .interactive-card, .creator-page .interactive-card,
+.admin-page .interactive-card, .reader-page .interactive-card {
+  background-color: var(--panel-color) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+}
+
+/* Override text elements */
+.home-page h1, .home-page h2, .home-page h3, .home-page h4, .home-page p, .home-page span:not([style*="color: rgb"]),
+.explore-page h1, .explore-page h2, .explore-page h3, .explore-page h4, .explore-page p, .explore-page span:not([style*="color: rgb"]),
+.profile-page h1, .profile-page h2, .profile-page h3, .profile-page h4, .profile-page p, .profile-page span:not([style*="color: rgb"]),
+.settings-page h1, .settings-page h2, .settings-page h3, .settings-page h4, .settings-page p, .settings-page span:not([style*="color: rgb"]), .settings-page strong,
+.creator-page h1, .creator-page h2, .creator-page h3, .creator-page h4, .creator-page p, .creator-page span:not([style*="color: rgb"]):not([style*="color: #"]), .creator-page strong,
+.admin-page h1, .admin-page h2, .admin-page h3, .admin-page h4, .admin-page p, .admin-page span:not([style*="color: rgb"]):not([style*="color: #"]), .admin-page strong,
+.reader-page h1, .reader-page h2, .reader-page h3, .reader-page h4, .reader-page p, .reader-page span:not([style*="color: rgb"]):not([style*="color: #"]), .reader-page strong {
+  color: var(--text-color) !important;
+}
+
+/* Muted text styling */
+.home-page .text-muted, .explore-page .text-muted, .profile-page .text-muted, 
+.settings-page .text-muted, .creator-page .text-muted, .admin-page .text-muted,
+.reader-page .text-muted {
+  color: var(--text-muted-color) !important;
+}
+
+/* Overrides for form controls and inputs */
+.explore-page select, .explore-page input,
+.settings-page select, .settings-page input,
+.creator-page select, .creator-page input,
+.admin-page select, .admin-page input,
+.reader-page select, .reader-page input, .reader-page textarea {
+  background-color: var(--input-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+}
+
+/* Specific button styles */
+.settings-page button:not([style*="background: rgb"]):not([style*="background: #2563eb"]):not([style*="color: rgb(239, 68, 68)"]),
+.profile-page button:not([style*="background: rgb"]):not([style*="background: #2563eb"]),
+.creator-page button:not([style*="background: rgb"]):not([style*="background: #2563eb"]):not([style*="background: linear-gradient"]),
+.admin-page button:not([style*="background: rgb"]):not([style*="background: #2563eb"]):not([style*="background: linear-gradient"]) {
+  background-color: var(--input-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+}
+
+/* Overrides for Header theme-aware styling */
+.nav-container {
+  background-color: var(--header-bg) !important;
+  border-bottom: 1px solid var(--header-border) !important;
+}
+
+.nav-logo {
+  color: var(--text-color) !important;
+}
+
+.nav-link-item, .dropdown-trigger {
+  color: var(--header-text) !important;
+}
+
+.nav-link-item:hover, .dropdown-trigger:hover, .nav-link-item.active {
+  color: var(--header-text-hover) !important;
+}
+
+.dropdown-menu-list {
+  background: var(--dropdown-bg) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.dropdown-item-link {
+  color: var(--text-color) !important;
+}
+.dropdown-item-link:hover {
+  background-color: var(--border-color) !important;
+}
+
+/* Theme sync table borders */
+td, th {
+  border-color: var(--border-color) !important;
+}
+
+/* Phase 2: CSS Layout toggles to fix hydration mismatches */
+.desktop-only {
+  display: none !important;
+}
+
+.mobile-only {
+  display: block !important;
+}
+
+@media (min-width: 992px) {
+  .desktop-only {
+    display: block !important;
+  }
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Phase 2: UI Validation Animations */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+  border-color: #ef4444 !important;
+}

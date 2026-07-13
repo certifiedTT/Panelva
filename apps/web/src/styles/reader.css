@@ -1,0 +1,96 @@
+:root {
+  --reader-bg-comic: #0b0c10;
+  --reader-bg-novel: #f5f4ef;
+  --novel-text-color: #1a1a1a;
+  --novel-font-size: 1.125rem;
+  --novel-line-height: 1.8;
+  --max-reader-width: 800px;
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --primary-accent: #6c5ce7;
+  --primary-gradient: linear-gradient(135deg, #6c5ce7, #a8a5e6);
+}
+
+/* Comic Layout (Webtoon Vertical Layout) */
+.comic-viewport {
+  background-color: var(--reader-bg-comic);
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+}
+
+.comic-container {
+  width: 100%;
+  max-width: var(--max-reader-width);
+  display: flex;
+  flex-direction: column;
+}
+
+.comic-page-wrapper {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  line-height: 0; /* Prevents white spaces between stacked pages */
+}
+
+.comic-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  transition: opacity 0.3s ease;
+}
+
+/* Novel Layout (Prose Novel Layout) */
+.novel-viewport {
+  background-color: var(--reader-bg-novel);
+  color: var(--novel-text-color);
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  font-family: 'Georgia', serif;
+}
+
+.novel-container {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.novel-header {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.novel-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.novel-content p {
+  font-size: var(--novel-font-size);
+  line-height: var(--novel-line-height);
+  margin-bottom: 1.5rem;
+  text-indent: 1.5rem;
+  text-align: justify;
+}
+
+/* Glassmorphic Control Overlay */
+.reader-controls {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 50px;
+  padding: 12px 24px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  transition: opacity 0.3s ease;
+}

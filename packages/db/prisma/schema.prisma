@@ -1,0 +1,318 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Enums replaced with strings for SQLite support
+
+model User {
+  id                        String           @id @default(uuid())
+  email                     String           @unique
+  username                  String           @unique
+  avatarUrl                 String?
+  role                      String           @default("USER")
+  subscription              String           @default("NONE")
+  subscriptionExpiresAt     DateTime?
+  isPromotionalSubscription Boolean          @default(false) // True if on promotional access
+  hasAnimatedPfp            Boolean          @default(false)
+  wCoinBalance              Int              @default(0)
+  payoutBalance             Int              @default(0) // Stored in cents
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  // Profile Separation (PII protection: isolated from public profiles)
+  realName        String?
+  payoutEmail     String?
+  taxId           String?
+
+  // Relations
+  creatorProfiles     CreatorProfile[]
+  creatorApplications CreatorApplication[]
+  readingHistory      ReadingHistory[]
+  bookmarks           Bookmark[]
+  transactions        Transaction[]
+  redemptions         Redemption[]
+  reportsSubmitted    SafetyReport[]   @relation("Reporter")
+  collaborations      Collaboration[]
+  follows             Follow[]         @relation("Follower")
+  likes               Like[]
+  comments            Comment[]
+
+  @@index([email])
+}
+
+// ApplicationStatus replaced with String
+
+model CreatorApplication {
+  id             String            @id @default(uuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String
+  penName        String
+  bio            String?
+  portfolioUrl   String
+  status         String            @default("PENDING")
+  reviewedById   String?
+  reviewerNotes  String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId])
+}
+
+model CreatorProfile {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String
+  penName        String
+  bio            String?
+  portfolioUrl   String
+  isVetted       Boolean         @default(false)
+  monetized      Boolean         @default(false)
+  followerCount  Int             @default(0)
+  viewCount      Int             @default(0)
+  createdAt      DateTime        @default(now())
+
+  // Relations
+  series         Series[]
+  studioStaff    StudioStaff[]   @relation("StaffCreator")
+  studio         StudioStaff[]   @relation("StudioCreator")
+
+  @@index([userId])
+}
+
+model StudioStaff {
+  id             String          @id @default(uuid())
+  studioId       String
+  studio         CreatorProfile  @relation("StudioCreator", fields: [studioId], references: [id], onDelete: Cascade)
+  staffId        String
+  staff          CreatorProfile  @relation("StaffCreator", fields: [staffId], references: [id], onDelete: Cascade)
+  canViewFinance Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+
+  @@unique([studioId, staffId])
+}
+
+model Series {
+  id              String          @id @default(uuid())
+  title           String
+  description     String
+  coverUrl        String
+  bannerUrl       String?
+  genre           String          @default("Fantasy")
+  type            String
+  status          String          @default("ONGOING")
+  creatorId       String
+  creator         CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  views           Int             @default(0)
+  likes           Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Toggles
+  adSystemEnabled Boolean        @default(true)
+  milestoneLocked Boolean        @default(false)
+  waitForFreeDays Int            @default(7)
+
+  // Relations
+  chapters        Chapter[]
+  collaborators   Collaboration[]
+  bookmarks       Bookmark[]
+  follows         Follow[]        @relation("FollowedSeries")
+
+  @@index([creatorId])
+}
+
+model Collaboration {
+  id              String          @id @default(uuid())
+  seriesId        String
+  series          Series          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareRatio      Float
+  roleDescription String?
+  isAgreed        Boolean         @default(false)
+  agreedAt        DateTime?
+  createdAt       DateTime        @default(now())
+
+  @@unique([seriesId, userId])
+}
+
+model Chapter {
+  id             String          @id @default(uuid())
+  seriesId       String
+  series         Series          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  title          String
+  chapterIndex   Int
+  tier           String          @default("FREE")
+  waitTierDropAt DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Media
+  pages          Page[]
+  textContent    String?
+
+  // Relations
+  readingHistory ReadingHistory[]
+  reports        SafetyReport[]
+  comments       Comment[]
+
+  @@unique([seriesId, chapterIndex])
+}
+
+model Comment {
+  id             String          @id @default(uuid())
+  chapterId      String
+  chapter        Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content        String
+  priorityScore  Int             @default(0)     // Admin(4), Creator(3), Premium(2), Plus(1), User(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([chapterId, priorityScore(Desc), createdAt(Desc)])
+}
+
+model Page {
+  id             String          @id @default(uuid())
+  chapterId      String
+  chapter        Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  pageIndex      Int
+  imageUrl       String
+  width          Int?
+  height         Int?
+
+  @@unique([chapterId, pageIndex])
+}
+
+model ReadingHistory {
+  id               String          @id @default(uuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterId        String
+  chapter          Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  readAt           DateTime        @default(now())
+  timeSpentSeconds Int             @default(0) // Track duration
+
+  @@unique([userId, chapterId])
+  @@index([userId, readAt(Desc)])
+}
+
+model Bookmark {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seriesId       String
+  series         Series          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  createdAt      DateTime        @default(now())
+
+  @@unique([userId, seriesId])
+}
+
+model Follow {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation("Follower", fields: [userId], references: [id], onDelete: Cascade)
+  seriesId       String
+  series         Series          @relation("FollowedSeries", fields: [seriesId], references: [id], onDelete: Cascade)
+  createdAt      DateTime        @default(now())
+
+  @@unique([userId, seriesId])
+}
+
+model Like {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterId      String
+  createdAt      DateTime        @default(now())
+
+  @@unique([userId, chapterId])
+}
+
+model Transaction {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountCoins    Int
+  amountUsd      Int?   // Stored in cents
+  type           String
+  description    String?
+  createdAt      DateTime        @default(now())
+
+  @@index([userId])
+}
+
+// TransactionType replaced with String
+
+model PromoCode {
+  id             String           @id @default(uuid())
+  code           String           @unique
+  isUsed         Boolean          @default(false)
+  premiumDays    Int              @default(30)
+  tierGranted    String           @default("PREMIUM") // Can grant PLUS or PREMIUM
+  createdById    String
+  usedById       String?
+  redemptions    Redemption[]
+  createdAt      DateTime         @default(now())
+  expiresAt      DateTime?
+
+  @@index([code])
+}
+
+model Redemption {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeId         String
+  code           PromoCode       @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  redeemedAt     DateTime        @default(now())
+
+  @@unique([userId, codeId])
+}
+
+model SafetyReport {
+  id              String          @id @default(uuid())
+  reporterId      String
+  reporter        User            @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  chapterId       String?
+  chapter         Chapter?        @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  commentId       String?
+  reason          String
+  resolved        Boolean         @default(false)
+  resolvedById    String?
+  resolutionNotes String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model AuditLog {
+  id             String          @id @default(uuid())
+  staffUserId    String
+  action         String
+  details        String
+  createdAt      DateTime        @default(now())
+}
+
+model CoinLedger {
+  id                String   @id @default(uuid())
+  transactionId     String   @default(uuid())
+  sourceUserId      String?  // null if recharge
+  destinationUserId String?  // null if platform fee/payout
+  amount            Int      // number of coins
+  type              String   // RECHARGE, GIFT, UNLOCK
+  description       String?
+  createdAt         DateTime @default(now())
+
+  @@index([sourceUserId])
+  @@index([destinationUserId])
+  @@index([transactionId])
+}
+
