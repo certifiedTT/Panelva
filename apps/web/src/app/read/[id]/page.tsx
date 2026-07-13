@@ -1050,7 +1050,6 @@ export default function ReaderPage() {
                     </div>
                   </div>
                 </div>
-              </div>
 
               {/* Rules overlay modal for mobile web */}
               {showWebRulesModal && (
