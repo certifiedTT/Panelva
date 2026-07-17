@@ -243,11 +243,48 @@ export default function App() {
   // Custom states
   const [activeCarouselIndex, setActiveCarouselIndex] = useState(0);
   const [latestReleaseToggle, setLatestReleaseToggle] = useState<'hot' | 'new'>('hot');
-  const [notifSegment, setNotifSegment] = useState<'updates' | 'announcements'>('updates');
+  const [notifSegment, setNotifSegment] = useState<'updates' | 'announcements' | 'invitations'>('updates');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOverlayVisible, setSearchOverlayVisible] = useState(false);
   const [selectedGenreTag, setSelectedGenreTag] = useState('All');
   const [selectedStatusTag, setSelectedStatusTag] = useState('All');
+
+  // Collaboration Invitation States
+  const [mobileInvitations, setMobileInvitations] = useState([
+    {
+      id: 'mi-1',
+      senderName: 'DuchessPen',
+      seriesTitle: 'Born to be the Grand Duchess',
+      coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=300&auto=format&fit=crop',
+      description: 'Reborn into royalty, she must claim her throne as the grand duchess, navigating waiting lists and premium splits.',
+      genre: 'Romance',
+      role: 'Illustrator',
+      roleDescription: 'Draw beautiful royal ballrooms, gowns, and character profiles.',
+      shareRatio: 30,
+      message: 'Love your art style! Let us collaborate on this premium novel project.',
+      terms: 'Deliver 1 chapter lineart every 5 days.',
+      status: 'PENDING',
+      date: 'July 15, 2026'
+    }
+  ]);
+  const [activeMobileInvitation, setActiveMobileInvitation] = useState<any>(null);
+
+  const handleMobileInvitationResponse = (responseStatus: 'ACCEPTED' | 'DECLINED') => {
+    if (!activeMobileInvitation) return;
+    
+    // Update local invitation status
+    setMobileInvitations(prev => 
+      prev.map(item => item.id === activeMobileInvitation.id ? { ...item, status: responseStatus } : item)
+    );
+
+    if (responseStatus === 'ACCEPTED') {
+      Alert.alert('Invitation Accepted', `You have successfully joined the "${activeMobileInvitation.seriesTitle}" project!`);
+    } else {
+      Alert.alert('Invitation Declined', `You declined the invitation to collaborate on "${activeMobileInvitation.seriesTitle}".`);
+    }
+
+    setActiveMobileInvitation(null);
+  };
 
   // Issue reporting modal
   const [issueModalVisible, setIssueModalVisible] = useState(false);
@@ -771,19 +808,57 @@ export default function App() {
                   Announcements
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.notifTabBtn, notifSegment === 'invitations' && { borderBottomColor: colors.accent }]}
+                onPress={() => setNotifSegment('invitations')}
+              >
+                <Text style={[styles.notifTabText, { color: notifSegment === 'invitations' ? colors.accent : colors.textMuted }]}>
+                  Invites ({mobileInvitations.filter(i => i.status === 'PENDING').length})
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Notification Lists */}
             <ScrollView style={{ flex: 1, padding: 16 }}>
-              {MOCK_NOTIFICATIONS[notifSegment].map(item => (
-                <View key={item.id} style={[styles.notifCard, { backgroundColor: colors.panel, borderColor: colors.border }]}>
-                  <View style={styles.notifHeaderRow}>
-                    <Text style={[styles.notifTitle, { color: colors.text }]}>{item.title}</Text>
-                    <Text style={styles.notifTime}>{item.time}</Text>
+              {notifSegment === 'invitations' ? (
+                mobileInvitations.map(item => (
+                  <TouchableOpacity 
+                    key={item.id} 
+                    style={[styles.notifCard, { backgroundColor: colors.panel, borderColor: colors.border }]}
+                    onPress={() => item.status === 'PENDING' && setActiveMobileInvitation(item)}
+                  >
+                    <View style={styles.notifHeaderRow}>
+                      <Text style={[styles.notifTitle, { color: colors.accent, fontWeight: 'bold' }]}>
+                        Collab Invitation
+                      </Text>
+                      <Text style={[styles.notifTime, { color: item.status === 'PENDING' ? '#f59e0b' : item.status === 'ACCEPTED' ? '#34c759' : '#ff3b30', fontWeight: 'bold', fontSize: 11 }]}>
+                        {item.status}
+                      </Text>
+                    </View>
+                    <Text style={[styles.notifContent, { color: colors.text, fontWeight: 'bold', marginTop: 4 }]}>
+                      {item.seriesTitle}
+                    </Text>
+                    <Text style={[styles.notifContent, { color: colors.textMuted }]}>
+                      Invited by @{item.senderName} to join as {item.role} ({item.shareRatio}% split).
+                    </Text>
+                    {item.status === 'PENDING' && (
+                      <Text style={{ color: colors.accent, fontSize: 11, fontWeight: 'bold', marginTop: 8 }}>
+                        👉 Tap to review proposal & respond
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))
+              ) : (
+                MOCK_NOTIFICATIONS[notifSegment as 'updates' | 'announcements'].map(item => (
+                  <View key={item.id} style={[styles.notifCard, { backgroundColor: colors.panel, borderColor: colors.border }]}>
+                    <View style={styles.notifHeaderRow}>
+                      <Text style={[styles.notifTitle, { color: colors.text }]}>{item.title}</Text>
+                      <Text style={styles.notifTime}>{item.time}</Text>
+                    </View>
+                    <Text style={[styles.notifContent, { color: colors.textMuted }]}>{item.content}</Text>
                   </View>
-                  <Text style={[styles.notifContent, { color: colors.textMuted }]}>{item.content}</Text>
-                </View>
-              ))}
+                ))
+              )}
             </ScrollView>
           </View>
         )}
@@ -1599,6 +1674,121 @@ export default function App() {
           </Text>
           <View style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 3, borderColor: '#7c3aed', justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ color: '#7c3aed', fontSize: 20, fontWeight: 'bold' }}>{adTimer}s</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Collaboration Proposal Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={!!activeMobileInvitation}
+        onRequestClose={() => setActiveMobileInvitation(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.panel, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Collaboration Details</Text>
+              <TouchableOpacity onPress={() => setActiveMobileInvitation(null)}>
+                <Text style={{ color: colors.textMuted, fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ padding: 16 }}>
+              {/* Series Title & Role */}
+              <Text style={{ color: colors.accent, fontWeight: 'bold', fontSize: 12, textTransform: 'uppercase' }}>
+                {activeMobileInvitation?.genre}
+              </Text>
+              <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 20, marginVertical: 4 }}>
+                {activeMobileInvitation?.seriesTitle}
+              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 18 }}>
+                {activeMobileInvitation?.description}
+              </Text>
+
+              <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
+
+              {/* Role Details */}
+              <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 14 }}>Proposed Role</Text>
+              <Text style={{ color: colors.accent, fontWeight: 'bold', fontSize: 16, marginTop: 2 }}>
+                {activeMobileInvitation?.role}
+              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 16 }}>
+                {activeMobileInvitation?.roleDescription}
+              </Text>
+
+              <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
+
+              {/* Splits Breakdown */}
+              <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 14 }}>Revenue Share Details</Text>
+              <Text style={{ color: '#34c759', fontWeight: 'bold', fontSize: 18, marginTop: 2 }}>
+                {activeMobileInvitation?.shareRatio}% Split Ratio
+              </Text>
+
+              <View style={{ backgroundColor: colors.bg, padding: 10, borderRadius: 8, marginTop: 8 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase' }}>
+                  Revenue distribution preview
+                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                  <Text style={{ color: colors.text, fontSize: 12 }}>@{activeMobileInvitation?.senderName} (Primary)</Text>
+                  <Text style={{ color: colors.text, fontSize: 12, fontWeight: 'bold' }}>
+                    {100 - (activeMobileInvitation?.shareRatio || 0)}%
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                  <Text style={{ color: colors.accent, fontSize: 12, fontWeight: 'bold' }}>You ({activeMobileInvitation?.role})</Text>
+                  <Text style={{ color: colors.accent, fontSize: 12, fontWeight: 'bold' }}>
+                    {activeMobileInvitation?.shareRatio}%
+                  </Text>
+                </View>
+              </View>
+
+              {/* Optional Message */}
+              {activeMobileInvitation?.message && (
+                <>
+                  <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
+                  <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 14 }}>Message from Owner</Text>
+                  <Text style={{ color: colors.textMuted, fontStyle: 'italic', fontSize: 13, marginTop: 4 }}>
+                    "{activeMobileInvitation?.message}"
+                  </Text>
+                </>
+              )}
+
+              {/* Terms and Conditions */}
+              {activeMobileInvitation?.terms && (
+                <>
+                  <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 12 }} />
+                  <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 14 }}>Terms & Conditions</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 16 }}>
+                    {activeMobileInvitation?.terms}
+                  </Text>
+                </>
+              )}
+
+              {/* Date */}
+              <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 16, marginBottom: 24 }}>
+                Invited on {activeMobileInvitation?.date}
+              </Text>
+            </ScrollView>
+
+            <View style={[styles.modalActions, { borderTopColor: colors.border }]}>
+              <TouchableOpacity 
+                style={[styles.modalActionBtn, { borderColor: '#ff3b30', borderWidth: 1 }]} 
+                onPress={() => {
+                  handleMobileInvitationResponse('DECLINED');
+                }}
+              >
+                <Text style={{ color: '#ff3b30', fontWeight: 'bold', fontSize: 13, textAlign: 'center' }}>Decline</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalActionBtn, { backgroundColor: '#34c759' }]} 
+                onPress={() => {
+                  handleMobileInvitationResponse('ACCEPTED');
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13, textAlign: 'center' }}>Accept & Join</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -2815,5 +3005,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  modalActions: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    borderTopWidth: 1,
+  },
+  modalActionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

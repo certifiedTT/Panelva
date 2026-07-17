@@ -7,6 +7,8 @@ import {
   Search, Users, Sparkles, AlertCircle, Wallet, DollarSign, Gift, Play, Clock, 
   ArrowRight, Shield, Plus, Lock, Unlock, CheckCircle, Trash2, ArrowUpRight
 } from "lucide-react";
+import { useMemo } from "react";
+import { trpc } from "../../lib/trpc";
 import { TimeAgo } from "../../components/TimeAgo";
 
 export default function CreatorPage() {
@@ -37,6 +39,124 @@ export default function CreatorPage() {
   const [collabPenName, setCollabPenName] = useState("");
   const [collabRatio, setCollabRatio] = useState(50);
   const [collaborators, setCollaborators] = useState<{ name: string; ratio: number }[]>([]);
+
+  // DB-backed Collaboration hooks
+  const isCreator = userRole === "CREATOR" || userRole === "MASTER_ADMIN" || userRole === "ADMIN";
+  const { data: dbCreatorSeries, refetch: refetchCreatorSeries } = trpc.series.getCreatorSeries.useQuery(undefined, {
+    enabled: isCreator,
+  });
+
+  const { data: vettedCreators } = trpc.collaboration.listVettedCreators.useQuery(undefined, {
+    enabled: isCreator,
+  });
+
+  const sendInviteMutation = trpc.collaboration.sendInvitation.useMutation({
+    onSuccess: () => {
+      refetchCreatorSeries();
+      alert("Collaboration invitation sent successfully!");
+    },
+    onError: (err) => {
+      alert(`Failed to send invitation: ${err.message}`);
+    }
+  });
+
+  const cancelInviteMutation = trpc.collaboration.cancelInvitation.useMutation({
+    onSuccess: () => {
+      refetchCreatorSeries();
+      alert("Invitation cancelled successfully!");
+    },
+    onError: (err) => {
+      alert(`Failed to cancel invitation: ${err.message}`);
+    }
+  });
+
+  // Invitation Form State
+  const [activeInviteSeriesId, setActiveInviteSeriesId] = useState<string | null>(null);
+  const [inviteReceiverId, setInviteReceiverId] = useState("");
+  const [inviteRole, setInviteRole] = useState("Illustrator");
+  const [inviteRoleDesc, setInviteRoleDesc] = useState("");
+  const [inviteRatio, setInviteRatio] = useState(25);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteTerms, setInviteTerms] = useState("");
+
+  const handleSendInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeInviteSeriesId || !inviteReceiverId) {
+      alert("Please select a creator to invite");
+      return;
+    }
+    sendInviteMutation.mutate({
+      seriesId: activeInviteSeriesId,
+      receiverId: inviteReceiverId,
+      role: inviteRole,
+      roleDescription: inviteRoleDesc || undefined,
+      shareRatio: Number(inviteRatio),
+      message: inviteMessage || undefined,
+      terms: inviteTerms || undefined,
+    });
+    setInviteReceiverId("");
+    setInviteRole("Illustrator");
+    setInviteRoleDesc("");
+    setInviteRatio(25);
+    setInviteMessage("");
+    setInviteTerms("");
+    setActiveInviteSeriesId(null);
+  };
+
+  const handleCancelInvite = (invitationId: string) => {
+    if (confirm("Are you sure you want to cancel this invitation?")) {
+      cancelInviteMutation.mutate({ invitationId });
+    }
+  };
+
+  // Combine database series and local storage series list
+  const combinedSeries = useMemo(() => {
+    const list = [...seriesList].map(s => ({ ...s, isDbBacked: false }));
+    if (dbCreatorSeries) {
+      dbCreatorSeries.forEach((dbs) => {
+        // Find existing match by title or ID
+        const idx = list.findIndex(
+          (s) => s.id === dbs.id || s.title.toLowerCase() === dbs.title.toLowerCase()
+        );
+
+        const mapped = {
+          id: dbs.id,
+          title: dbs.title,
+          type: dbs.type,
+          views: dbs.views,
+          likes: dbs.likes,
+          status: dbs.status,
+          coverUrl: dbs.coverUrl || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=300&auto=format&fit=crop",
+          description: dbs.description,
+          adSystemEnabled: dbs.adSystemEnabled,
+          milestoneLocked: dbs.milestoneLocked,
+          waitForFreeDays: dbs.waitForFreeDays,
+          collaborators: dbs.collaborators.map((c: any) => ({
+            name: c.user.creatorProfiles[0]?.penName || c.user.username,
+            ratio: c.shareRatio,
+            role: c.role,
+          })),
+          pendingInvitations: dbs.invitations
+            .filter((i: any) => i.status === "PENDING")
+            .map((i: any) => ({
+              id: i.id,
+              receiverName: i.receiver.creatorProfiles[0]?.penName || i.receiver.username,
+              ratio: i.shareRatio,
+              role: i.role,
+              status: i.status,
+            })),
+          isDbBacked: true,
+        };
+
+        if (idx !== -1) {
+          list[idx] = mapped;
+        } else {
+          list.push(mapped);
+        }
+      });
+    }
+    return list;
+  }, [seriesList, dbCreatorSeries]);
 
   // Sync state with localStorage on mount
   useEffect(() => {
@@ -140,7 +260,6 @@ export default function CreatorPage() {
     }
   }, []);
 
-  const isCreator = userRole === "CREATOR" || userRole === "MASTER_ADMIN" || userRole === "ADMIN";
   const isMonetizationEligible = stats.followers >= 100 || stats.views >= 10000;
 
   // Actions
@@ -451,7 +570,7 @@ export default function CreatorPage() {
                     <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>Recent Activity</h2>
                   </div>
                   
-                  {seriesList.length === 0 ? (
+                  {combinedSeries.length === 0 ? (
                     <div style={{ border: "1.5px dashed #1c1e24", borderRadius: "16px", padding: "4rem 2rem", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
                       <Plus size={36} color="var(--text-dark-muted)" />
                       <div style={{ fontWeight: 600, color: "#d1d5db" }}>No series found. Ready to start?</div>
@@ -461,7 +580,7 @@ export default function CreatorPage() {
                     </div>
                   ) : (
                     <div className="glass-panel" style={{ padding: "1.5rem", background: "#0d0e12", border: "1px solid #1c1e24", borderRadius: "16px", display: "flex", flexDirection: "column", gap: "1rem" }}>
-                      {seriesList.slice(0, 3).map((s) => (
+                      {combinedSeries.slice(0, 3).map((s) => (
                         <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.03)", paddingBottom: "12px" }}>
                           <div>
                             <span style={{ fontWeight: 700, fontSize: "1rem", color: "#fff" }}>{s.title}</span>
@@ -704,12 +823,17 @@ export default function CreatorPage() {
                 <p style={{ color: "var(--text-dark-muted)", margin: "0.25rem 0 0 0" }}>Status governance and monetization checks</p>
               </div>
 
-              {seriesList.map((s) => (
+              {combinedSeries.map((s) => (
                 <div key={s.id} className="glass-panel" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", background: "#0d0e12", border: "1px solid #1c1e24", borderRadius: "16px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                     <div>
                       <h3 style={{ margin: 0, fontSize: "1.25rem", color: "#fff" }}>{s.title}</h3>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-dark-muted)" }}>Type: {s.type} &bull; {s.views} views</span>
+                      {s.isDbBacked && (
+                        <span style={{ marginLeft: "8px", fontSize: "0.65rem", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }}>
+                          DB BACKED
+                        </span>
+                      )}
                     </div>
                     <div>
                       <span style={{ fontSize: "0.75rem", background: "rgba(37,99,235,0.12)", color: "#2563eb", padding: "4px 8px", borderRadius: "4px", fontWeight: 600 }}>
@@ -724,10 +848,171 @@ export default function CreatorPage() {
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
                         {s.collaborators.map((c: any, idx: number) => (
                           <span key={idx} style={{ background: "#1c1e24", padding: "3px 8px", borderRadius: "4px", fontSize: "0.75rem", color: "#d1d5db" }}>
-                            {c.name}: {c.ratio}%
+                            {c.name} ({c.role || "Collaborator"}): {c.ratio}%
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {s.isDbBacked && s.pendingInvitations && s.pendingInvitations.length > 0 && (
+                    <div style={{ fontSize: "0.8rem", background: "rgba(37,99,235,0.02)", border: "1px solid rgba(37,99,235,0.12)", padding: "10px 14px", borderRadius: "8px" }}>
+                      <strong style={{ color: "#3b82f6" }}>Pending Collaboration Invites:</strong>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
+                        {s.pendingInvitations.map((i: any) => (
+                          <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ color: "#d1d5db" }}>
+                              @{i.receiverName} as <strong>{i.role}</strong> ({i.ratio}%)
+                            </span>
+                            <button
+                              onClick={() => handleCancelInvite(i.id)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#ef4444",
+                                cursor: "pointer",
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                padding: "2px 6px",
+                              }}
+                              className="hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {s.isDbBacked && (
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "0.5rem" }}>
+                      {activeInviteSeriesId === s.id ? (
+                        <form onSubmit={handleSendInvite} style={{ display: "flex", flexDirection: "column", gap: "10px", background: "rgba(0,0,0,0.15)", padding: "12px", borderRadius: "8px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <strong style={{ fontSize: "0.8rem", color: "#fff" }}>Send Collaboration Invite</strong>
+                            <button 
+                              type="button" 
+                              onClick={() => setActiveInviteSeriesId(null)}
+                              style={{ background: "none", border: "none", color: "#a1a1aa", fontSize: "0.75rem", cursor: "pointer" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: "0.7rem", color: "var(--text-dark-muted)", marginBottom: "4px" }}>Select Verified Creator</label>
+                            <select
+                              value={inviteReceiverId}
+                              onChange={(e) => setInviteReceiverId(e.target.value)}
+                              required
+                              style={{ width: "100%", background: "#07080a", border: "1px solid #1c1e24", color: "#fff", padding: "6px", borderRadius: "6px", fontSize: "0.8rem" }}
+                            >
+                              <option value="">-- Choose Creator --</option>
+                              {vettedCreators?.map((c: any) => (
+                                <option key={c.user.id} value={c.user.id}>
+                                  @{c.penName} ({c.type})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                            <div>
+                              <label style={{ display: "block", fontSize: "0.7rem", color: "var(--text-dark-muted)", marginBottom: "4px" }}>Role</label>
+                              <select
+                                value={inviteRole}
+                                onChange={(e) => setInviteRole(e.target.value)}
+                                style={{ width: "100%", background: "#07080a", border: "1px solid #1c1e24", color: "#fff", padding: "6px", borderRadius: "6px", fontSize: "0.8rem" }}
+                              >
+                                <option value="Writer">Writer</option>
+                                <option value="Illustrator">Illustrator</option>
+                                <option value="Colorist">Colorist</option>
+                                <option value="Editor">Editor</option>
+                                <option value="Studio">Studio</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style={{ display: "block", fontSize: "0.7rem", color: "var(--text-dark-muted)", marginBottom: "4px" }}>Share %</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={inviteRatio}
+                                onChange={(e) => setInviteRatio(Number(e.target.value))}
+                                required
+                                style={{ width: "100%", background: "#07080a", border: "1px solid #1c1e24", color: "#fff", padding: "6px", borderRadius: "6px", fontSize: "0.8rem" }}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: "0.7rem", color: "var(--text-dark-muted)", marginBottom: "4px" }}>Responsibilities Description</label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Lineart, storyboard sketching"
+                              value={inviteRoleDesc}
+                              onChange={(e) => setInviteRoleDesc(e.target.value)}
+                              style={{ width: "100%", background: "#07080a", border: "1px solid #1c1e24", color: "#fff", padding: "6px", borderRadius: "6px", fontSize: "0.8rem" }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: "0.7rem", color: "var(--text-dark-muted)", marginBottom: "4px" }}>Message</label>
+                            <input
+                              type="text"
+                              placeholder="Optional message..."
+                              value={inviteMessage}
+                              onChange={(e) => setInviteMessage(e.target.value)}
+                              style={{ width: "100%", background: "#07080a", border: "1px solid #1c1e24", color: "#fff", padding: "6px", borderRadius: "6px", fontSize: "0.8rem" }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: "0.7rem", color: "var(--text-dark-muted)", marginBottom: "4px" }}>Terms & Conditions</label>
+                            <input
+                              type="text"
+                              placeholder="Optional terms..."
+                              value={inviteTerms}
+                              onChange={(e) => setInviteTerms(e.target.value)}
+                              style={{ width: "100%", background: "#07080a", border: "1px solid #1c1e24", color: "#fff", padding: "6px", borderRadius: "6px", fontSize: "0.8rem" }}
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", marginTop: "4px" }}
+                          >
+                            Send Collaboration Invitation
+                          </button>
+                        </form>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setActiveInviteSeriesId(s.id);
+                            if (vettedCreators && vettedCreators.length > 0) {
+                              setInviteReceiverId(vettedCreators[0].user.id);
+                            }
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "1px dashed #2563eb",
+                            color: "#2563eb",
+                            padding: "8px",
+                            borderRadius: "8px",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <Plus size={14} /> Invite Co-Creator
+                        </button>
+                      )}
                     </div>
                   )}
 

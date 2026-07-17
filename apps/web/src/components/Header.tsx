@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { NotificationIcon } from "@/components/StateIcons";
-import { Crown, Sparkles, ChevronRight, User, Settings2, Clock, Settings, LogOut } from "lucide-react";
+import { Crown, Sparkles, ChevronRight, User, Settings2, Clock, Settings, LogOut, Search, Bell } from "lucide-react";
 import { trpc } from "../lib/trpc";
+import { InvitationModal } from "./InvitationModal";
 
 const LOCAL_FALLBACK_CATALOG = [
   // Comics
@@ -119,6 +120,31 @@ export default function Header() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState<boolean>(false);
 
+  // Collaboration Invitation states & queries
+  const [activeInvitation, setActiveInvitation] = useState<any>(null);
+  const { data: dbInvitations, refetch: refetchInvitations } = trpc.collaboration.getReceivedInvitations.useQuery(undefined, {
+    enabled: isSignedIn,
+  });
+
+  const respondMutation = trpc.collaboration.respondToInvitation.useMutation({
+    onSuccess: () => {
+      refetchInvitations();
+      alert("Successfully responded to the collaboration invitation.");
+      setActiveInvitation(null);
+    },
+    onError: (err) => {
+      alert(`Error responding to invitation: ${err.message}`);
+    }
+  });
+
+  const handleInvitationResponse = (response: "ACCEPT" | "DECLINE") => {
+    if (!activeInvitation) return;
+    respondMutation.mutate({
+      invitationId: activeInvitation.id,
+      response,
+    });
+  };
+
   // Auth Form fields
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -196,6 +222,7 @@ export default function Header() {
       }
       const count = localStorage.getItem("panelva_notifications_unread") || "0";
       setUnreadCount(Number(count));
+      refetchInvitations();
     };
 
     const handleUpdate = () => {
@@ -208,6 +235,7 @@ export default function Header() {
         localStorage.setItem("panelva_notifications_unread", next.toString());
         return next;
       });
+      refetchInvitations();
     };
 
     loadNotifications();
@@ -217,7 +245,7 @@ export default function Header() {
       window.removeEventListener("panelva_notification_update", handleUpdate);
       window.removeEventListener("storage", loadNotifications);
     };
-  }, []);
+  }, [refetchInvitations]);
 
   const getRoleForUser = (user: string) => {
     if (!user || user === "Guest") return "USER";
@@ -292,34 +320,65 @@ export default function Header() {
 
   return (
     <>
-      <nav className="nav-container">
-        {/* Left logo and main links */}
-        <div style={{ display: "flex", alignItems: "center", gap: "2.5rem" }}>
-          <Link href="/" className="nav-logo">
-            panelva
-          </Link>
-          <div className="nav-links-wrapper">
-            <Link href="/" className={`nav-link-item ${pathname === "/" ? "active" : ""}`}>
-              Home
+      <header className="fixed top-0 z-50 w-full border-b border-white/5 bg-[#0b0c10]/80 backdrop-blur-md [.light-theme_&]:bg-white/80 [.light-theme_&]:border-zinc-200">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+          {/* Left: Logo & Nav */}
+          <div className="flex items-center gap-8">
+            <Link href="/" className="text-xl font-extrabold tracking-tight text-white italic transition [.light-theme_&]:text-zinc-900">
+              panelva
             </Link>
-            <Link href="/comics" className={`nav-link-item ${pathname === "/comics" ? "active" : ""}`}>
-              Comics
-            </Link>
-            <Link href="/novels" className={`nav-link-item ${pathname === "/novels" ? "active" : ""}`}>
-              Novels
-            </Link>
-            <Link href="/community" className={`nav-link-item ${pathname === "/community" ? "active" : ""}`}>
-              Community
-            </Link>
-
-            {/* More Section Dropdown */}
-            <div className="dropdown-container" ref={dropdownRef}>
-              <button
-                onClick={() => setIsMoreOpen(!isMoreOpen)}
-                className={`dropdown-trigger ${isMoreOpen ? "open" : ""}`}
+            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-400">
+              <Link
+                href="/"
+                className={`transition-colors duration-200 ${
+                  pathname === "/"
+                    ? "text-white [.light-theme_&]:text-zinc-900 font-semibold"
+                    : "text-zinc-400 hover:text-white [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
+                }`}
               >
-                More <span style={{ transition: "transform var(--transition-fast)", display: "inline-block", transform: isMoreOpen ? "rotate(180deg)" : "rotate(0deg)", fontSize: "0.7rem" }}>▼</span>
-              </button>
+                Home
+              </Link>
+              <Link
+                href="/comics"
+                className={`transition-colors duration-200 ${
+                  pathname === "/comics"
+                    ? "text-white [.light-theme_&]:text-zinc-900 font-semibold"
+                    : "text-zinc-400 hover:text-white [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
+                }`}
+              >
+                Comics
+              </Link>
+              <Link
+                href="/novels"
+                className={`transition-colors duration-200 ${
+                  pathname === "/novels"
+                    ? "text-white [.light-theme_&]:text-zinc-900 font-semibold"
+                    : "text-zinc-400 hover:text-white [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
+                }`}
+              >
+                Novels
+              </Link>
+              <Link
+                href="/community"
+                className={`transition-colors duration-200 ${
+                  pathname === "/community"
+                    ? "text-white [.light-theme_&]:text-zinc-900 font-semibold"
+                    : "text-zinc-400 hover:text-white [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
+                }`}
+              >
+                Community
+              </Link>
+
+              {/* More Section Dropdown */}
+              <div className="relative dropdown-container" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsMoreOpen(!isMoreOpen)}
+                  className={`transition-colors duration-200 flex items-center gap-1 hover:text-white [.light-theme_&]:hover:text-zinc-900 ${
+                    isMoreOpen ? "text-white [.light-theme_&]:text-zinc-900" : "text-zinc-400 [.light-theme_&]:text-zinc-500"
+                  }`}
+                >
+                  More <span style={{ transition: "transform var(--transition-fast)", display: "inline-block", transform: isMoreOpen ? "rotate(180deg)" : "rotate(0deg)", fontSize: "0.7rem" }}>▼</span>
+                </button>
 
               {isMoreOpen && (
                 <div className="glass-panel dropdown-menu-list">
@@ -415,39 +474,28 @@ export default function Header() {
                 </div>
               )}
             </div>
-          </div>
+          </nav>
         </div>
-
-        {/* Right Search bar and profile controls */}
-        <div className="header-right-controls" style={{ display: "flex", alignItems: "center" }}>
-          {/* Search bar */}
-          <div style={{ position: "relative" }}>
+        <div className="flex items-center gap-6">
+          <div className="relative hidden sm:block">
             <form onSubmit={(e) => { e.preventDefault(); setIsSearchFocused(false); }}>
+              <span className="absolute inset-y-0 left-3 flex items-center text-zinc-500 [.light-theme_&]:text-zinc-400">
+                <Search size={16} />
+              </span>
               <input
                 type="text"
-                placeholder="Search"
+                placeholder="Search comics, novels..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="header-search-input"
-                onFocus={(e) => {
-                  setIsSearchFocused(true);
-                }}
-                onBlur={(e) => {
-                  setIsSearchFocused(false);
-                }}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                className="w-64 rounded-full bg-zinc-900/80 py-1.5 pl-10 pr-4 text-xs text-white placeholder-zinc-500 border border-zinc-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all [.light-theme_&]:bg-zinc-100/80 [.light-theme_&]:text-zinc-900 [.light-theme_&]:placeholder-zinc-400 [.light-theme_&]:border-zinc-300"
               />
-              <span style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-dark-muted)", display: "flex", alignItems: "center" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              </span>
             </form>
-
-            {/* Real-time search suggestions dropdown */}
             {isSearchFocused && searchQuery.trim() !== "" && (
-              <div 
-                className="glass-panel search-suggestions-overlay"
-              >
+              <div className="absolute left-0 mt-2 w-64 rounded-xl border border-white/5 bg-[#0b0c10]/95 backdrop-blur-md p-1 shadow-xl z-50 max-h-80 overflow-y-auto [.light-theme_&]:bg-white/95 [.light-theme_&]:border-zinc-200">
                 {filteredSuggestions.length === 0 ? (
-                  <div style={{ padding: "8px 12px", fontSize: "0.78rem", color: "var(--text-muted-color)" }}>
+                  <div className="px-3 py-2 text-xs text-zinc-500 text-center">
                     No results found
                   </div>
                 ) : (
@@ -459,26 +507,12 @@ export default function Header() {
                         setSearchQuery("");
                         setIsSearchFocused(false);
                       }}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "2px",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "var(--border-color)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
+                      className="flex flex-col gap-1 px-3 py-2 rounded-lg cursor-pointer transition-colors duration-200 hover:bg-white/5 [.light-theme_&]:hover:bg-zinc-100"
                     >
-                      <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-color)" }}>
+                      <div className="text-xs font-semibold text-white [.light-theme_&]:text-zinc-900">
                         {item.title}
                       </div>
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "0.68rem", color: "var(--text-muted-color)" }}>
+                      <div className="flex gap-2 items-center text-[10px] text-zinc-500">
                         <span style={{ 
                           backgroundColor: item.type === "COMIC" ? "rgba(37, 99, 235, 0.15)" : "rgba(168, 85, 247, 0.15)",
                           color: item.type === "COMIC" ? "#3b82f6" : "#a855f7",
@@ -499,325 +533,214 @@ export default function Header() {
               </div>
             )}
           </div>
-
-          {/* Action icons */}
-          <Link href="/trending" title="History / Recents" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--text-dark-muted)", transition: "color var(--transition-fast)" }} onMouseEnter={(e) => e.currentTarget.style.color = "#fff"} onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-dark-muted)"}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          </Link>
-          
-          {/* Notifications envelope with dropdown */}
-          <div className="dropdown-container" ref={notifRef}>
-            <button 
-              onClick={handleOpenNotifications}
-              title="Notifications / Inbox" 
-              style={{ 
-                position: "relative",
-                display: "flex", 
-                alignItems: "center", 
-                background: "none",
-                border: "none",
-                color: isNotificationsOpen ? "#fff" : "var(--text-dark-muted)", 
-                cursor: "pointer",
-                padding: 0,
-                transition: "color var(--transition-fast)" 
-              }}
+          <div className="flex items-center gap-4 text-zinc-400">
+            <Link 
+              href="/trending" 
+              title="History / Recents" 
+              className="hover:text-white transition-colors duration-200 text-zinc-400 [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
             >
-              <NotificationIcon size={18} color="currentColor" activeState={unreadCount > 0} />
-              
-              {/* Badge Counter */}
-              {unreadCount > 0 && (
-                <span style={{
-                  position: "absolute",
-                  top: "-3px",
-                  right: "-3px",
-                  background: "#e74c3c",
-                  color: "#fff",
-                  fontSize: "0.55rem",
-                  fontWeight: 800,
-                  borderRadius: "50%",
-                  minWidth: "11px",
-                  height: "11px",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  padding: "1px"
-                }}>
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {isNotificationsOpen && (
-              <div className="glass-panel dropdown-menu-list" style={{ minWidth: "260px" }}>
-                <div style={{ padding: "8px 12px 6px 12px", borderBottom: "1px solid var(--dark-border)", fontSize: "0.8rem", fontWeight: 700, color: "#fff" }}>
-                  Subscriber Updates
-                </div>
-                <div style={{ maxHeight: "200px", overflowY: "auto", padding: "6px" }}>
-                  {notifications.length === 0 ? (
-                    <div style={{ padding: "12px 8px", fontSize: "0.8rem", color: "var(--text-dark-muted)", textAlign: "center" }}>
-                      No new updates from creators.
-                    </div>
-                  ) : (
-                    notifications.map((notif) => (
-                      <div key={notif.id} style={{ padding: "10px 8px", borderBottom: "1px solid rgba(255,255,255,0.03)", fontSize: "0.8rem", display: "flex", flexDirection: "column", gap: "2px" }}>
-                        <span style={{ color: "var(--text-dark)", lineHeight: 1.3 }}>{notif.text}</span>
-                        <span style={{ fontSize: "0.7rem", color: "var(--text-dark-muted)" }}>{notif.timestamp}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Profile Dropdown Container */}
-          <div className="dropdown-container" ref={profileDropdownRef}>
-            <button
-              onClick={() => {
-                if (isSignedIn) {
-                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
-                } else {
-                  router.push("/auth");
-                }
-              }}
-              title={isSignedIn ? `Logged In as ${username}` : "Guest (Click to Sign In)"}
-              style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                backgroundColor: "var(--border-color)",
-                border: "1px solid var(--border-color)",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                fontSize: "0.85rem",
-                fontWeight: "bold",
-                color: "var(--text-color)",
-                cursor: "pointer",
-                outline: "none",
-                transition: "all var(--transition-fast)"
-              }}
-            >
-              {isSignedIn ? (
-                username ? username.charAt(0).toUpperCase() : "U"
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              )}
-            </button>
-
-            {isSignedIn && isProfileDropdownOpen && (
-              <div 
-                className="glass-panel" 
-                style={{ 
-                  position: "absolute",
-                  top: "calc(100% + 12px)",
-                  right: 0,
-                  width: "240px",
-                  padding: "0.8rem",
-                  borderRadius: "14px",
-                  backgroundColor: "var(--dropdown-bg)",
-                  border: "1px solid var(--border-color)",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.75rem",
-                  zIndex: 1050,
-                  animation: "fadeInDown var(--transition-fast)"
-                }}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </Link>
+            <div className="relative dropdown-container" ref={notifRef}>
+              <button 
+                onClick={handleOpenNotifications}
+                title="Notifications / Inbox" 
+                className="relative flex items-center hover:text-white transition-colors duration-200 text-zinc-400 [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
               >
-                {/* Header User profile info */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  {/* Avatar */}
-                  <div style={{ 
-                    width: "32px", 
-                    height: "32px", 
-                    borderRadius: "50%", 
-                    backgroundColor: "var(--primary)", 
-                    display: "flex", 
-                    justifyContent: "center", 
-                    alignItems: "center", 
-                    fontSize: "0.85rem", 
-                    fontWeight: 700, 
-                    color: "#fff" 
-                  }}>
-                    {username ? username.charAt(0).toUpperCase() : "U"}
+                <Bell size={20} />
+                {(unreadCount > 0 || (dbInvitations && dbInvitations.length > 0)) && (
+                  <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                )}
+              </button>
+              {isNotificationsOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-white/5 bg-[#0b0c10]/95 backdrop-blur-md p-1 shadow-xl z-50 [.light-theme_&]:bg-white/95 [.light-theme_&]:border-zinc-200">
+                  <div className="px-3 py-2 border-b border-white/5 text-xs font-bold text-white [.light-theme_&]:text-zinc-900 [.light-theme_&]:border-zinc-200">
+                    Subscriber Updates
                   </div>
-                  {/* Username & Joined Date */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-color)" }}>{username}</span>
-                      {/* Plus/Premium Crown Badge */}
-                      <Crown size={11} color="var(--primary)" style={{ fill: "var(--primary)" }} />
-                    </div>
-                    <span style={{ fontSize: "0.68rem", color: "var(--text-muted-color)" }}>
-                      {userJoinedDate}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Premium Banner Card */}
-                <div style={{ 
-                  border: "1px solid var(--primary)", 
-                  background: "linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(0,0,0,0))",
-                  padding: "0.75rem", 
-                  borderRadius: "10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.65rem", color: "var(--primary)", fontWeight: 700, letterSpacing: "0.05em" }}>
-                    <Sparkles size={8} /> PREMIUM
-                  </div>
-                  <div style={{ fontSize: "1rem", fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", gap: "3px" }}>
-                    Panelva <span style={{ color: "var(--primary)" }}>+</span>
-                  </div>
-                  <div 
-                    onClick={() => {
-                      setIsProfileDropdownOpen(false);
-                      router.push("/premium");
-                    }} 
-                    style={{ fontSize: "0.75rem", color: "var(--primary)", fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: "2px", marginTop: "2px", cursor: "pointer" }}
-                  >
-                    Get Started <ChevronRight size={10} />
-                  </div>
-                </div>
-
-                {/* Navigation list */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {/* Profile Item */}
-                  <div 
-                    onClick={() => {
-                      setIsProfileDropdownOpen(false);
-                      router.push("/profile");
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", cursor: "pointer", transition: "opacity 0.2s" }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
-                      <div style={{ width: "26px", height: "26px", borderRadius: "50%", backgroundColor: "var(--input-bg)", border: "1px solid var(--border-color)", display: "flex", justifyContent: "center", alignItems: "center", color: "var(--primary)" }}>
-                        <User size={13} />
+                  <div className="max-h-64 overflow-y-auto p-1">
+                    {dbInvitations && dbInvitations.length > 0 && (
+                      <div className="mb-2 border-b border-white/5 pb-1">
+                        <div className="px-3 py-1 text-[9px] font-bold text-blue-400 uppercase tracking-wider bg-blue-500/5 rounded">
+                          Collaboration Invites
+                        </div>
+                        {dbInvitations.map((invitation) => (
+                          <div 
+                            key={invitation.id} 
+                            onClick={() => {
+                              setActiveInvitation(invitation);
+                              setIsNotificationsOpen(false);
+                            }}
+                            className="px-3 py-2 mt-1 rounded-lg hover:bg-white/5 cursor-pointer flex flex-col gap-1 text-xs transition"
+                          >
+                            <span className="text-white font-semibold flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                              Collab: {invitation.series.title}
+                            </span>
+                            <span className="text-zinc-400">
+                              Invite as <strong>{invitation.role}</strong>
+                            </span>
+                            <span className="text-[10px] text-zinc-500">
+                              From @{invitation.series.creator.penName}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                      <span style={{ color: "var(--text-color)", fontWeight: 600, fontSize: "0.8rem" }}>Profile</span>
-                    </div>
-                    <ChevronRight size={12} color="var(--text-muted-color)" />
+                    )}
+                    {notifications.length === 0 && (!dbInvitations || dbInvitations.length === 0) ? (
+                      <div className="px-3 py-4 text-xs text-zinc-500 text-center">
+                        No new updates from creators.
+                      </div>
+                    ) : (
+                      notifications.map((notif) => (
+                        <div key={notif.id} className="px-3 py-2 border-b border-white/5 last:border-none flex flex-col gap-1 text-xs [.light-theme_&]:border-zinc-200">
+                          <span className="text-zinc-300 font-medium leading-relaxed [.light-theme_&]:text-zinc-700">{notif.text}</span>
+                          <span className="text-[10px] text-zinc-500">{notif.timestamp}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
- 
-                  {/* Dashboard / Command Center Item (Conditionally Rendered) */}
-                  {getRoleInfo().isDashboard && (
+                </div>
+              )}
+            </div>
+            <div className="relative dropdown-container" ref={profileDropdownRef}>
+              <button
+                onClick={() => {
+                  if (isSignedIn) {
+                    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                  } else {
+                    router.push("/auth");
+                  }
+                }}
+                title={isSignedIn ? `Logged In as ${username}` : "Guest (Click to Sign In)"}
+                className="flex items-center justify-center h-8 w-8 rounded-full border border-white/10 hover:border-white/20 transition-all text-zinc-400 hover:text-white [.light-theme_&]:border-zinc-300 [.light-theme_&]:text-zinc-600 [.light-theme_&]:hover:text-zinc-900 bg-zinc-900/80 [.light-theme_&]:bg-zinc-100"
+              >
+                {isSignedIn ? (
+                  <span className="text-xs font-bold text-white [.light-theme_&]:text-zinc-900">
+                    {username ? username.charAt(0).toUpperCase() : "U"}
+                  </span>
+                ) : (
+                  <User size={20} />
+                )}
+              </button>
+              {isSignedIn && isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-60 rounded-xl border border-white/5 bg-[#0b0c10]/95 backdrop-blur-md p-3 shadow-xl z-50 flex flex-col gap-3 [.light-theme_&]:bg-white/95 [.light-theme_&]:border-zinc-200">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold text-white text-xs">
+                      {username ? username.charAt(0).toUpperCase() : "U"}
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-white [.light-theme_&]:text-zinc-900">{username}</span>
+                        <Crown size={11} className="text-blue-500 fill-blue-500" />
+                      </div>
+                      <span className="text-[10px] text-zinc-500">
+                        {userJoinedDate}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-2.5 flex flex-col gap-1">
+                    <div className="flex items-center gap-1 text-[8px] font-bold tracking-wider text-blue-500 uppercase">
+                      <Sparkles size={8} /> PREMIUM
+                    </div>
+                    <div className="text-sm font-extrabold text-white [.light-theme_&]:text-zinc-900">
+                      Panelva <span className="text-blue-500">+</span>
+                    </div>
                     <div 
                       onClick={() => {
                         setIsProfileDropdownOpen(false);
-                        router.push(getRoleInfo().link);
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
-                      onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", cursor: "pointer", transition: "opacity 0.2s" }}
+                        router.push("/premium");
+                      }} 
+                      className="text-xs font-semibold text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-0.5 mt-1 cursor-pointer"
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
-                        <div style={{ width: "26px", height: "26px", borderRadius: "50%", backgroundColor: "var(--input-bg)", border: "1px solid var(--border-color)", display: "flex", justifyContent: "center", alignItems: "center", color: "var(--primary)" }}>
-                          {getRoleInfo().text === "Command Center" ? <Crown size={13} /> : <Settings2 size={13} />}
+                      Get Started <ChevronRight size={10} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div 
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        router.push("/profile");
+                      }}
+                      className="flex items-center justify-between rounded-lg px-2 py-1.5 cursor-pointer hover:bg-white/5 transition-colors [.light-theme_&]:hover:bg-zinc-100"
+                    >
+                      <div className="flex items-center gap-2">
+                        <User size={14} className="text-blue-500" />
+                        <span className="text-xs font-semibold text-zinc-300 [.light-theme_&]:text-zinc-700">Profile</span>
+                      </div>
+                      <ChevronRight size={12} className="text-zinc-500" />
+                    </div>
+                    {getRoleInfo().isDashboard && (
+                      <div 
+                        onClick={() => {
+                          setIsProfileDropdownOpen(false);
+                          router.push(getRoleInfo().link);
+                        }}
+                        className="flex items-center justify-between rounded-lg px-2 py-1.5 cursor-pointer hover:bg-white/5 transition-colors [.light-theme_&]:hover:bg-zinc-100"
+                      >
+                        <div className="flex items-center gap-2">
+                          {getRoleInfo().text === "Command Center" ? <Crown size={14} className="text-blue-500" /> : <Settings2 size={14} className="text-blue-500" />}
+                          <span className="text-xs font-semibold text-zinc-300 [.light-theme_&]:text-zinc-700">{getRoleInfo().text}</span>
                         </div>
-                        <span style={{ color: "var(--text-color)", fontWeight: 600, fontSize: "0.8rem" }}>{getRoleInfo().text}</span>
+                        <ChevronRight size={12} className="text-zinc-500" />
                       </div>
-                      <ChevronRight size={12} color="var(--text-muted-color)" />
+                    )}
+                    <div 
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        router.push("/trending");
+                      }}
+                      className="flex items-center justify-between rounded-lg px-2 py-1.5 cursor-pointer hover:bg-white/5 transition-colors [.light-theme_&]:hover:bg-zinc-100"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-blue-500" />
+                        <span className="text-xs font-semibold text-zinc-300 [.light-theme_&]:text-zinc-700">History</span>
+                      </div>
+                      <ChevronRight size={12} className="text-zinc-500" />
                     </div>
-                  )}
- 
-                  {/* History Item */}
-                  <div 
+                    <div 
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        router.push("/settings");
+                      }}
+                      className="flex items-center justify-between rounded-lg px-2 py-1.5 cursor-pointer hover:bg-white/5 transition-colors [.light-theme_&]:hover:bg-zinc-100"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Settings size={14} className="text-blue-500" />
+                        <span className="text-xs font-semibold text-zinc-300 [.light-theme_&]:text-zinc-700">Settings</span>
+                      </div>
+                      <ChevronRight size={12} className="text-zinc-500" />
+                    </div>
+                  </div>
+                  <div className="h-px bg-white/5 my-1 [.light-theme_&]:bg-zinc-200"></div>
+                  <button 
                     onClick={() => {
                       setIsProfileDropdownOpen(false);
-                      router.push("/trending");
+                      handleSignOut();
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", cursor: "pointer", transition: "opacity 0.2s" }}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-red-500/30 hover:bg-red-500/10 text-red-500 px-3 py-1.5 text-xs font-semibold transition-colors duration-200"
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
-                      <div style={{ width: "26px", height: "26px", borderRadius: "50%", backgroundColor: "var(--input-bg)", border: "1px solid var(--border-color)", display: "flex", justifyContent: "center", alignItems: "center", color: "var(--primary)" }}>
-                        <Clock size={13} />
-                      </div>
-                      <span style={{ color: "var(--text-color)", fontWeight: 600, fontSize: "0.8rem" }}>History</span>
-                    </div>
-                    <ChevronRight size={12} color="var(--text-muted-color)" />
-                  </div>
- 
-                  {/* Settings Item */}
-                  <div 
-                    onClick={() => {
-                      setIsProfileDropdownOpen(false);
-                      router.push("/settings");
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", cursor: "pointer", transition: "opacity 0.2s" }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
-                      <div style={{ width: "26px", height: "26px", borderRadius: "50%", backgroundColor: "var(--input-bg)", border: "1px solid var(--border-color)", display: "flex", justifyContent: "center", alignItems: "center", color: "var(--primary)" }}>
-                        <Settings size={13} />
-                      </div>
-                      <span style={{ color: "var(--text-color)", fontWeight: 600, fontSize: "0.8rem" }}>Settings</span>
-                    </div>
-                    <ChevronRight size={12} color="var(--text-muted-color)" />
-                  </div>
+                    <LogOut size={14} /> Sign out
+                  </button>
                 </div>
- 
-                <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "1px 0" }}></div>
- 
-                {/* Sign Out Button */}
-                <button 
-                  onClick={() => {
-                    setIsProfileDropdownOpen(false);
-                    handleSignOut();
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--border-color)"}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "var(--input-bg)"}
-                  style={{
-                    background: "var(--input-bg)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "8px",
-                    color: "var(--text-color)",
-                    padding: "6px 10px",
-                    fontWeight: 600,
-                    fontSize: "0.8rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "4px",
-                    width: "100%",
-                    transition: "background-color 0.2s"
-                  }}
-                >
-                  <LogOut size={14} /> Sign out
-                </button>
-              </div>
-            )}
+              )}
+            </div>
+            <button
+              onClick={() => router.push("/publish")}
+              className="rounded-full bg-blue-600 px-5 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition-all shadow-md shadow-blue-600/20"
+            >
+              Publish
+            </button>
           </div>
-
-          {/* Publish Button */}
-          <button
-            onClick={() => router.push("/publish")}
-            style={{
-              background: "var(--primary, #2563eb)",
-              border: "none",
-              color: "#fff",
-              padding: "6px 14px",
-              borderRadius: "20px",
-              fontSize: "0.8rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all var(--transition-fast)"
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.15)"}
-            onMouseLeave={(e) => e.currentTarget.style.filter = "none"}
-          >
-            Publish
-          </button>
         </div>
-      </nav>
-
+        </div>
+      </header>
+      {activeInvitation && (
+        <InvitationModal
+          invitation={activeInvitation}
+          onClose={() => setActiveInvitation(null)}
+          onResponse={handleInvitationResponse}
+        />
+      )}
     </>
   );
 }

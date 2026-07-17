@@ -1,9 +1,39 @@
 import { z } from "zod";
-import { router, publicProcedure } from "../trpc";
+import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { SeriesType, Status } from "@panelva/db";
 import { TRPCError } from "@trpc/server";
 
 export const seriesRouter = router({
+  // Fetch series owned by current creator
+  getCreatorSeries: protectedProcedure.query(async ({ ctx }) => {
+    const profile = await ctx.prisma.creatorProfile.findFirst({
+      where: { userId: ctx.session.userId }
+    });
+    if (!profile) return [];
+    return await ctx.prisma.series.findMany({
+      where: { creatorId: profile.id },
+      include: {
+        collaborators: {
+          include: {
+            user: {
+              include: {
+                creatorProfiles: true,
+              }
+            }
+          }
+        },
+        invitations: {
+          include: {
+            receiver: {
+              include: {
+                creatorProfiles: true,
+              }
+            }
+          }
+        }
+      }
+    });
+  }),
   // 1. Fetch top trending series
   getTrending: publicProcedure
     .input(

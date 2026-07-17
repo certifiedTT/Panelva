@@ -7,13 +7,24 @@ const isRequestAuthorized = (req: Request): boolean => {
   const referer = req.headers.get("referer");
   const host = req.headers.get("host");
 
-  const authorizedDomains = ["localhost:3000", "127.0.0.1:3000"];
+  const isAuthorizedHost = (h: string | null): boolean => {
+    if (!h) return false;
+    if (h === "localhost:3000" || h === "127.0.0.1:3000") return true;
+    if (h.endsWith(".vercel.app")) return true;
+    if (process.env.NEXT_PUBLIC_SITE_URL) {
+      try {
+        const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL);
+        if (h === siteUrl.host) return true;
+      } catch {}
+    }
+    return false;
+  };
 
   // 1. Check Origin header (CORS requests)
   if (origin) {
     try {
       const url = new URL(origin);
-      if (!authorizedDomains.includes(url.host)) {
+      if (!isAuthorizedHost(url.host)) {
         return false;
       }
     } catch {
@@ -25,7 +36,7 @@ const isRequestAuthorized = (req: Request): boolean => {
   if (referer) {
     try {
       const url = new URL(referer);
-      if (!authorizedDomains.includes(url.host)) {
+      if (!isAuthorizedHost(url.host)) {
         return false;
       }
     } catch {
@@ -35,7 +46,7 @@ const isRequestAuthorized = (req: Request): boolean => {
 
   // 3. Check Host header
   if (host) {
-    if (!authorizedDomains.includes(host)) {
+    if (!isAuthorizedHost(host)) {
       return false;
     }
   }

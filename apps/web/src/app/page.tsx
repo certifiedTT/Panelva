@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { GlowingShadow } from "../components/GlowingShadow";
 import { trpc } from "../lib/trpc";
+import HeroAndShowcase from "../components/HeroAndShowcase";
 
 export default function HomePage() {
   const [activeComicIndex, setActiveComicIndex] = useState(0);
@@ -200,6 +201,8 @@ export default function HomePage() {
       isSeasonReturn: mockMatch ? (mockMatch as any).isSeasonReturn : false,
       isEarlyAccess: mockMatch ? (mockMatch as any).isEarlyAccess : false,
       isOriginal: mockMatch ? (mockMatch as any).isOriginal : false,
+      description: item.description || (mockMatch as any)?.desc || "",
+      bannerUrl: item.bannerUrl || null,
     };
   };
 
@@ -218,6 +221,14 @@ export default function HomePage() {
 
   const displayOriginalsRaw = dbTrending && dbTrending.length > 0 ? dbTrending.map(mapDbItem) : originals;
   const displayOriginalsFiltered = displayOriginalsRaw.filter(item => item.isOriginal === true);
+
+  const featuredOriginal = displayOriginalsFiltered && displayOriginalsFiltered.length > 0
+    ? displayOriginalsFiltered[0]
+    : null;
+
+  const displayTrending = dbTrending && dbTrending.length > 0
+    ? dbTrending.map(mapDbItem)
+    : [...displayComics.slice(0, 4), ...displayNovels.slice(0, 4)];
 
   const handleNextComics = () => {
     setActiveComicIndex((prev) => (prev + 1) % displayComics.length);
@@ -395,43 +406,15 @@ export default function HomePage() {
   };
 
   return (
-    <div className="home-page">
-      
-      {/* 1. Immersive Hero Banner matching prototype screenshot */}
-      <div className="hero-banner">
-        {/* Badge capsule */}
-        <div className="hero-badge">
-          <span style={{ color: "#f1c40f" }}>✦</span> Featured Original
-        </div>
-
-        {/* Hero Title */}
-        <h1 className="hero-title">
-          Dive into New Dimensions
-        </h1>
-
-        {/* Hero Subtitle */}
-        <p className="hero-subtitle">
-          Experience the ultimate universe of stories. From heart-pounding action to epic web novels, find your next obsession.
-        </p>
-
-        {/* Hero CTA buttons */}
-        <div className="hero-cta-container">
-          <Link href="/comics">
-            <button className="cta-primary">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              Start Reading
-            </button>
-          </Link>
-          <Link href="/premium">
-            <button className="cta-secondary">
-              View Details
-            </button>
-          </Link>
-        </div>
-      </div>
-
-      {/* 2. Main Content Grid Sections */}
-      <div className="home-sections-container">
+    <>
+      <HeroAndShowcase 
+        featuredSeries={featuredOriginal} 
+        trendingSeries={displayTrending} 
+      />
+      <div className="home-page">
+        
+        {/* 2. Main Content Grid Sections */}
+        <div className="home-sections-container">
         
         {/* Featured carousel Section */}
         <div className="featured-section">
@@ -703,5 +686,6 @@ export default function HomePage() {
       </div>
 
     </div>
+    </>
   );
 }
