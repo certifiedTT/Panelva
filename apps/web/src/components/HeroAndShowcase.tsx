@@ -1,5 +1,6 @@
 import Link from "next/link";
 import React from "react";
+import { SeriesCard } from "./SeriesCard";
 
 export interface SeriesItem {
   id: string;
@@ -112,35 +113,14 @@ export default function HeroAndShowcase({
             const cardLinkHref = `/read/${item.id}?title=${encodeURIComponent(item.title)}&genre=${item.genre}&chapters=${item.chapters || 24}&likes=${item.likes}`;
             
             return (
-              <Link key={item.id} href={cardLinkHref} className="group cursor-pointer block">
-                {/* Aspect ratio container */}
-                <div 
-                  className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-900 transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-blue-500/10 border border-white/5"
-                  style={{
-                    background: item.coverBg,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center"
-                  }}
-                >
-                  {/* Fallback color/gradient representing comic covers */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80" />
-                  {item.isNew && (
-                    <div className="absolute bottom-2 left-2 z-10">
-                      <span className="rounded bg-yellow-400 px-1.5 py-0.5 text-[8px] font-bold text-black uppercase">
-                        NEW
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {/* Structured meta info below the cover keeps layout incredibly clean */}
-                <div className="mt-2">
-                  <h3 className="truncate text-xs font-semibold text-zinc-200 group-hover:text-white transition">
-                    {item.title}
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 truncate">
-                    {item.genre} • Ch. {item.chapters}
-                  </p>
-                </div>
+              <Link key={item.id} href={cardLinkHref} className="block w-full">
+                <SeriesCard
+                  title={item.title}
+                  category={item.genre}
+                  chapter={`Ch. ${item.chapters}`}
+                  coverBg={item.coverBg || undefined}
+                  isNew={item.isNew}
+                />
               </Link>
             );
           })}
