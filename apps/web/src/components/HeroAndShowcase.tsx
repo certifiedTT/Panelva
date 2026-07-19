@@ -60,7 +60,7 @@ export default function HeroAndShowcase({
         />
 
         {/* Hero Content Area */}
-        <div className="relative z-20 mx-auto flex h-full max-w-7xl flex-col justify-center px-6">
+        <div className="relative z-20 mx-auto max-w-7xl px-6 md:px-8 w-full flex h-full flex-col justify-center">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20 w-fit mb-4">
             ✨ Featured Original
           </div>
@@ -96,7 +96,7 @@ export default function HeroAndShowcase({
       </section>
 
       {/* Modern Horizontal Card Showcase Section */}
-      <section className="mx-auto max-w-7xl px-6 py-12">
+      <section className="mx-auto max-w-7xl px-6 md:px-8 w-full py-12">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
             🔥 Trending Series 

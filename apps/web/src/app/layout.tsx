@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ThemeSync from "../components/ThemeSync";
 import { TRPCProvider } from "../components/TRPCProvider";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Panelva - Read & Upload Comics and Novels",
@@ -25,6 +26,7 @@ export default function RootLayout({
           <main style={{ flex: 1 }}>{children}</main>
           <Footer />
         </TRPCProvider>
+        <Analytics />
       </body>
     </html>
   );

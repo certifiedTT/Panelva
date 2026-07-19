@@ -534,13 +534,6 @@ export default function Header() {
             )}
           </div>
           <div className="flex items-center gap-4 text-zinc-400">
-            <Link 
-              href="/trending" 
-              title="History / Recents" 
-              className="hover:text-white transition-colors duration-200 text-zinc-400 [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            </Link>
             <div className="relative dropdown-container" ref={notifRef}>
               <button 
                 onClick={handleOpenNotifications}
@@ -612,14 +605,14 @@ export default function Header() {
                   }
                 }}
                 title={isSignedIn ? `Logged In as ${username}` : "Guest (Click to Sign In)"}
-                className="flex items-center justify-center h-8 w-8 rounded-full border border-white/10 hover:border-white/20 transition-all text-zinc-400 hover:text-white [.light-theme_&]:border-zinc-300 [.light-theme_&]:text-zinc-600 [.light-theme_&]:hover:text-zinc-900 bg-zinc-900/80 [.light-theme_&]:bg-zinc-100"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-850 border border-zinc-700 hover:border-zinc-500 transition"
               >
                 {isSignedIn ? (
-                  <span className="text-xs font-bold text-white [.light-theme_&]:text-zinc-900">
-                    {username ? username.charAt(0).toUpperCase() : "U"}
+                  <span className="text-xs font-medium text-zinc-300">
+                    {username ? username.charAt(0).toUpperCase() : "J"}
                   </span>
                 ) : (
-                  <User size={20} />
+                  <span className="text-xs font-medium text-zinc-300">J</span>
                 )}
               </button>
               {isSignedIn && isProfileDropdownOpen && (
