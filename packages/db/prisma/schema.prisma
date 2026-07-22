@@ -8,38 +8,129 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Enums replaced with strings for SQLite support
+enum UserRole {
+  USER
+  CREATOR
+  ADMIN
+  MASTER_ADMIN
+}
+
+enum SubscriptionTier {
+  NONE
+  PLUS
+  PREMIUM
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DENIED
+  INFO_REQUESTED
+}
+
+enum CreatorType {
+  WRITER
+  ILLUSTRATOR
+  STUDIO
+  ARTIST
+  NOVELIST
+}
+
+enum SeriesStatus {
+  ONGOING
+  HIATUS
+  COMPLETED
+}
+
+enum SeriesType {
+  COMIC
+  NOVEL
+}
+
+enum ChapterTier {
+  FREE
+  EARLY_ACCESS
+  PREMIUM
+}
+
+enum CollaborationRole {
+  Writer
+  Illustrator
+  Colorist
+  Editor
+  Studio
+  PrimaryCreator
+  Contributor
+}
+
+enum CollaborationPermission {
+  READ_WORKSPACE
+  WRITE_WORKSPACE
+  ADMIN
+}
+
+enum TransactionType {
+  RECHARGE
+  PAYOUT
+  GIFT
+  GIFT_SENT
+  GIFT_RECEIVED
+  PREMIUM_ACCESS
+  REDEEM_CODE
+}
+
+enum LedgerType {
+  RECHARGE
+  GIFT_SENT
+  GIFT_RECEIVED
+  UNLOCK
+  PAYOUT
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum CollabAuditAction {
+  INVITATION_SENT
+  INVITATION_ACCEPTED
+  INVITATION_DECLINED
+  INVITATION_CANCELLED
+}
 
 model User {
   id                        String           @id @default(uuid())
   email                     String           @unique
   username                  String           @unique
   avatarUrl                 String?
-  role                      String           @default("USER")
-  subscription              String           @default("NONE")
+  role                      UserRole         @default(USER)
+  subscription              SubscriptionTier @default(NONE)
   subscriptionExpiresAt     DateTime?
-  isPromotionalSubscription Boolean          @default(false) // True if on promotional access
+  isPromotionalSubscription Boolean          @default(false)
   hasAnimatedPfp            Boolean          @default(false)
   wCoinBalance              Int              @default(0)
-  payoutBalance             Int              @default(0) // Stored in cents
+  payoutBalance             Int              @default(0)
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
 
-  // Profile Separation (PII protection: isolated from public profiles)
-  realName        String?
-  payoutEmail     String?
-  taxId           String?
+  realName    String?
+  payoutEmail String?
+  taxId       String?
 
-  // Relations
   creatorProfiles     CreatorProfile[]
   creatorApplications CreatorApplication[]
   readingHistory      ReadingHistory[]
   bookmarks           Bookmark[]
   transactions        Transaction[]
   redemptions         Redemption[]
-  reportsSubmitted    SafetyReport[]   @relation("Reporter")
+  reportsSubmitted    SafetyReport[]            @relation("Reporter")
   collaborations      Collaboration[]
-  follows             Follow[]         @relation("Follower")
+  follows             Follow[]                  @relation("Follower")
   likes               Like[]
   comments            Comment[]
   sentInvitations     CollaborationInvitation[] @relation("InvitationSender")
@@ -49,85 +140,81 @@ model User {
   @@index([email])
 }
 
-// ApplicationStatus replaced with String
-
 model CreatorApplication {
-  id             String            @id @default(uuid())
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type           String
-  penName        String
-  bio            String?
-  portfolioUrl   String
-  status         String            @default("PENDING")
-  reviewedById   String?
-  reviewerNotes  String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id            String            @id @default(uuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          CreatorType
+  penName       String
+  bio           String?
+  portfolioUrl  String
+  status        ApplicationStatus @default(PENDING)
+  reviewedById  String?
+  reviewerNotes String?
+  detailsJson   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([userId])
 }
 
 model CreatorProfile {
-  id             String          @id @default(uuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type           String
-  penName        String
-  bio            String?
-  portfolioUrl   String
-  isVetted       Boolean         @default(false)
-  monetized      Boolean         @default(false)
-  followerCount  Int             @default(0)
-  viewCount      Int             @default(0)
-  createdAt      DateTime        @default(now())
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          CreatorType
+  penName       String
+  bio           String?
+  portfolioUrl  String
+  isVetted      Boolean     @default(false)
+  monetized     Boolean     @default(false)
+  followerCount Int         @default(0)
+  viewCount     Int         @default(0)
+  createdAt     DateTime    @default(now())
 
-  // Relations
-  series         Series[]
-  studioStaff    StudioStaff[]   @relation("StaffCreator")
-  studio         StudioStaff[]   @relation("StudioCreator")
+  series      Series[]
+  studioStaff StudioStaff[] @relation("StaffCreator")
+  studio      StudioStaff[] @relation("StudioCreator")
 
   @@index([userId])
 }
 
 model StudioStaff {
-  id             String          @id @default(uuid())
+  id             String         @id @default(uuid())
   studioId       String
-  studio         CreatorProfile  @relation("StudioCreator", fields: [studioId], references: [id], onDelete: Cascade)
+  studio         CreatorProfile @relation("StudioCreator", fields: [studioId], references: [id], onDelete: Cascade)
   staffId        String
-  staff          CreatorProfile  @relation("StaffCreator", fields: [staffId], references: [id], onDelete: Cascade)
-  canViewFinance Boolean         @default(false)
-  createdAt      DateTime        @default(now())
+  staff          CreatorProfile @relation("StaffCreator", fields: [staffId], references: [id], onDelete: Cascade)
+  canViewFinance Boolean        @default(false)
+  createdAt      DateTime       @default(now())
 
   @@unique([studioId, staffId])
 }
 
 model Series {
-  id              String          @id @default(uuid())
-  title           String
-  description     String
-  coverUrl        String
-  bannerUrl       String?
-  genre           String          @default("Fantasy")
-  type            String
-  status          String          @default("ONGOING")
-  creatorId       String
-  creator         CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  views           Int             @default(0)
-  likes           Int             @default(0)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id          String         @id @default(uuid())
+  title       String
+  description String
+  coverUrl    String
+  bannerUrl   String?
+  genre       String         @default("Fantasy")
+  type        SeriesType
+  status      SeriesStatus   @default(ONGOING)
+  creatorId   String
+  creator     CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  views       Int            @default(0)
+  likes       Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
-  // Toggles
-  adSystemEnabled Boolean        @default(true)
-  milestoneLocked Boolean        @default(false)
-  waitForFreeDays Int            @default(7)
+  adSystemEnabled Boolean @default(true)
+  milestoneLocked Boolean @default(false)
+  waitForFreeDays Int     @default(7)
 
-  // Relations
   chapters        Chapter[]
   collaborators   Collaboration[]
   bookmarks       Bookmark[]
-  follows         Follow[]        @relation("FollowedSeries")
+  follows         Follow[]                  @relation("FollowedSeries")
   invitations     CollaborationInvitation[]
   collabAuditLogs CollaborationAuditLog[]
 
@@ -135,39 +222,38 @@ model Series {
 }
 
 model Collaboration {
-  id              String          @id @default(uuid())
+  id              String                  @id @default(uuid())
   seriesId        String
-  series          Series          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  series          Series                  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   shareRatio      Float
-  role            String          @default("Contributor")
-  permissions     String          @default("READ_WORKSPACE")
+  role            CollaborationRole       @default(Contributor)
+  permissions     CollaborationPermission @default(READ_WORKSPACE)
   roleDescription String?
-  isAgreed        Boolean         @default(false)
+  isAgreed        Boolean                 @default(false)
   agreedAt        DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @default(now())
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @default(now())
 
   @@unique([seriesId, userId])
+  @@index([seriesId])
 }
 
 model Chapter {
-  id             String          @id @default(uuid())
+  id             String      @id @default(uuid())
   seriesId       String
-  series         Series          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  series         Series      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   title          String
   chapterIndex   Int
-  tier           String          @default("FREE")
+  tier           ChapterTier @default(FREE)
   waitTierDropAt DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  // Media
-  pages          Page[]
-  textContent    String?
+  pages       Page[]
+  textContent String?
 
-  // Relations
   readingHistory ReadingHistory[]
   reports        SafetyReport[]
   comments       Comment[]
@@ -176,149 +262,148 @@ model Chapter {
 }
 
 model Comment {
-  id             String          @id @default(uuid())
-  chapterId      String
-  chapter        Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content        String
-  priorityScore  Int             @default(0)     // Admin(4), Creator(3), Premium(2), Plus(1), User(0)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id            String   @id @default(uuid())
+  chapterId     String
+  chapter       Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content       String
+  priorityScore Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([chapterId, priorityScore(Desc), createdAt(Desc)])
 }
 
 model Page {
-  id             String          @id @default(uuid())
-  chapterId      String
-  chapter        Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  pageIndex      Int
-  imageUrl       String
-  width          Int?
-  height         Int?
+  id        String  @id @default(uuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  pageIndex Int
+  imageUrl  String
+  width     Int?
+  height    Int?
 
   @@unique([chapterId, pageIndex])
 }
 
 model ReadingHistory {
-  id               String          @id @default(uuid())
+  id               String   @id @default(uuid())
   userId           String
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   chapterId        String
-  chapter          Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  readAt           DateTime        @default(now())
-  timeSpentSeconds Int             @default(0) // Track duration
+  chapter          Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  readAt           DateTime @default(now())
+  timeSpentSeconds Int      @default(0)
+  progressPct      Int      @default(0)
 
   @@unique([userId, chapterId])
   @@index([userId, readAt(Desc)])
 }
 
 model Bookmark {
-  id             String          @id @default(uuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  seriesId       String
-  series         Series          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  createdAt      DateTime        @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seriesId  String
+  series    Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@unique([userId, seriesId])
 }
 
 model Follow {
-  id             String          @id @default(uuid())
-  userId         String
-  user           User            @relation("Follower", fields: [userId], references: [id], onDelete: Cascade)
-  seriesId       String
-  series         Series          @relation("FollowedSeries", fields: [seriesId], references: [id], onDelete: Cascade)
-  createdAt      DateTime        @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("Follower", fields: [userId], references: [id], onDelete: Cascade)
+  seriesId  String
+  series    Series   @relation("FollowedSeries", fields: [seriesId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@unique([userId, seriesId])
 }
 
 model Like {
-  id             String          @id @default(uuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chapterId      String
-  createdAt      DateTime        @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapterId String
+  createdAt DateTime @default(now())
 
   @@unique([userId, chapterId])
 }
 
 model Transaction {
-  id             String          @id @default(uuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amountCoins    Int
-  amountUsd      Int?   // Stored in cents
-  type           String
-  description    String?
-  createdAt      DateTime        @default(now())
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountCoins Int
+  amountUsd   Int?
+  type        TransactionType
+  description String?
+  createdAt   DateTime        @default(now())
 
   @@index([userId])
 }
 
-// TransactionType replaced with String
-
 model PromoCode {
-  id             String           @id @default(uuid())
-  code           String           @unique
-  isUsed         Boolean          @default(false)
-  premiumDays    Int              @default(30)
-  tierGranted    String           @default("PREMIUM") // Can grant PLUS or PREMIUM
-  createdById    String
-  usedById       String?
-  redemptions    Redemption[]
-  createdAt      DateTime         @default(now())
-  expiresAt      DateTime?
+  id          String           @id @default(uuid())
+  code        String           @unique
+  isUsed      Boolean          @default(false)
+  premiumDays Int              @default(30)
+  tierGranted SubscriptionTier @default(PREMIUM)
+  createdById String
+  usedById    String?
+  redemptions Redemption[]
+  createdAt   DateTime         @default(now())
+  expiresAt   DateTime?
 
   @@index([code])
 }
 
 model Redemption {
-  id             String          @id @default(uuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  codeId         String
-  code           PromoCode       @relation(fields: [codeId], references: [id], onDelete: Cascade)
-  redeemedAt     DateTime        @default(now())
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeId     String
+  code       PromoCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  redeemedAt DateTime  @default(now())
 
   @@unique([userId, codeId])
 }
 
 model SafetyReport {
-  id              String          @id @default(uuid())
+  id              String   @id @default(uuid())
   reporterId      String
-  reporter        User            @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporter        User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   chapterId       String?
-  chapter         Chapter?        @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  chapter         Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   commentId       String?
   reason          String
-  resolved        Boolean         @default(false)
+  resolved        Boolean  @default(false)
   resolvedById    String?
   resolutionNotes String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model AuditLog {
-  id             String          @id @default(uuid())
-  staffUserId    String
-  action         String
-  details        String
-  createdAt      DateTime        @default(now())
+  id          String   @id @default(uuid())
+  staffUserId String
+  action      String
+  details     String
+  createdAt   DateTime @default(now())
 }
 
 model CoinLedger {
-  id                String   @id @default(uuid())
-  transactionId     String   @default(uuid())
-  sourceUserId      String?  // null if recharge
-  destinationUserId String?  // null if platform fee/payout
-  amount            Int      // number of coins
-  type              String   // RECHARGE, GIFT, UNLOCK
+  id                String     @id @default(uuid())
+  transactionId     String     @default(uuid())
+  sourceUserId      String?
+  destinationUserId String?
+  amount            Int
+  type              LedgerType
   description       String?
-  createdAt         DateTime @default(now())
+  createdAt         DateTime   @default(now())
 
   @@index([sourceUserId])
   @@index([destinationUserId])
@@ -326,22 +411,22 @@ model CoinLedger {
 }
 
 model CollaborationInvitation {
-  id               String    @id @default(uuid())
-  seriesId         String
-  series           Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  senderId         String
-  sender           User      @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiverId       String
-  receiver         User      @relation("InvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  role             String    // Proposed collaboration role (Writer, Illustrator, Colorist, Editor, Studio, etc.)
-  roleDescription  String?   // Creator roles and responsibilities description
-  shareRatio       Float     // Proposed split ratio for this collaborator
-  message          String?   // Optional message from the primary creator
-  terms            String?   // Any additional collaboration terms and conditions
-  status           String    @default("PENDING") // PENDING, ACCEPTED, DECLINED, EXPIRED, CANCELLED
-  expiresAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String            @id @default(uuid())
+  seriesId        String
+  series          Series            @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User              @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId      String
+  receiver        User              @relation("InvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  role            CollaborationRole
+  roleDescription String?
+  shareRatio      Float
+  message         String?
+  terms           String?
+  status          InvitationStatus  @default(PENDING)
+  expiresAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([seriesId])
   @@index([senderId])
@@ -349,15 +434,14 @@ model CollaborationInvitation {
 }
 
 model CollaborationAuditLog {
-  id              String   @id @default(uuid())
-  seriesId        String
-  series          Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  actorId         String
-  actor           User     @relation("CollabAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
-  action          String   // e.g. INVITATION_SENT, INVITATION_ACCEPTED, INVITATION_DECLINED, INVITATION_CANCELLED
-  details         String   // JSON string of split config or roles
-  createdAt       DateTime @default(now())
+  id        String            @id @default(uuid())
+  seriesId  String
+  series    Series            @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  actorId   String
+  actor     User              @relation("CollabAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  action    CollabAuditAction
+  details   String
+  createdAt DateTime          @default(now())
 
   @@index([seriesId])
 }
-

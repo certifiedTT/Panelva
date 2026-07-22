@@ -8,63 +8,6 @@ import { Crown, Sparkles, ChevronRight, User, Settings2, Clock, Settings, LogOut
 import { trpc } from "../lib/trpc";
 import { InvitationModal } from "./InvitationModal";
 
-const LOCAL_FALLBACK_CATALOG = [
-  // Comics
-  { id: "1", title: "Love Bites", genre: "Romance", type: "COMIC" },
-  { id: "2", title: "Star Catcher", genre: "Romance", type: "COMIC" },
-  { id: "3", title: "A Spell for a Smith", genre: "Fantasy", type: "COMIC" },
-  { id: "4", title: "Surviving the Game as a Barbarian", genre: "Fantasy", type: "COMIC" },
-  { id: "5", title: "Swolemates", genre: "Comedy", type: "COMIC" },
-  { id: "6", title: "Sweet Romance, Spicy Roommates", genre: "Romance", type: "COMIC" },
-  { id: "13", title: "Being Raised by Villains", genre: "Fantasy", type: "COMIC" },
-  { id: "14", title: "Darling, Why Can't We Divorce?", genre: "Romance", type: "COMIC" },
-  // Novels
-  { id: "7", title: "Born to be the Grand Duchess", genre: "Romance", type: "NOVEL" },
-  { id: "8", title: "Life of a Demon Hunter", genre: "Action", type: "NOVEL" },
-  { id: "9", title: "Girlfriend Manual", genre: "Romance", type: "NOVEL" },
-  { id: "10", title: "Aiming for the Alimony", genre: "Romance", type: "NOVEL" },
-  { id: "11", title: "Archmage Curriculum", genre: "Fantasy", type: "NOVEL" },
-  { id: "12", title: "My Child Will Have a Different Father", genre: "Fantasy", type: "NOVEL" },
-  { id: "15", title: "The Holy Power of Modern Medicine", genre: "Fantasy", type: "NOVEL" },
-  { id: "16", title: "Parent-Teacher Conflict", genre: "Romance", type: "NOVEL" },
-  { id: "17", title: "Anna's Tale", genre: "Drama", type: "COMIC" },
-  // Binge Series
-  { id: "18", title: "Moonlight Sculptor", genre: "Fantasy", type: "COMIC" },
-  { id: "19", title: "Tomb Raider King", genre: "Action", type: "COMIC" },
-  { id: "20", title: "Dungeon Reset", genre: "Fantasy", type: "COMIC" },
-  { id: "21", title: "God of Blackfield", genre: "Action", type: "COMIC" },
-  { id: "22", title: "Overgeared", genre: "Fantasy", type: "COMIC" },
-  { id: "23", title: "The Great Mage", genre: "Fantasy", type: "COMIC" },
-  { id: "24", title: "Second Life Ranker", genre: "Fantasy", type: "COMIC" },
-  { id: "25", title: "Returner's Magic", genre: "Fantasy", type: "COMIC" },
-  // Season Returns
-  { id: "26", title: "Solo Leveling: Ragnarok", genre: "Action", type: "COMIC" },
-  { id: "27", title: "Tower of God Season 3", genre: "Fantasy", type: "COMIC" },
-  { id: "28", title: "The Boxer: Back Alley", genre: "Drama", type: "COMIC" },
-  { id: "29", title: "Mercenary Enrollment S2", genre: "Action", type: "COMIC" },
-  { id: "30", title: "Eleceed New Season", genre: "Action", type: "COMIC" },
-  { id: "31", title: "Beginning After the End S6", genre: "Fantasy", type: "COMIC" },
-  { id: "32", title: "Wind Breaker Season 4", genre: "Drama", type: "COMIC" },
-  { id: "33", title: "Doom Breaker Season 2", genre: "Action", type: "COMIC" },
-  // Early Access
-  { id: "34", title: "Blossoming Blade", genre: "Action", type: "COMIC" },
-  { id: "35", title: "Omniscient Reader", genre: "Fantasy", type: "COMIC" },
-  { id: "36", title: "Doom Breaker", genre: "Action", type: "COMIC" },
-  { id: "37", title: "Undercover Professor", genre: "Fantasy", type: "COMIC" },
-  { id: "38", title: "S-Classes That I Raised", genre: "Fantasy", type: "COMIC" },
-  { id: "39", title: "Max-Level Newbie", genre: "Action", type: "COMIC" },
-  { id: "40", title: "Standard Reincarnation", genre: "Fantasy", type: "COMIC" },
-  { id: "41", title: "Reaper of Drifting Moon", genre: "Action", type: "COMIC" },
-  // Originals
-  { id: "42", title: "Panelva Chronicles", genre: "Fantasy", type: "COMIC" },
-  { id: "43", title: "Neon Genesis: Panelva", genre: "Sci-Fi", type: "COMIC" },
-  { id: "44", title: "Constellation Academy", genre: "Fantasy", type: "COMIC" },
-  { id: "45", title: "Legend of Northern Blade", genre: "Action", type: "COMIC" },
-  { id: "46", title: "Second Life Ranker", genre: "Fantasy", type: "COMIC" },
-  { id: "47", title: "The Archmage's Return", genre: "Fantasy", type: "COMIC" },
-  { id: "48", title: "Shadow Sovereign", genre: "Fantasy", type: "COMIC" },
-  { id: "49", title: "Leveling Up My Class", genre: "Fantasy", type: "COMIC" },
-];
 
 interface WebNotification {
   id: string;
@@ -153,42 +96,21 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
 
-  // Query database series list
-  const { data: dbTrending } = trpc.series.getTrending.useQuery({ limit: 100 });
+  const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  // Merge database series and local fallback catalog
-  const combinedSeriesList = useMemo(() => {
-    const map = new Map<string, { id: string; title: string; genre: string; type: string }>();
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-    // Add local fallback catalog items
-    LOCAL_FALLBACK_CATALOG.forEach((item) => {
-      map.set(item.title.toLowerCase(), item);
-    });
+  const { data: searchResults, isLoading: isSearchLoading } = trpc.series.search.useQuery(
+    { query: debouncedQuery, limit: 8 },
+    { enabled: debouncedQuery.length > 0 }
+  );
 
-    // Merge or overwrite with database series entries
-    if (dbTrending) {
-      dbTrending.forEach((item) => {
-        map.set(item.title.toLowerCase(), {
-          id: item.id,
-          title: item.title,
-          genre: item.genre,
-          type: item.type,
-        });
-      });
-    }
-
-    return Array.from(map.values());
-  }, [dbTrending]);
-
-  // Filter recommendations based on search input
-  const filteredSuggestions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return [];
-
-    return combinedSeriesList
-      .filter((item) => item.title.toLowerCase().includes(query))
-      .slice(0, 8); // Limit to 8 items max
-  }, [searchQuery, combinedSeriesList]);
+  const filteredSuggestions = searchResults || [];
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -264,7 +186,7 @@ export default function Header() {
     } catch (e) {}
 
     // 3. Fallback to default name-based heuristics
-    if (user === "notjud3" || user.toLowerCase().includes("master")) return "MASTER_ADMIN";
+    if (user === "notjud3" || user === "iseniyijude" || user === "iseniyijude_gmail" || user.toLowerCase().includes("master")) return "MASTER_ADMIN";
     if (user.toLowerCase().includes("admin") || user === "TO30") return "ADMIN";
     if (user.toLowerCase().includes("creator") || user.toLowerCase().includes("artist") || user.toLowerCase().includes("author") || user.toLowerCase().includes("novelist")) return "CREATOR";
     return "USER";

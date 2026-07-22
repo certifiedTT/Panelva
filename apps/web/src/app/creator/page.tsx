@@ -88,7 +88,7 @@ export default function CreatorPage() {
     sendInviteMutation.mutate({
       seriesId: activeInviteSeriesId,
       receiverId: inviteReceiverId,
-      role: inviteRole,
+      role: inviteRole as any,
       roleDescription: inviteRoleDesc || undefined,
       shareRatio: Number(inviteRatio),
       message: inviteMessage || undefined,
@@ -175,7 +175,7 @@ export default function CreatorPage() {
         const rolesMap = JSON.parse(localStorage.getItem("panelva_user_roles") || "{}");
         if (rolesMap[usernameToCheck]) return rolesMap[usernameToCheck];
       } catch (e) {}
-      if (usernameToCheck === "notjud3" || usernameToCheck.toLowerCase().includes("master")) return "MASTER_ADMIN";
+      if (usernameToCheck === "notjud3" || usernameToCheck === "iseniyijude" || usernameToCheck === "iseniyijude_gmail" || usernameToCheck.toLowerCase().includes("master")) return "MASTER_ADMIN";
       if (usernameToCheck.toLowerCase().includes("admin") || usernameToCheck === "TO30") return "ADMIN";
       if (usernameToCheck.toLowerCase().includes("creator") || usernameToCheck.toLowerCase().includes("artist") || usernameToCheck.toLowerCase().includes("author") || usernameToCheck.toLowerCase().includes("novelist")) return "CREATOR";
       return "USER";

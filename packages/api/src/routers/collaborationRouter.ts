@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, creatorProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { CollaborationRole } from "@panelva/db";
 
 export const collaborationRouter = router({
   // 1. Send Collaboration Invitation
@@ -9,7 +10,7 @@ export const collaborationRouter = router({
       z.object({
         seriesId: z.string().uuid(),
         receiverId: z.string().uuid(),
-        role: z.string().min(1),
+        role: z.nativeEnum(CollaborationRole),
         roleDescription: z.string().optional(),
         shareRatio: z.number().min(0).max(100),
         message: z.string().optional(),
@@ -302,7 +303,7 @@ export const collaborationRouter = router({
             seriesId: invitation.seriesId,
             userId: primaryCreatorUser.id,
             shareRatio: newPrimaryRatio,
-            role: "Primary Creator",
+            role: CollaborationRole.PrimaryCreator,
             isAgreed: true,
             agreedAt: new Date(),
           },

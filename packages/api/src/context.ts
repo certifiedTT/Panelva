@@ -1,9 +1,9 @@
-import { prisma, Role } from "@panelva/db";
+import { prisma, UserRole } from "@panelva/db";
 
 export interface UserSession {
   userId: string;
   email: string;
-  role: Role;
+  role: UserRole;
 }
 
 export interface createContextOptions {

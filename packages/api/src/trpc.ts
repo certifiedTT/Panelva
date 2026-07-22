@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { TRPCContext } from "./context";
-import { Role } from "@panelva/db";
+import { UserRole } from "@panelva/db";
 
 const t = initTRPC.context<TRPCContext>().create();
 
@@ -20,7 +20,7 @@ export const protectedProcedure = t.procedure.use(({ ctx, next, rawInput }) => {
   if (rawInput && typeof rawInput === "object" && "userId" in rawInput) {
     const inputUserId = (rawInput as any).userId;
     const isSelf = inputUserId === ctx.session.userId;
-    const isAdmin = ctx.session.role === Role.ADMIN || ctx.session.role === Role.MASTER_ADMIN;
+    const isAdmin = ctx.session.role === UserRole.ADMIN || ctx.session.role === UserRole.MASTER_ADMIN;
 
     if (!isSelf && !isAdmin) {
       throw new TRPCError({
@@ -40,7 +40,7 @@ export const protectedProcedure = t.procedure.use(({ ctx, next, rawInput }) => {
 // Admin-Only Procedure (Vetting queue access, payouts)
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   const role = ctx.session.role;
-  if (role !== Role.ADMIN && role !== Role.MASTER_ADMIN) {
+  if (role !== UserRole.ADMIN && role !== UserRole.MASTER_ADMIN) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient administrative roles" });
   }
   return next();
@@ -48,7 +48,7 @@ export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 // Creator-Only Procedure (Studio uploads)
 export const creatorProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.session.role !== Role.CREATOR && ctx.session.role !== Role.MASTER_ADMIN) {
+  if (ctx.session.role !== UserRole.CREATOR && ctx.session.role !== UserRole.MASTER_ADMIN) {
     throw new TRPCError({ code: "FORBIDDEN", message: "User is not a verified creator" });
   }
   return next();

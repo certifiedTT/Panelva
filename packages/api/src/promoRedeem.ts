@@ -1,4 +1,4 @@
-import { PrismaClient } from "@panelva/db";
+import { PrismaClient, TransactionType } from "@panelva/db";
 
 /**
  * Atomically redeems a promo code to prevent double-redemption (race conditions)
@@ -69,7 +69,7 @@ export async function redeemPromoCode(
       data: {
         userId: userId,
         amountCoins: 0,
-        type: "REDEEM_CODE",
+        type: TransactionType.REDEEM_CODE,
         description: `Redeemed promo code for ${promo.premiumDays} days of ${promo.tierGranted} access`,
       },
     });

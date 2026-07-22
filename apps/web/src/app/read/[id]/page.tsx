@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "../../../lib/trpc";
 import { ContentAccessModal } from "../../../components/ContentAccessModal";
+import CommentsSection from "../../../components/CommentsSection";
+import RecommendationsSection from "../../../components/RecommendationsSection";
 import { 
   ArrowLeft, Star, Heart, Bookmark, Eye, Download, ArrowUpDown, 
   Search, MessageSquare, Info, Mail, Send, ThumbsUp, ThumbsDown, 
@@ -12,74 +15,7 @@ import {
   BookOpen, User, Maximize2, Minimize2, List, ChevronRight
 } from "lucide-react";
 
-// Mock Database of Series metadata matching the 12 mockup titles
-const SERIES_DATA: Record<string, any> = {
-  "1": { title: "Love Bites", alt: "러브 바이트", description: "Step into a world of visual romance and sweet bloodthirsty bites, where secrets of vampires and humans intertwine in an unexpected sweet roommate setup.", likes: "3.9M", rating: "8.8", chapters: 42, subscribers: "75.4K", views: "3.9M", status: "Ongoing", type: "MANHWA", author: "Lee Jehwan", artist: "Park Bumjin", tags: ["Romance", "Vampire", "Drama", "School Life"], coverBg: "linear-gradient(135deg, #4c0519, #9f1239)" },
-  "2": { title: "Star Catcher", alt: "별을 잡는 자", description: "Catching stars and chasing hearts in the dark night sky. A heartwarming story about young astronomy students searching for their path through cosmic connections.", likes: "3M", rating: "8.5", chapters: 36, subscribers: "54.1K", views: "3.0M", status: "Ongoing", type: "MANHWA", author: "DrawPro", artist: "AstroArt", tags: ["Romance", "Slice of Life", "Drama"], coverBg: "linear-gradient(135deg, #1e1b4b, #311042)" },
-  "3": { title: "A Spell for a Smith", alt: "대장장이의 마법", description: "A blacksmith receives a magical spell that changes his forging forever, charting a path through elemental constellation arrays.", likes: "3.4M", rating: "8.7", chapters: 48, subscribers: "62.2K", views: "3.4M", status: "Ongoing", type: "MANHWA", author: "MagusSmith", artist: "IronArt", tags: ["Fantasy", "Action", "Adventure"], coverBg: "linear-gradient(135deg, #022c22, #064e3b)" },
-  "4": { title: "Surviving the Game as a Barbarian", alt: "야만전사로 게임에서 살아남기", description: "Trapped inside a hardcore game as a weak barbarian. In this brutal world of dungeon crawlers, survival is the only option and splits are immutable.", likes: "4.4M", rating: "8.9", chapters: 78, subscribers: "88.0K", views: "4.4M", status: "Ongoing", type: "MANHWA", author: "BarbarianKing", artist: "GigaStudio", tags: ["Fantasy", "Action", "Dungeon", "System"], coverBg: "linear-gradient(135deg, #450a0a, #781c1c)" },
-  "5": { title: "Swolemates", icon: "💪", alt: "스월메이트", description: "Working out and finding love in the local community center. A hilarious workout comedy about fitness, splits, and protein shakes.", likes: "7.6M", rating: "9.2", chapters: 88, subscribers: "120K", views: "7.6M", status: "Ongoing", type: "MANHWA", author: "GymTons", artist: "LifterArt", tags: ["Comedy", "Romance", "Slice of Life"], coverBg: "linear-gradient(135deg, #1f2937, #111827)" },
-  "6": { title: "Sweet Romance, Spicy Roommates", alt: "달콤한 로맨스, 매콤한 룸메이트", description: "Two roommates with spicy secrets find sweet romance after agreeing on splits and sharing bills under a cozy roof.", likes: "92,054", rating: "8.2", chapters: 24, subscribers: "25.5K", views: "920K", status: "Ongoing", type: "MANHWA", author: "SpiceWriter", artist: "RoommateArt", tags: ["Romance", "Comedy", "Drama"], coverBg: "linear-gradient(135deg, #831843, #db2777)" },
-  "7": { title: "Born to be the Grand Duchess", alt: "태생부터 대공녀", description: "Reborn into royalty, she must claim her throne as the grand duchess, navigating waiting lists and premium splits.", likes: "549,934", rating: "8.4", chapters: 52, subscribers: "44.8K", views: "5.4M", status: "Ongoing", type: "MANHWA", author: "DuchessPen", artist: "RoyalArt", tags: ["Romance", "Fantasy", "Drama"], coverBg: "linear-gradient(135deg, #0c4a6e, #0369a1)" },
-  "8": { title: "Life of a Demon Hunter", alt: "악마 사냥꾼의 삶", description: "A demon hunter struggles to balance his normal life and the underworld. Action-packed battles, system leveling, and hidden splits.", likes: "25,011", rating: "8.1", chapters: 30, subscribers: "12.0K", views: "250K", status: "Ongoing", type: "MANHWA", author: "HunterJong", artist: "SlashArt", tags: ["Action", "Fantasy", "System"], coverBg: "linear-gradient(135deg, #062f4f, #000000)" },
-  "9": { title: "Girlfriend Manual", alt: "여친 설명서", description: "A guide to understanding love, heartbreaks, and relationships. Exploring waiting-for-free schedules and premium chapters.", likes: "2.2M", rating: "8.6", chapters: 64, subscribers: "51.2K", views: "2.2M", status: "Completed", type: "MANHWA", author: "ManualMaker", artist: "LoveArt", tags: ["Romance", "Drama", "Comedy"], coverBg: "linear-gradient(135deg, #581c87, #3b0764)" },
-  "10": { title: "Aiming for the Alimony", alt: "위자료를 노려라", description: "A high-stakes divorce turns into an unexpected romance. Navigating splits, payouts, and legal challenges.", likes: "919,423", rating: "8.5", chapters: 45, subscribers: "31.9K", views: "919K", status: "Ongoing", type: "MANHWA", author: "LawyerLover", artist: "CourtArt", tags: ["Romance", "Drama", "Slice of Life"], coverBg: "linear-gradient(135deg, #111827, #1f2937)" },
-  "11": { title: "Archmage Curriculum", alt: "대마법사 커리큘럼", description: "Teaching magic to the next generation of visual spellcasters inside a school of elemental arrays.", likes: "61,697", rating: "8.3", chapters: 34, subscribers: "15.4K", views: "610K", status: "Ongoing", type: "MANHWA", author: "MageTeacher", artist: "SpellArt", tags: ["Fantasy", "Action", "School Life"], coverBg: "linear-gradient(135deg, #065f46, #047857)" },
-  "12": { title: "My Child Will Have a Different Father", alt: "내 아이는 다른 아버지를 가질 것이다", description: "A mother changes her child's destiny by rewriting the past, avoiding tragic locks and premium wait schedules.", likes: "2.1M", rating: "8.7", chapters: 58, subscribers: "64.0K", views: "2.1M", status: "Ongoing", type: "MANHWA", author: "FatedPath", artist: "MomArt", tags: ["Fantasy", "Drama", "Romance"], coverBg: "linear-gradient(135deg, #451a03, #78350f)" },
-  "13": { title: "Being Raised by Villains", alt: "악당들에게 길러지는 중입니다", description: "Reborn as a character destined for a tragic end, she gets adopted by the most notorious villain family. Can she survive and live a peaceful life?", likes: "1.2M", rating: "8.9", chapters: 30, subscribers: "42.1K", views: "1.2M", status: "Ongoing", type: "MANHWA", author: "VillainWriter", artist: "VillainArtist", tags: ["Fantasy", "Comedy", "Drama"], coverBg: "linear-gradient(135deg, #fef08a, #fbcfe8, #f472b6)", isNewSeries: true },
-  "14": { title: "Darling, Why Can't We Divorce?", alt: "여보, 왜 이혼은 안 되나요?", description: "She entered the body of a villainess who was married to a cold duke. She tries to divorce him to save her life, but he suddenly refuses!", likes: "890K", rating: "8.6", chapters: 24, subscribers: "28.5K", views: "890K", status: "Ongoing", type: "MANHWA", author: "DivorceLover", artist: "DivorceArt", tags: ["Romance", "Drama", "Fantasy"], coverBg: "linear-gradient(135deg, #1e293b, #334155, #64748b)" },
-  "15": { title: "The Holy Power of Modern Medicine", alt: "현대 의학의 신성한 힘", description: "A genius surgeon is reincarnated into a fantasy world where healing magic is rare. Using modern medical knowledge, he starts performing miracles.", likes: "2.1M", rating: "8.8", chapters: 35, subscribers: "68.2K", views: "2.1M", status: "Ongoing", type: "MANHWA", author: "DocMage", artist: "DocArt", tags: ["Fantasy", "Action", "Medical"], coverBg: "linear-gradient(135deg, #e2e8f0, #cbd5e1, #fbbf24)" },
-  "16": { title: "Parent-Teacher Conflict", alt: "학부모 교사 갈등", description: "A single father and a dedicated teacher get off on the wrong foot, but their mutual concern for the child begins to bring them closer.", likes: "450K", rating: "8.4", chapters: 20, subscribers: "15.0K", views: "450K", status: "Ongoing", type: "MANHWA", author: "ConflictWriter", artist: "ConflictArt", tags: ["Romance", "Drama", "Slice of Life"], coverBg: "linear-gradient(135deg, #4c0519, #881337, #f43f5e)" },
-  "17": { title: "Anna's Tale", alt: "안나의 이야기", description: "Anna's journey to find her missing family leads her through political intrigue, dark secrets, and a forbidden romance in the high society.", likes: "310K", rating: "8.5", chapters: 22, subscribers: "11.2K", views: "310K", status: "Ongoing", type: "MANHWA", author: "AnnaWriter", artist: "AnnaArt", tags: ["Drama", "Romance", "Mystery"], coverBg: "linear-gradient(135deg, #ffedd5, #fdedd5, #fbcfe8)" }
-};
-
-// Fallback series details matching mockup exactly
-const DEFAULT_SERIES = {
-  title: "When My Enemies Weep",
-  alt: "적들이 눈물 흘릴 때",
-  description: "Given a chance to redo her sad, short life, neglected noble daughter Panora Celsius swears to live only for revenge against all who wronged her... until she meets the cold duke who holds the key to her family's downfall.",
-  likes: "3.6K",
-  rating: "8.6",
-  chapters: 26,
-  subscribers: "3.6K",
-  views: "77.8K",
-  status: "Ongoing",
-  type: "MANHWA",
-  author: "MAMAKOTO",
-  artist: "CelsiusArt",
-  tags: ["Action", "Adventure", "Fantasy", "Revenge"],
-  coverBg: "linear-gradient(135deg, #0f172a, #1e293b)"
-};
-
-// Chapter titles lookup to populate high-fidelity episode list
-const EPISODE_TITLES = [
-  "Erasure",
-  "Confirmation",
-  "The First Scheme",
-  "When Light Falls",
-  "Midnight Rendezvous",
-  "Blood Moon Rising",
-  "Shadow Play",
-  "Fated Paths",
-  "Constellation Array",
-  "Tides of Change",
-  "Unspoken Promise",
-  "The Last Forging",
-  "Crimson Bond",
-  "Secret Agenda",
-  "Broken Lock",
-  "Silent Whispers",
-  "After the Storm",
-  "A New Light",
-  "The Duke's Offer",
-  "Betrayal at Dawn",
-  "Celestial Sign",
-  "Deeper Underground",
-  "Truth Exposed",
-  "Revenge Declared",
-  "Final Standoff",
-  "A New Tomorrow"
-];
+import { SERIES_DATA, DEFAULT_SERIES, EPISODE_TITLES } from "@/lib/mockData";
 
 const COMMUNITY_RULES = [
   {
@@ -146,20 +82,80 @@ export default function ReaderPage() {
     { enabled: !!activeChapterData?.id }
   );
 
+  const utils = trpc.useContext();
   const postCommentMutation = trpc.chapter.postComment.useMutation({
+    onMutate: async (newComment) => {
+      await utils.chapter.getComments.cancel({ chapterId: activeChapterData?.id || "" });
+      const previousComments = utils.chapter.getComments.getData({ chapterId: activeChapterData?.id || "" });
+      
+      if (previousComments) {
+        utils.chapter.getComments.setData({ chapterId: activeChapterData?.id || "" }, [
+          {
+            id: `temp-${Date.now()}`,
+            content: newComment.content,
+            priorityScore: 0,
+            userId: currentUser,
+            chapterId: activeChapterData?.id || "",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            user: { id: currentUser, username: currentUser, role: "USER", subscription: "NONE", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as any
+          },
+          ...previousComments,
+        ]);
+      }
+      return { previousComments };
+    },
+    onError: (err, newComment, context) => {
+      if (context?.previousComments) {
+        utils.chapter.getComments.setData({ chapterId: activeChapterData?.id || "" }, context.previousComments);
+      }
+    },
+    onSettled: () => {
+      utils.chapter.getComments.invalidate({ chapterId: activeChapterData?.id || "" });
+    },
     onSuccess: () => {
-      refetchComments();
       setNewCommentText("");
     },
   });
 
   const incrementViewMutation = trpc.chapter.incrementView.useMutation();
+  const updateReadingProgressMutation = trpc.chapter.updateReadingProgress.useMutation();
 
   useEffect(() => {
     if (activeChapterData?.id) {
       incrementViewMutation.mutate({ chapterId: activeChapterData.id });
     }
   }, [activeChapterData?.id]);
+
+  useEffect(() => {
+    if (!activeChapterData?.id || typeof window === "undefined") return;
+
+    let timeoutId: NodeJS.Timeout;
+
+    const handleScroll = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+        const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+        const clientHeight = document.documentElement.clientHeight || window.innerHeight;
+        
+        let progress = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        progress = Math.min(100, Math.max(0, Math.round(progress)));
+        
+        updateReadingProgressMutation.mutate({ 
+          chapterId: activeChapterData.id, 
+          scrollProgress: progress 
+        });
+      }, 5000); // debounce to 5 seconds
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [activeChapterData?.id]);
+  
   const [chapterSearch, setChapterSearch] = useState("");
 
   // Ad unlock & subscription states
@@ -175,10 +171,10 @@ export default function ReaderPage() {
   }, []);
 
   const hasSubscription = userSubscription === "PREMIUM" || userSubscription === "PLUS";
-  const isAdLocked = (dbChapter?.tier === "AD_SUPPORTED" || activeChapterData?.tier === "AD_SUPPORTED" || currentChapter === 3) 
+  const isAdLocked = (String(dbChapter?.tier) === "AD_SUPPORTED" || String(activeChapterData?.tier) === "AD_SUPPORTED" || currentChapter === 3)
                      && !hasSubscription 
                      && !unlockedAdChapters[currentChapter];
-  const isPremiumLocked = (dbChapter?.tier === "PREMIUM" || activeChapterData?.tier === "PREMIUM" || currentChapter === 4)
+  const isPremiumLocked = (String(dbChapter?.tier) === "PREMIUM" || String(activeChapterData?.tier) === "PREMIUM" || currentChapter === 4)
                      && userSubscription !== "PREMIUM";
 
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(true);
@@ -543,7 +539,7 @@ export default function ReaderPage() {
       }))
     : commentsList.map(c => ({
         ...c,
-        role: c.author === "notjud3" ? "MASTER_ADMIN" : c.author === "TO30" ? "ADMIN" : "USER",
+        role: (c.author === "notjud3" || c.author === "iseniyijude" || c.author === "iseniyijude_gmail") ? "MASTER_ADMIN" : c.author === "TO30" ? "ADMIN" : "USER",
         subscription: c.isPremium ? "PREMIUM" : "NONE",
       }));
 
@@ -683,7 +679,7 @@ export default function ReaderPage() {
               ) : dbChapter?.pages && dbChapter.pages.length > 0 ? (
                 dbChapter.pages.map((page: any) => (
                   <div key={page.id} style={{ width: "100%", position: "relative", borderRadius: "12px", overflow: "hidden", border: "1px solid var(--border-color)" }}>
-                    <img src={page.imageUrl} alt={`Page ${page.pageIndex}`} style={{ width: "100%", height: "auto", display: "block" }} />
+                    <Image src={page.imageUrl} alt={`Page ${page.pageIndex}`} width={800} height={1200} style={{ width: "100%", height: "auto", display: "block" }} />
                   </div>
                 ))
               ) : (
@@ -821,493 +817,11 @@ export default function ReaderPage() {
               </button>
             </div>
 
+            {/* ─── RECOMMENDATIONS SYSTEM ─── */}
+            <RecommendationsSection seriesId={series.id} />
+
             {/* ─── FULL COMMENT SYSTEM (MOCKUP 8) ─── */}
-            <div ref={commentsSectionRef} style={{ width: "100%", maxWidth: "800px", display: "flex", flexDirection: "column", gap: "1.5rem", textAlign: "left" }}>
-              
-              {/* Header row */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3 style={{ fontSize: "1.25rem", fontWeight: 800, margin: 0 }}>
-                  Detailed Feed
-                </h3>
-                
-                <div style={{ display: "flex", background: "var(--panel-color)", border: "1px solid var(--border-color)", padding: "3px", borderRadius: "20px", gap: "2px" }}>
-                  {[
-                    { id: "best", label: "Best" },
-                    { id: "newest", label: "Newest" },
-                    { id: "oldest", label: "Oldest" }
-                  ].map(sort => (
-                    <button
-                      key={sort.id}
-                      onClick={() => setCommentSort(sort.id as any)}
-                      style={{
-                        background: commentSort === sort.id ? "rgba(37,99,235,0.12)" : "transparent",
-                        border: "none",
-                        color: commentSort === sort.id ? "#2563eb" : "var(--text-muted-color)",
-                        padding: "6px 14px",
-                        borderRadius: "15px",
-                        fontSize: "0.8rem",
-                        fontWeight: 650,
-                        cursor: "pointer"
-                      }}
-                    >
-                      {sort.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Side-by-Side Flex Layout Container */}
-              <div style={{ display: "flex", flexDirection: "row", gap: "1.5rem", width: "100%", flexWrap: "wrap", alignItems: "flex-start" }}>
-                
-                {/* Left Side: Banners & Comment Form */}
-                <div style={{ flex: "1 1 450px", minWidth: "280px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                  {/* Banners */}
-                  {!isVerified && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      {/* Purple banner */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(124, 58, 237, 0.08)", border: "1px solid rgba(124, 58, 237, 0.2)", padding: "1rem 1.25rem", borderRadius: "12px" }}>
-                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(124, 58, 237, 0.15)", display: "flex", justifyContent: "center", alignItems: "center", color: "#8b5cf6" }}>
-                            <Sparkles size={16} style={{ fill: "#8b5cf6" }} />
-                          </div>
-                          <div>
-                            <strong style={{ display: "block", fontSize: "0.9rem" }}>You must verify your email to use tokens.</strong>
-                            <span style={{ fontSize: "0.8rem", color: "var(--text-muted-color)" }}>Verify your email to claim daily tokens and unlock chapters.</span>
-                          </div>
-                        </div>
-                        <button onClick={handleSimulateVerification} style={{ background: "transparent", border: "1px solid rgba(124, 58, 237, 0.4)", color: "#8b5cf6", padding: "8px 16px", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer" }}>
-                          Verify Email
-                        </button>
-                      </div>
-
-                      {/* Orange banner */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.2)", padding: "1rem 1.25rem", borderRadius: "12px" }}>
-                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                          <Mail size={20} color="#f59e0b" />
-                          <span style={{ fontSize: "0.9rem", fontWeight: 700 }}>Please verify your email to comment</span>
-                        </div>
-                        <button onClick={handleSimulateVerification} style={{ background: "#f59e0b", border: "none", color: "#000", padding: "8px 18px", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer" }}>
-                          Verify now
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Comment Area Box */}
-                  <form onSubmit={handlePostComment} className="glass-panel" style={{ padding: "1.25rem", background: "var(--panel-color)", border: "1px solid var(--border-color)", borderRadius: "12px", display: "flex", flexDirection: "column", gap: "1rem", position: "relative" }}>
-                    
-                    {/* Inline Consent Overlay (Mobile Web) */}
-                    <div className="mobile-only">
-                      <div style={{
-                        background: "rgba(139, 92, 246, 0.08)",
-                        border: "1px solid rgba(139, 92, 246, 0.2)",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        fontSize: "0.78rem",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: "8px"
-                      }}>
-                        <span style={{ color: "var(--text-muted-color)", lineHeight: "1.3" }}>
-                          By commenting, you agree to Panelva's <strong>Community Guidelines</strong>.
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowWebRulesModal(true)}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: "#8b5cf6",
-                            fontWeight: 750,
-                            cursor: "pointer",
-                            padding: 0,
-                            fontSize: "0.78rem",
-                            textDecoration: "underline",
-                            whiteSpace: "nowrap"
-                          }}
-                        >
-                          [Read Full Rules]
-                        </button>
-                      </div>
-                    </div>
-                    <textarea 
-                      placeholder="Write a comment..."
-                      value={newCommentText}
-                      onChange={(e) => setNewCommentText(e.target.value)}
-                      maxLength={2000}
-                      style={{ width: "100%", background: "transparent", border: "none", outline: "none", resize: "none", minHeight: "60px", fontSize: "0.9rem", boxSizing: "border-box" }}
-                    />
-                    
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-color)", paddingTop: "10px" }}>
-                      {/* Toolbar */}
-                      <div style={{ display: "flex", gap: "12px", color: "var(--text-muted-color)" }}>
-                        <span style={{ fontWeight: 800, cursor: "pointer" }} className="hover:text-white">B</span>
-                        <span style={{ fontStyle: "italic", cursor: "pointer" }} className="hover:text-white">I</span>
-                        <span style={{ textDecoration: "line-through", cursor: "pointer" }} className="hover:text-white">S</span>
-                        <span style={{ cursor: "pointer" }} className="hover:text-white" title="Spoiler"><Eye size={16} /></span>
-                        <span style={{ cursor: "pointer" }} className="hover:text-white" title="Attach Image"><BookOpen size={16} /></span>
-                      </div>
-                      
-                      {/* Character counter & Post */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted-color)" }}>
-                          {newCommentText.length}/2000
-                        </span>
-                        <button 
-                          type="submit" 
-                          disabled={!newCommentText.trim()}
-                          style={{ 
-                            background: newCommentText.trim() ? "#8b5cf6" : "rgba(139, 92, 246, 0.2)", 
-                            color: newCommentText.trim() ? "#fff" : "rgba(255,255,255,0.25)", 
-                            border: "none", 
-                            padding: "8px 20px", 
-                            borderRadius: "8px", 
-                            fontWeight: 700, 
-                            cursor: newCommentText.trim() ? "pointer" : "not-allowed" 
-                          }}
-                        >
-                          Post
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-
-                  {/* Warning rules notification */}
-                  {!hasAgreedToRules && showRulesNotice && (
-                    <div className={shakeRulesBanner ? "animate-shake" : ""} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--panel-color)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "12px 1.25rem" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                        <span style={{ fontSize: "0.85rem", color: "var(--text-muted-color)" }}>By commenting, you agree to follow our comment rules.</span>
-                        <button onClick={() => setShowWebRulesModal(true)} style={{ background: "#7c3aed", border: "none", color: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700, cursor: "pointer" }}>
-                          Read Rules
-                        </button>
-                      </div>
-                      <button onClick={() => setShowRulesNotice(false)} style={{ background: "none", border: "none", color: "var(--text-muted-color)", cursor: "pointer", fontSize: "1rem" }} className="hover:text-white">
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right Side: Side-Column Accordion Framework (Desktop Layout) */}
-                <div className="desktop-only" style={{
-                    width: "300px",
-                    background: "var(--panel-color)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "12px",
-                    padding: "1.25rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.75rem",
-                    boxSizing: "border-box"
-                  }}>
-                    <h4 style={{ fontSize: "0.9rem", fontWeight: 800, margin: 0, borderBottom: "1px solid var(--border-color)", paddingBottom: "10px", color: "var(--text-color)" }}>
-                      ⚖️ Community Guidelines
-                    </h4>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {COMMUNITY_RULES.map((rule, idx) => {
-                        const isOpen = activeAccordionIndex === idx;
-                        return (
-                          <div key={idx} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)", paddingBottom: "6px" }}>
-                            <button
-                              type="button"
-                              onClick={() => setActiveAccordionIndex(isOpen ? null : idx)}
-                              style={{
-                                width: "100%",
-                                background: "transparent",
-                                border: "none",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                color: isOpen ? "#a78bfa" : "var(--text-color)",
-                                fontWeight: 700,
-                                fontSize: "0.8rem",
-                                cursor: "pointer",
-                                textAlign: "left",
-                                padding: "4px 0",
-                                outline: "none"
-                              }}
-                            >
-                              <span>{rule.title}</span>
-                              <span style={{ fontSize: "0.65rem", color: "var(--text-muted-color)" }}>
-                                {isOpen ? "▲" : "▼"}
-                              </span>
-                            </button>
-                            
-                            {isOpen && (
-                              <p style={{
-                                margin: "6px 0 2px 0",
-                                fontSize: "0.75rem",
-                                color: "var(--text-muted-color)",
-                                lineHeight: "1.45"
-                              }}>
-                                {rule.description}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-              {/* Rules overlay modal for mobile web */}
-              {showWebRulesModal && (
-                <div style={{
-                  position: "fixed",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: "rgba(0, 0, 0, 0.8)",
-                  backdropFilter: "blur(6px)",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  zIndex: 9999,
-                  padding: "1.25rem"
-                }}>
-                  <div style={{
-                    background: "var(--panel-color)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "16px",
-                    padding: "1.5rem",
-                    maxWidth: "500px",
-                    width: "100%",
-                    maxHeight: "85vh",
-                    overflowY: "auto",
-                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "1.25rem"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-                      <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: "6px" }}>
-                        🛡️ Panelva Community Rules
-                      </h3>
-                      <button
-                        onClick={() => setShowWebRulesModal(false)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "var(--text-muted-color)",
-                          fontSize: "1.25rem",
-                          cursor: "pointer",
-                          padding: "4px"
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      {COMMUNITY_RULES.map((rule, idx) => (
-                        <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          <strong style={{ fontSize: "0.85rem", color: "#a78bfa" }}>
-                            {rule.title}
-                          </strong>
-                          <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--text-muted-color)", lineHeight: "1.4" }}>
-                            {rule.description}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setHasAgreedToRules(true);
-                        setShowRulesNotice(false);
-                        setShowWebRulesModal(false);
-                      }}
-                      style={{
-                        background: "#7c3aed",
-                        color: "#fff",
-                        border: "none",
-                        padding: "12px",
-                        borderRadius: "10px",
-                        fontWeight: 750,
-                        cursor: "pointer",
-                        marginTop: "8px",
-                        fontSize: "0.85rem",
-                        transition: "background 0.2s"
-                      }}
-                    >
-                      I Agree & Understand
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Comments List Feed */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "1rem" }}>
-                {commentsFeed.map((c) => (
-                  <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    
-                    {/* Single Comment */}
-                    <div style={{ display: "flex", gap: "12px" }}>
-                      {/* Avatar */}
-                      <div style={{ 
-                        width: "36px", 
-                        height: "36px", 
-                        borderRadius: "50%", 
-                        background: "#2563eb", 
-                        color: "#fff", 
-                        display: "flex", 
-                        justifyContent: "center", 
-                        alignItems: "center", 
-                        fontWeight: 700, 
-                        fontSize: "0.95rem",
-                        flexShrink: 0
-                      }}>
-                        {c.avatar}
-                      </div>
-                      
-                      {/* Contents */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontWeight: 750, fontSize: "0.9rem" }}>{c.author}</span>
-                          {(() => {
-                            const badgeStyle: React.CSSProperties = {
-                              fontSize: "0.62rem",
-                              padding: "0.22em 0.8em",
-                              borderRadius: "9999px",
-                              fontWeight: 800,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.03em",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              lineHeight: "1",
-                              whiteSpace: "nowrap",
-                              verticalAlign: "middle"
-                            };
-
-                            if (c.role === "MASTER_ADMIN") {
-                              return (
-                                <span style={{ ...badgeStyle, background: "rgba(124, 58, 237, 0.15)", color: "#c084fc", border: "1px solid rgba(124, 58, 237, 0.3)" }}>
-                                  MASTER
-                                </span>
-                              );
-                            }
-                            if (c.role === "ADMIN") {
-                              return (
-                                <span style={{ ...badgeStyle, background: "rgba(239, 68, 68, 0.15)", color: "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
-                                  ADMIN
-                                </span>
-                              );
-                            }
-                            if (c.role === "CREATOR") {
-                              return (
-                                <span style={{ ...badgeStyle, background: "rgba(16, 185, 129, 0.15)", color: "#34d399", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
-                                  CREATOR
-                                </span>
-                              );
-                            }
-                            if (c.subscription === "PREMIUM" || c.isPremium) {
-                              return (
-                                <span style={{ ...badgeStyle, background: "rgba(241, 196, 15, 0.15)", color: "#f1c40f", border: "1px solid rgba(241, 196, 15, 0.3)" }}>
-                                  PREMIUM
-                                </span>
-                              );
-                            }
-                            if (c.subscription === "PLUS") {
-                              return (
-                                <span style={{ ...badgeStyle, background: "rgba(37, 99, 235, 0.15)", color: "#60a5fa", border: "1px solid rgba(37, 99, 235, 0.3)" }}>
-                                  PLUS
-                                </span>
-                              );
-                            }
-                            return null;
-                          })()}
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted-color)" }}>{c.timeAgo}</span>
-                        </div>
-                        
-                        <p style={{ margin: 0, fontSize: "0.9rem", lineHeight: 1.4 }}>{c.text}</p>
-                        
-                        {/* Attached media mockup image */}
-                        {c.id === "c-1" && (
-                          <div style={{ 
-                            width: "160px", 
-                            height: "110px", 
-                            background: "linear-gradient(to bottom, #111827, #020617)", 
-                            borderRadius: "8px", 
-                            border: "1px solid var(--border-color)",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            color: "var(--text-muted-color)",
-                            fontSize: "0.75rem",
-                            margin: "4px 0"
-                          }}>
-                            [ Distressed Anime Meme ]
-                          </div>
-                        )}
-
-                        {/* Action buttons */}
-                        <div style={{ display: "flex", gap: "16px", color: "var(--text-muted-color)", fontSize: "0.75rem", alignItems: "center", marginTop: "4px" }}>
-                          <button onClick={() => handleLikeComment(c.id)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }} className="hover:text-white transition">
-                            <ThumbsUp size={12} /> {c.likes}
-                          </button>
-                          <button onClick={() => handleDislikeComment(c.id)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }} className="hover:text-white transition">
-                            <ThumbsDown size={12} /> {c.dislikes}
-                          </button>
-                          <button onClick={() => alert("Replies configuration coming soon!")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }} className="hover:text-white transition">
-                            Reply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sub-replies toggle link */}
-                    {c.replies && c.replies.length > 0 && (
-                      <button 
-                        onClick={() => toggleRepliesVisibility(c.id)}
-                        style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: "0.8rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", paddingLeft: "48px", marginTop: "2px" }}
-                      >
-                        {c.showReplies ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        {c.showReplies ? "Hide replies" : `Show ${c.replies.length} replies`}
-                      </button>
-                    )}
-
-                    {/* Collapsed Nested sub-comments list */}
-                    {c.showReplies && c.replies && c.replies.map((reply: any) => (
-                      <div key={reply.id} style={{ display: "flex", gap: "12px", paddingLeft: "48px", marginTop: "8px" }}>
-                        <div style={{ 
-                          width: "30px", 
-                          height: "30px", 
-                          borderRadius: "50%", 
-                          background: "#10b981", 
-                          color: "#fff", 
-                          display: "flex", 
-                          justifyContent: "center", 
-                          alignItems: "center", 
-                          fontWeight: 700, 
-                          fontSize: "0.85rem",
-                          flexShrink: 0
-                        }}>
-                          {reply.avatar}
-                        </div>
-                        
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span style={{ fontWeight: 750, fontSize: "0.85rem" }}>{reply.author}</span>
-                            {reply.isPremium && (
-                              <span style={{ fontSize: "0.55rem", background: "rgba(241, 196, 15, 0.15)", color: "#f1c40f", padding: "1px 5px", borderRadius: "4px", fontWeight: 800 }}>
-                                PREMIUM
-                              </span>
-                            )}
-                            <span style={{ fontSize: "0.7rem", color: "var(--text-muted-color)" }}>{reply.timeAgo}</span>
-                          </div>
-                          <p style={{ margin: 0, fontSize: "0.85rem", lineHeight: 1.4 }}>{reply.text}</p>
-                        </div>
-                      </div>
-                    ))}
-
-                  </div>
-                ))}
-              </div>
-
-            </div>
+            <CommentsSection chapterId={activeChapterData?.id || ""} currentUser={currentUser} />
 
           </div>
 

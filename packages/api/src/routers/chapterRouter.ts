@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { Tier, SubscriptionTier, Role } from "@panelva/db";
+import { ChapterTier, SubscriptionTier, UserRole, LedgerType } from "@panelva/db";
+import { createLedgerEntry } from "../ledger";
 
 export const chapterRouter = router({
   // 1. Fetch Chapter contents & countdown timer metrics
@@ -31,9 +32,9 @@ export const chapterRouter = router({
       // Check access permission based on chapter tier
       const hasSubscription = user && (user.subscription === SubscriptionTier.PLUS || user.subscription === SubscriptionTier.PREMIUM);
 
-      if (chapter.tier === Tier.PREMIUM) {
+      if (chapter.tier === ChapterTier.PREMIUM) {
         // Tier 3: Locked for subscribers (Plus and Premium)
-        if (!hasSubscription && user?.role !== Role.ADMIN && user?.role !== Role.MASTER_ADMIN && user?.role !== Role.CREATOR) {
+        if (!hasSubscription && user?.role !== UserRole.ADMIN && user?.role !== UserRole.MASTER_ADMIN && user?.role !== UserRole.CREATOR) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "This chapter requires a Panelva Plus or Premium subscription",
@@ -56,7 +57,7 @@ export const chapterRouter = router({
         pages: chapter.pages,
         seriesId: chapter.seriesId,
         countdownSeconds,
-        nextTier: chapter.tier === Tier.PREMIUM ? Tier.AD_SUPPORTED : chapter.tier === Tier.AD_SUPPORTED ? Tier.FREE : null,
+        nextTier: chapter.tier === ChapterTier.PREMIUM ? ChapterTier.EARLY_ACCESS : chapter.tier === ChapterTier.EARLY_ACCESS ? ChapterTier.FREE : null,
       };
     }),
 
@@ -146,11 +147,11 @@ export const chapterRouter = router({
       // Compute priority score hierarchy
       let priorityScore = 0; // default (normal user)
 
-      if (user.role === Role.ADMIN || user.role === Role.MASTER_ADMIN) {
+      if (user.role === UserRole.ADMIN || user.role === UserRole.MASTER_ADMIN) {
         priorityScore = 4;
       } else if (
         chapter.series.creator.userId === user.id ||
-        chapter.series.collaborators.some(c => c.userId === user.id)
+        chapter.series.collaborators.some((c: any) => c.userId === user.id)
       ) {
         priorityScore = 3;
       } else if (user.subscription === SubscriptionTier.PREMIUM) {
@@ -208,5 +209,91 @@ export const chapterRouter = router({
       });
 
       return comments;
+    }),
+
+  // 5. Unlock Chapter Transaction
+  unlockChapter: protectedProcedure
+    .input(
+      z.object({
+        chapterId: z.string().uuid(),
+        idempotencyKey: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: ctx.session.userId },
+        });
+        if (!user) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+
+        const chapter = await tx.chapter.findUnique({
+          where: { id: input.chapterId },
+          include: { series: { include: { creator: true } } },
+        });
+        if (!chapter) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Chapter not found" });
+        }
+
+        // Deduplicate transaction using idempotencyKey
+        const existingTx = await tx.coinLedger.findFirst({
+          where: { transactionId: input.idempotencyKey },
+        });
+        if (existingTx) {
+          return { success: true, message: "Chapter already unlocked (Idempotency Hit)" };
+        }
+
+        const unlockCost = 50; // default cost
+
+        if (user.wCoinBalance < unlockCost) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Insufficient W-Coins to unlock this chapter",
+          });
+        }
+
+        // 1. Log ledger entry (from user to creator/system)
+        await createLedgerEntry(
+          tx,
+          user.id,
+          chapter.series.creator.userId,
+          unlockCost,
+          LedgerType.UNLOCK,
+          `Unlocked chapter ${chapter.title}`,
+          input.idempotencyKey
+        );
+
+        return { success: true };
+      });
+    }),
+
+  // 6. Reader Workflow: Save Debounced Progress
+  updateReadingProgress: protectedProcedure
+    .input(
+      z.object({
+        chapterId: z.string().uuid(),
+        scrollProgress: z.number().min(0).max(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Upsert the ReadingHistory with the scroll progress
+      return await ctx.prisma.readingHistory.upsert({
+        where: {
+          userId_chapterId: {
+            userId: ctx.session.userId,
+            chapterId: input.chapterId
+          }
+        },
+        update: { 
+          readAt: new Date(),
+          progressPct: input.scrollProgress 
+        },
+        create: {
+          userId: ctx.session.userId,
+          chapterId: input.chapterId,
+          progressPct: input.scrollProgress
+        }
+      });
     }),
 });

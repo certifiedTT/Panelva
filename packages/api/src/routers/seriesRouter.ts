@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
-import { SeriesType, Status } from "@panelva/db";
+import { SeriesType, SeriesStatus } from "@panelva/db";
 import { TRPCError } from "@trpc/server";
 
 export const seriesRouter = router({
@@ -59,6 +59,30 @@ export const seriesRouter = router({
       });
     }),
 
+  // Search across all series (global search)
+  search: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(20).default(5),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      return await ctx.prisma.series.findMany({
+        where: {
+          OR: [
+            { title: { contains: input.query, mode: 'insensitive' } },
+            { description: { contains: input.query, mode: 'insensitive' } },
+          ],
+        },
+        orderBy: { views: "desc" },
+        take: input.limit,
+        include: {
+          creator: true,
+        },
+      });
+    }),
+
   // 2. Fetch filtered explore pages listings
   getMany: publicProcedure
     .input(
@@ -66,7 +90,7 @@ export const seriesRouter = router({
         type: z.enum(["COMIC", "NOVEL"]),
         searchQuery: z.string().optional(),
         genre: z.string().optional(),
-        status: z.nativeEnum(Status).optional(),
+        status: z.nativeEnum(SeriesStatus).optional(),
         sortBy: z.enum(["Popularity", "Likes", "Newest", "Alphabetical"]).default("Popularity"),
         limit: z.number().min(1).max(100).default(24),
       })
@@ -134,5 +158,58 @@ export const seriesRouter = router({
       }
 
       return series;
+    }),
+
+  // 4. Recommendation Engine (Users who read X also read Y)
+  getRecommendations: publicProcedure
+    .input(z.object({ 
+      seriesId: z.string().uuid(),
+      limit: z.number().min(1).max(20).default(6)
+    }))
+    .query(async ({ ctx, input }) => {
+      // Find the base series to get its genre and type
+      const baseSeries = await ctx.prisma.series.findUnique({
+        where: { id: input.seriesId },
+        select: { genre: true, type: true }
+      });
+
+      if (!baseSeries) return [];
+
+      // For Phase 4, we query based on similar genre/type. 
+      // In a scaled version, we would join ReadingHistory to find overlapping user reads.
+      const recommendations = await ctx.prisma.series.findMany({
+        where: {
+          id: { not: input.seriesId }, // exclude current series
+          genre: baseSeries.genre,
+          type: baseSeries.type,
+        },
+        orderBy: { views: "desc" },
+        take: input.limit,
+        include: {
+          creator: true,
+          chapters: {
+            orderBy: { chapterIndex: "asc" },
+          },
+        },
+      });
+
+      // If we don't have enough genre matches, pad with trending series of the same type
+      if (recommendations.length < input.limit) {
+        const extra = await ctx.prisma.series.findMany({
+          where: {
+            id: { notIn: [input.seriesId, ...recommendations.map(r => r.id)] },
+            type: baseSeries.type,
+          },
+          orderBy: { views: "desc" },
+          take: input.limit - recommendations.length,
+          include: {
+            creator: true,
+            chapters: { orderBy: { chapterIndex: "asc" } },
+          },
+        });
+        recommendations.push(...extra);
+      }
+
+      return recommendations;
     }),
 });

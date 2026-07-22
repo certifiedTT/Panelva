@@ -13,7 +13,12 @@ import {
   Dimensions,
   FlatList
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { StatusBar } from 'expo-status-bar';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { httpBatchLink } from "@trpc/client";
+import { trpc } from "./lib/trpc";
+import Constants from "expo-constants";
 
 // Screen Dimensions for responsiveness
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -236,7 +241,62 @@ const INITIAL_COMMENTS = [
   { id: 'c3', author: 'AliceRead', tier: 'Guest', avatar: 'A', text: 'Wait, does this update weekly or monthly? The art style is gorgeous.', likes: 45, dislikes: 0, timeAgo: '1d ago' }
 ];
 
+// Define React Query Client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: false,
+    },
+  },
+});
+
+// Resolve API server endpoint (auto IP address discovery for emulators / Expo Go)
+const localhost = Constants.expoConfig?.hostUri?.split(":")[0];
+const devApiUrl = localhost 
+  ? `http://${localhost}:3001/api/trpc` 
+  : "http://localhost:3001/api/trpc";
+
+const trpcClient = trpc.createClient({
+  links: [
+    httpBatchLink({
+      url: devApiUrl,
+    }),
+  ],
+});
+
 export default function App() {
+  return (
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <MobileApp />
+      </QueryClientProvider>
+    </trpc.Provider>
+  );
+}
+
+function MobileApp() {
+  // Query database trending series
+  const { data: dbTrending } = trpc.series.getTrending.useQuery({ limit: 10 });
+
+  const activeSeriesList = dbTrending && dbTrending.length > 0
+    ? dbTrending.map(s => ({
+        id: s.id,
+        title: s.title,
+        rating: '9.8',
+        genre: s.genre || 'General',
+        type: s.type,
+        coverBg: s.type === 'COMIC' ? '#4c0519' : '#0c4a6e',
+        views: `${(s.views / 1000).toFixed(0)}k`,
+        status: s.status,
+        author: s.creator?.penName || 'Creator',
+        chapters: s.chapters && s.chapters.length > 0 
+          ? `Chapter ${s.chapters.length} • Active`
+          : 'No chapters',
+        isHot: true
+      }))
+    : MOCK_SERIES;
+
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [activeTab, setActiveTab] = useState<'home' | 'comics' | 'novels' | 'notifications' | 'more' | 'reader' | 'creator_studio' | 'admin_panel' | 'drm_manager'>('home');
   
@@ -503,7 +563,7 @@ export default function App() {
   };
 
   // Filter series based on search queries
-  const filteredSearchList = MOCK_SERIES.filter(item => {
+  const filteredSearchList = activeSeriesList.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.genre.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           item.author.toLowerCase().includes(searchQuery.toLowerCase());
@@ -563,7 +623,7 @@ export default function App() {
                   <TouchableOpacity 
                     style={styles.carouselCtaBtn}
                     onPress={() => {
-                      const series = MOCK_SERIES.find(s => s.id === CAROUSEL_ITEMS[activeCarouselIndex].id);
+                      const series = activeSeriesList.find(s => s.id === CAROUSEL_ITEMS[activeCarouselIndex].id);
                       if (series) handleLaunchReader(series);
                     }}
                   >
@@ -588,7 +648,7 @@ export default function App() {
             <View style={styles.sectionContainer}>
               <Text style={[styles.sectionHeading, { color: colors.text }]}>Popular Today</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularScrollTrack}>
-                {MOCK_SERIES.slice(0, 5).map(item => (
+                {activeSeriesList.slice(0, 5).map(item => (
                   <TouchableOpacity 
                     key={item.id} 
                     style={[styles.popularCard, { backgroundColor: colors.panel, borderColor: colors.border }]}
@@ -642,7 +702,7 @@ export default function App() {
 
               {/* Vertical list view */}
               <View style={{ gap: 12, marginTop: 8 }}>
-                {MOCK_SERIES.filter(s => latestReleaseToggle === 'hot' ? s.isHot : !s.isHot).slice(0, 4).map(item => (
+                {activeSeriesList.filter(s => latestReleaseToggle === 'hot' ? s.isHot : !s.isHot).slice(0, 4).map(item => (
                   <TouchableOpacity 
                     key={item.id} 
                     style={[styles.mediaRow, { backgroundColor: colors.panel, borderColor: colors.border }]}
@@ -681,7 +741,7 @@ export default function App() {
             <View style={styles.sectionContainer}>
               <Text style={[styles.sectionHeading, { color: colors.text }]}>Most Popular Leaderboard</Text>
               <View style={[styles.leaderboardStack, { backgroundColor: colors.panel, borderColor: colors.border }]}>
-                {MOCK_SERIES.slice(0, 10).map((item, idx) => {
+                {activeSeriesList.slice(0, 10).map((item, idx) => {
                   const rankStyles = [
                     styles.rankNumberText,
                     idx === 0 ? { color: '#FFD700', fontSize: 24, fontWeight: '900' as const } : null,
@@ -732,7 +792,7 @@ export default function App() {
             </View>
             
             <View style={styles.gridContainer}>
-              {MOCK_SERIES.filter(s => s.type !== 'NOVEL').map(item => (
+              {activeSeriesList.filter(s => s.type !== 'NOVEL').map(item => (
                 <TouchableOpacity 
                   key={item.id} 
                   style={[styles.gridCard, { backgroundColor: colors.panel, borderColor: colors.border }]}
@@ -761,7 +821,7 @@ export default function App() {
             </View>
 
             <View style={{ paddingHorizontal: 16, gap: 12 }}>
-              {MOCK_SERIES.filter(s => s.type === 'NOVEL').map(item => (
+              {activeSeriesList.filter(s => s.type === 'NOVEL').map(item => (
                 <TouchableOpacity 
                   key={item.id} 
                   style={[styles.novelRowItem, { backgroundColor: colors.panel, borderColor: colors.border }]}
@@ -982,167 +1042,175 @@ export default function App() {
             </View>
 
             {/* Scrollable reading area */}
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-              
-              {/* Chapter Selection Bar */}
-              <View style={{ backgroundColor: colors.panel, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-                  {[1, 2, 3, 4].map(chNum => {
-                    let badge = 'Free';
-                    if (chNum === 3) badge = '🎬 Ads';
-                    if (chNum === 4) badge = '👑 Premium';
-                    const isSelected = currentChapter === chNum;
-                    return (
+            <FlashList
+              showsVerticalScrollIndicator={false}
+              estimatedItemSize={600}
+              data={
+                isAdLocked || isPremiumLocked 
+                  ? [] 
+                  : readerFormat === 'comic' 
+                    ? [
+                        { id: '1', bgColor: '#2c2c35', text: '[ Comic Strip Visual Frame 1 ]' },
+                        { id: '2', bgColor: '#1c1c24', text: '[ Comic Strip Visual Frame 2 ]' },
+                        { id: '3', bgColor: '#0d0d12', text: '[ Comic Strip Visual Frame 3 ]' }
+                      ]
+                    : []
+              }
+              renderItem={({ item }: { item: any }) => (
+                <View style={[styles.comicPanelBg, { backgroundColor: item.bgColor }]}>
+                  <Text style={styles.comicPanelLabel}>{item.text}</Text>
+                </View>
+              )}
+              ListHeaderComponent={
+                <>
+                  {/* Chapter Selection Bar */}
+                  <View style={{ backgroundColor: colors.panel, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+                      {[1, 2, 3, 4].map(chNum => {
+                        let badge = 'Free';
+                        if (chNum === 3) badge = '🎬 Ads';
+                        if (chNum === 4) badge = '👑 Premium';
+                        const isSelected = currentChapter === chNum;
+                        return (
+                          <TouchableOpacity
+                            key={chNum}
+                            onPress={() => handleSelectChapter(chNum)}
+                            style={{
+                              paddingHorizontal: 14,
+                              paddingVertical: 6,
+                              borderRadius: 20,
+                              backgroundColor: isSelected ? colors.accent : colors.bg,
+                              borderWidth: 1,
+                              borderColor: isSelected ? colors.accent : colors.border,
+                              alignItems: 'center',
+                              flexDirection: 'row',
+                              gap: 4
+                            }}
+                          >
+                            <Text style={{ color: isSelected ? '#FFFFFF' : colors.text, fontWeight: 'bold', fontSize: 12 }}>
+                              Ch {chNum}
+                            </Text>
+                            <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textMuted, fontSize: 10 }}>
+                              ({badge})
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {isAdLocked || isPremiumLocked ? (
+                    <View style={{ padding: 40, alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+                      <Text style={{ fontSize: 60, marginBottom: 20 }}>{isPremiumLocked ? '👑' : '📺'}</Text>
+                      <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: 10 }}>
+                        {isPremiumLocked ? 'Episode Locked (Premium Exclusive)' : 'Episode Locked (Ad-Supported)'}
+                      </Text>
+                      <Text style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center', marginBottom: 20, lineHeight: 18 }}>
+                        {isPremiumLocked 
+                          ? 'This chapter is exclusive to Panelva Premium subscribers. Upgrade your subscription to read instantly!' 
+                          : 'This chapter belongs to the Ad-Unlockable tier. Watch a short rewarded video or go Premium for instant access!'}
+                      </Text>
                       <TouchableOpacity
-                        key={chNum}
-                        onPress={() => handleSelectChapter(chNum)}
+                        onPress={() => setAccessModalVisible(true)}
                         style={{
-                          paddingHorizontal: 14,
-                          paddingVertical: 6,
-                          borderRadius: 20,
-                          backgroundColor: isSelected ? colors.accent : colors.bg,
-                          borderWidth: 1,
-                          borderColor: isSelected ? colors.accent : colors.border,
-                          alignItems: 'center',
-                          flexDirection: 'row',
-                          gap: 4
+                          backgroundColor: colors.accent,
+                          paddingHorizontal: 24,
+                          paddingVertical: 12,
+                          borderRadius: 8,
                         }}
                       >
-                        <Text style={{ color: isSelected ? '#FFFFFF' : colors.text, fontWeight: 'bold', fontSize: 12 }}>
-                          Ch {chNum}
-                        </Text>
-                        <Text style={{ color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textMuted, fontSize: 10 }}>
-                          ({badge})
-                        </Text>
+                        <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>Unlock Chapter</Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {isAdLocked || isPremiumLocked ? (
-                <View style={{ padding: 40, alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-                  <Text style={{ fontSize: 60, marginBottom: 20 }}>{isPremiumLocked ? '👑' : '📺'}</Text>
-                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: 10 }}>
-                    {isPremiumLocked ? 'Episode Locked (Premium Exclusive)' : 'Episode Locked (Ad-Supported)'}
-                  </Text>
-                  <Text style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center', marginBottom: 20, lineHeight: 18 }}>
-                    {isPremiumLocked 
-                      ? 'This chapter is exclusive to Panelva Premium subscribers. Upgrade your subscription to read instantly!' 
-                      : 'This chapter belongs to the Ad-Unlockable tier. Watch a short rewarded video or go Premium for instant access!'}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setAccessModalVisible(true)}
-                    style={{
-                      backgroundColor: colors.accent,
-                      paddingHorizontal: 24,
-                      paddingVertical: 12,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>Unlock Chapter</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                /* Visual Panel Scroller / Text Prose */
-                readerFormat === 'comic' ? (
-                  <View style={styles.comicReaderContainer}>
-                    <View style={[styles.comicPanelBg, { backgroundColor: '#2c2c35' }]}>
-                      <Text style={styles.comicPanelLabel}>[ Comic Strip Visual Frame 1 ]</Text>
                     </View>
-                    <View style={[styles.comicPanelBg, { backgroundColor: '#1c1c24' }]}>
-                      <Text style={styles.comicPanelLabel}>[ Comic Strip Visual Frame 2 ]</Text>
+                  ) : readerFormat === 'novel' ? (
+                    <View style={styles.novelReaderContainer}>
+                      <Text style={styles.novelTitleText}>Chapter {currentChapter}: {currentChapter === 1 ? 'The Encounter' : currentChapter === 2 ? 'Secrets Unveiled' : currentChapter === 3 ? 'A Shadow Arises' : 'The Final Frontier'}</Text>
+                      <Text style={styles.novelParagraphText}>
+                        The rain beat relentlessly against the windowpane, throwing long, eerie shadows across the wooden floor. 
+                        Elian looked at the scroll clutched in his hand, the ink dissolving into black patterns under his sweat.
+                      </Text>
+                      <Text style={styles.novelParagraphText}>
+                        "This isn't how it was supposed to go," he whispered to the silence of the room. The contract lay broken, and with it, the only seal that could bind the entities returning from the void.
+                      </Text>
                     </View>
-                    <View style={[styles.comicPanelBg, { backgroundColor: '#0d0d12' }]}>
-                      <Text style={styles.comicPanelLabel}>[ Comic Strip Visual Frame 3 ]</Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.novelReaderContainer}>
-                    <Text style={styles.novelTitleText}>Chapter {currentChapter}: {currentChapter === 1 ? 'The Encounter' : currentChapter === 2 ? 'Secrets Unveiled' : currentChapter === 3 ? 'A Shadow Arises' : 'The Final Frontier'}</Text>
-                    <Text style={styles.novelParagraphText}>
-                      The rain beat relentlessly against the windowpane, throwing long, eerie shadows across the wooden floor. 
-                      Elian looked at the scroll clutched in his hand, the ink dissolving into black patterns under his sweat.
-                    </Text>
-                    <Text style={styles.novelParagraphText}>
-                      "This isn't how it was supposed to go," he whispered to the silence of the room. The contract lay broken, and with it, the only seal that could bind the entities returning from the void.
-                    </Text>
-                  </View>
-                )
-              )}
-
-              {/* COMMUNTIY COMMENT SYSTEM */}
-              <View style={[styles.commentsSection, { borderTopColor: colors.border }]}>
-                <Text style={[styles.commentsSectionTitle, { color: colors.text }]}>Comments ({comments.length})</Text>
-                
-                {/* Guidelines Consent notification banner */}
-                {!agreeToRules && (
-                  <View style={[styles.agreementWarnBanner, { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: '#f59e0b' }]}>
-                    <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: 'bold' }}>⚠️ Action Required</Text>
-                    <Text style={{ color: colors.text, fontSize: 12, marginTop: 2 }}>You must agree to community safety directives before writing comments.</Text>
-                    <TouchableOpacity style={styles.readRulesBannerBtn} onPress={() => setShowRulesSheet(true)}>
-                      <Text style={{ color: '#0D0D12', fontSize: 11, fontWeight: 'bold' }}>Review & Agree</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Comment Text Entry Node */}
-                <View style={styles.commentInputBox}>
-                  <TextInput 
-                    style={[styles.input, { flex: 1, backgroundColor: colors.panel, color: colors.text, borderColor: colors.border }]}
-                    placeholder={agreeToRules ? "Write a reply..." : "Remember to keep it respectful and follow community guidelines..."}
-                    placeholderTextColor={colors.textMuted}
-                    onFocus={handleCommentInputFocus}
-                    value={commentInputText}
-                    onChangeText={setCommentInputText}
-                  />
-                  <TouchableOpacity 
-                    style={[styles.commentSendBtn, { backgroundColor: commentInputText.trim() ? colors.accent : colors.border }]}
-                    onPress={handlePostComment}
-                  >
-                    <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>Send</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Comments List */}
-                <View style={{ gap: 14, marginTop: 16 }}>
-                  {comments.map(c => (
-                    <View key={c.id} style={[styles.commentCard, { backgroundColor: colors.panel, borderColor: colors.border }]}>
-                      <View style={styles.commentHeader}>
-                        <View style={styles.commentAvatar}>
-                          <Text style={styles.commentAvatarText}>{c.avatar}</Text>
-                        </View>
-                        <View style={{ flex: 1, paddingLeft: 8 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[styles.commentAuthor, { color: colors.text }]}>{c.author}</Text>
-                            <View style={styles.tierMiniBadge}>
-                              <Text style={styles.tierMiniBadgeText}>{c.tier.toUpperCase()}</Text>
-                            </View>
-                          </View>
-                          <Text style={styles.commentTime}>{c.timeAgo}</Text>
-                        </View>
-                        {/* Report dots menu trigger */}
-                        <TouchableOpacity style={styles.reportMenuDots} onPress={() => handleOpenReport(c)}>
-                          <Text style={{ color: colors.textMuted, fontSize: 16, fontWeight: 'bold' }}>⋯</Text>
+                  ) : null}
+                </>
+              }
+              ListFooterComponent={
+                <>
+                  {/* COMMUNTIY COMMENT SYSTEM */}
+                  <View style={[styles.commentsSection, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.commentsSectionTitle, { color: colors.text }]}>Comments ({comments.length})</Text>
+                    
+                    {/* Guidelines Consent notification banner */}
+                    {!agreeToRules && (
+                      <View style={[styles.agreementWarnBanner, { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: '#f59e0b' }]}>
+                        <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: 'bold' }}>⚠️ Action Required</Text>
+                        <Text style={{ color: colors.text, fontSize: 12, marginTop: 2 }}>You must agree to community safety directives before writing comments.</Text>
+                        <TouchableOpacity style={styles.readRulesBannerBtn} onPress={() => setShowRulesSheet(true)}>
+                          <Text style={{ color: '#0D0D12', fontSize: 11, fontWeight: 'bold' }}>Review & Agree</Text>
                         </TouchableOpacity>
                       </View>
-                      
-                      <Text style={[styles.commentContent, { color: colors.text }]}>{c.text}</Text>
-                      
-                      <View style={styles.commentActions}>
-                        <Text style={{ color: colors.textMuted, fontSize: 12 }}>👍 {c.likes}</Text>
-                        <Text style={{ color: colors.textMuted, fontSize: 12 }}>👎 {c.dislikes}</Text>
-                        <Text style={{ color: colors.accent, fontSize: 12 }}>Reply</Text>
-                      </View>
+                    )}
+
+                    {/* Comment Text Entry Node */}
+                    <View style={styles.commentInputBox}>
+                      <TextInput 
+                        style={[styles.input, { flex: 1, backgroundColor: colors.panel, color: colors.text, borderColor: colors.border }]}
+                        placeholder={agreeToRules ? "Write a reply..." : "Remember to keep it respectful and follow community guidelines..."}
+                        placeholderTextColor={colors.textMuted}
+                        onFocus={handleCommentInputFocus}
+                        value={commentInputText}
+                        onChangeText={setCommentInputText}
+                      />
+                      <TouchableOpacity 
+                        style={[styles.commentSendBtn, { backgroundColor: commentInputText.trim() ? colors.accent : colors.border }]}
+                        onPress={handlePostComment}
+                      >
+                        <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>Send</Text>
+                      </TouchableOpacity>
                     </View>
-                  ))}
-                </View>
 
-              </View>
+                    {/* Comments List */}
+                    <View style={{ gap: 14, marginTop: 16 }}>
+                      {comments.map(c => (
+                        <View key={c.id} style={[styles.commentCard, { backgroundColor: colors.panel, borderColor: colors.border }]}>
+                          <View style={styles.commentHeader}>
+                            <View style={styles.commentAvatar}>
+                              <Text style={styles.commentAvatarText}>{c.avatar}</Text>
+                            </View>
+                            <View style={{ flex: 1, paddingLeft: 8 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={[styles.commentAuthor, { color: colors.text }]}>{c.author}</Text>
+                                <View style={styles.tierMiniBadge}>
+                                  <Text style={styles.tierMiniBadgeText}>{c.tier.toUpperCase()}</Text>
+                                </View>
+                              </View>
+                              <Text style={styles.commentTime}>{c.timeAgo}</Text>
+                            </View>
+                            {/* Report dots menu trigger */}
+                            <TouchableOpacity style={styles.reportMenuDots} onPress={() => handleOpenReport(c)}>
+                              <Text style={{ color: colors.textMuted, fontSize: 16, fontWeight: 'bold' }}>⋯</Text>
+                            </TouchableOpacity>
+                          </View>
+                          
+                          <Text style={[styles.commentContent, { color: colors.text }]}>{c.text}</Text>
+                          
+                          <View style={styles.commentActions}>
+                            <Text style={{ color: colors.textMuted, fontSize: 12 }}>👍 {c.likes}</Text>
+                            <Text style={{ color: colors.textMuted, fontSize: 12 }}>👎 {c.dislikes}</Text>
+                            <Text style={{ color: colors.accent, fontSize: 12 }}>Reply</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
 
-              {/* Bottom scroll padding */}
-              <View style={{ height: 40 }} />
-            </ScrollView>
+                  {/* Bottom scroll padding */}
+                  <View style={{ height: 40 }} />
+                </>
+              }
+            />
           </View>
         )}
 

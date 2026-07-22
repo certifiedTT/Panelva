@@ -81,7 +81,7 @@ export function InvitationModal({ invitation, onClose, onResponse }: InvitationM
 
     // Add other active co-creators
     collabData.activeCollaborators.forEach((c) => {
-      const isPrimary = c.role === "Primary Creator" || c.user.username === invitation.series.creator.user.username;
+      const isPrimary = c.role === "PrimaryCreator" || c.user.username === invitation.series.creator.user.username;
       if (!isPrimary) {
         list.push({
           name: c.user.creatorProfiles[0]?.penName || c.user.username,

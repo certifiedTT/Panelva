@@ -5,7 +5,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "prisma generate && tsc",
-    "generate": "prisma generate"
+    "generate": "prisma generate",
+    "db:start": "docker-compose up -d"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0"

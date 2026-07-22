@@ -8,3 +8,5 @@ dist
 .env*.local
 NewProject
 *.tsbuildinfo
+.vercel
+.env*
