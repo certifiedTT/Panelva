@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
+    "generate:db": "npm --workspace=@panelva/db run generate",
     "start": "npm --workspace=apps/mobile run start",
     "ios": "npm --workspace=apps/mobile run ios",
     "android": "npm --workspace=apps/mobile run android",

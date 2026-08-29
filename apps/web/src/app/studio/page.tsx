@@ -1841,7 +1841,7 @@ export default function CreatorStudioPage() {
           </div>
         )}
 
-      </main>
+      </div>
 
       {/* Verification submission modal */}
       {showVerificationModal && (
@@ -2779,7 +2779,6 @@ export default function CreatorStudioPage() {
         </div>
       )}
 
-      </div>
     </WorkspaceLayout>
   );
 }

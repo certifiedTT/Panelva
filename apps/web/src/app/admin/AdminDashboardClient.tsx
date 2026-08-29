@@ -2054,7 +2054,6 @@ export default function AdminDashboardClient() {
           </div>
         </div>
       )}
-      </div>
     </WorkspaceLayout>
   );
 }
