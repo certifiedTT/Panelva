@@ -17,7 +17,6 @@ export const LOCAL_FALLBACK_CATALOG = [
   { id: "12", title: "My Child Will Have a Different Father", genre: "Fantasy", type: "NOVEL" },
   { id: "15", title: "The Holy Power of Modern Medicine", genre: "Fantasy", type: "NOVEL" },
   { id: "16", title: "Parent-Teacher Conflict", genre: "Romance", type: "NOVEL" },
-  { id: "17", title: "Anna's Tale", genre: "Drama", type: "COMIC" },
   // Binge Series
   { id: "18", title: "Moonlight Sculptor", genre: "Fantasy", type: "COMIC" },
   { id: "19", title: "Tomb Raider King", genre: "Action", type: "COMIC" },
@@ -168,7 +167,6 @@ export const SERIES_DATA: Record<string, any> = {
   "14": { title: "Darling, Why Can't We Divorce?", alt: "여보, 왜 이혼은 안 되나요?", description: "She entered the body of a villainess who was married to a cold duke. She tries to divorce him to save her life, but he suddenly refuses!", likes: "890K", rating: "8.6", chapters: 24, subscribers: "28.5K", views: "890K", status: "Ongoing", type: "MANHWA", author: "DivorceLover", artist: "DivorceArt", tags: ["Romance", "Drama", "Fantasy"], coverBg: "linear-gradient(135deg, #1e293b, #334155, #64748b)" },
   "15": { title: "The Holy Power of Modern Medicine", alt: "현대 의학의 신성한 힘", description: "A genius surgeon is reincarnated into a fantasy world where healing magic is rare. Using modern medical knowledge, he starts performing miracles.", likes: "2.1M", rating: "8.8", chapters: 35, subscribers: "68.2K", views: "2.1M", status: "Ongoing", type: "MANHWA", author: "DocMage", artist: "DocArt", tags: ["Fantasy", "Action", "Medical"], coverBg: "linear-gradient(135deg, #e2e8f0, #cbd5e1, #fbbf24)" },
   "16": { title: "Parent-Teacher Conflict", alt: "학부모 교사 갈등", description: "A single father and a dedicated teacher get off on the wrong foot, but their mutual concern for the child begins to bring them closer.", likes: "450K", rating: "8.4", chapters: 20, subscribers: "15.0K", views: "450K", status: "Ongoing", type: "MANHWA", author: "ConflictWriter", artist: "ConflictArt", tags: ["Romance", "Drama", "Slice of Life"], coverBg: "linear-gradient(135deg, #4c0519, #881337, #f43f5e)" },
-  "17": { title: "Anna's Tale", alt: "안나의 이야기", description: "Anna's journey to find her missing family leads her through political intrigue, dark secrets, and a forbidden romance in the high society.", likes: "310K", rating: "8.5", chapters: 22, subscribers: "11.2K", views: "310K", status: "Ongoing", type: "MANHWA", author: "AnnaWriter", artist: "AnnaArt", tags: ["Drama", "Romance", "Mystery"], coverBg: "linear-gradient(135deg, #ffedd5, #fdedd5, #fbcfe8)" }
 };
 
 export const DEFAULT_SERIES = {

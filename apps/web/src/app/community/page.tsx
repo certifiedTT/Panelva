@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { SendIcon, SuccessIcon } from "@/components/StateIcons";
+import { trpc } from "../../lib/trpc";
+import { useAuth } from "../../components/AuthContext";
 
 interface Comment {
   id: string;
@@ -14,30 +16,23 @@ interface Comment {
 }
 
 export default function CommunityPage() {
-  const initialComments: Comment[] = [
-    { id: "1", user: "AdminDave", role: "Admin", priority: 4, text: "Welcome to Panelva community boards! Please be respectful of others.", timestamp: "2 hours ago", avatarColor: "#e74c3c" },
-    { id: "2", user: "PixelArtist", role: "Creator", priority: 3, text: "Chapter 10 draft is completed! Uploading to the studio later today.", timestamp: "1 hour ago", avatarColor: "#0ea5e9" },
-    { id: "3", user: "PremiumGamer", role: "Premium", priority: 2, text: "Loving the new updates! The timer on subscription chapters is very clear.", timestamp: "45 mins ago", avatarColor: "#f1c40f" },
-    { id: "4", user: "PlusReader", role: "Plus", priority: 1, text: "Panelva Plus is a steal at $1.99. No ads is so nice.", timestamp: "30 mins ago", avatarColor: "#3498db" },
-    { id: "5", user: "CasualNovice", role: "User", priority: 0, text: "Hey guys! Can anyone recommend a sci-fi light novel?", timestamp: "5 mins ago", avatarColor: "#7f8c8d" }
-  ];
-
-  const [comments, setComments] = useState<Comment[]>(initialComments);
+  const { user } = useAuth();
   const [newCommentText, setNewCommentText] = useState("");
-  const [selectedRole, setSelectedRole] = useState<"Admin" | "Creator" | "Premium" | "Plus" | "User">("User");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Sort by priority (descending) so highest priority is pinned to the top
-  const sortedComments = [...comments].sort((a, b) => b.priority - a.priority);
+  const { data: dbComments, refetch: refetchComments, isLoading } = trpc.chapter.getCommunityComments.useQuery();
 
-  const rolePriorityMap = {
-    Admin: 4,
-    Creator: 3,
-    Premium: 2,
-    Plus: 1,
-    User: 0
-  };
+  const postCommentMutation = trpc.chapter.postCommunityComment.useMutation({
+    onSuccess: () => {
+      refetchComments();
+      setNewCommentText("");
+      setIsSuccess(true);
+      setTimeout(() => setIsSuccess(false), 2000);
+    },
+    onError: (err: any) => {
+      alert(err.message || "Failed to post comment");
+    }
+  });
 
   const roleColorMap = {
     Admin: "#e74c3c",
@@ -47,34 +42,51 @@ export default function CommunityPage() {
     User: "#7f8c8d"
   };
 
+  const getDisplayRole = (role: string) => {
+    if (role === "MASTER_ADMIN" || role === "ADMIN") return "Admin";
+    if (role === "CREATOR" || role === "VERIFIED_CREATOR") return "Creator";
+    if (role === "PREMIUM") return "Premium";
+    if (role === "PLUS") return "Plus";
+    return "User";
+  };
+
+  const comments = useMemo(() => {
+    return (dbComments || []).map((c: any) => {
+      const displayRole = getDisplayRole(c.role);
+      return {
+        id: c.id,
+        user: c.user,
+        role: displayRole as any,
+        priority: c.priority,
+        text: c.text,
+        timestamp: c.timestamp,
+        avatarColor: roleColorMap[displayRole as keyof typeof roleColorMap] || "#7f8c8d",
+      };
+    });
+  }, [dbComments]);
+
+  // Sort by priority (descending) so highest priority is pinned to the top
+  const sortedComments = [...comments].sort((a, b) => b.priority - a.priority);
+
   const handlePostComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim() || isSubmitting) return;
-
-    setIsSubmitting(true);
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-
-      const newComment: Comment = {
-        id: Date.now().toString(),
-        user: selectedRole === "User" ? "MockUser" : `Mock${selectedRole}`,
-        role: selectedRole,
-        priority: rolePriorityMap[selectedRole],
-        text: newCommentText,
-        timestamp: "Just now",
-        avatarColor: roleColorMap[selectedRole]
-      };
-
-      setComments((prev) => [newComment, ...prev]);
-      setNewCommentText("");
-
-      setTimeout(() => {
-        setIsSuccess(false);
-      }, 2000);
-    }, 800);
+    if (!user) {
+      alert("Please log in first to join the discussion.");
+      return;
+    }
+    if (!newCommentText.trim()) return;
+    postCommentMutation.mutate({ content: newCommentText.trim() });
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "var(--dark-bg)", color: "var(--text-dark)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <p style={{ color: "var(--text-dark-muted)" }}>Loading discussion...</p>
+      </div>
+    );
+  }
+
+  const isSubmitting = postCommentMutation.isLoading;
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--dark-bg)", color: "var(--text-dark)", padding: "4rem 2rem", fontFamily: "var(--font-sans)" }}>
@@ -90,21 +102,6 @@ export default function CommunityPage() {
         <form onSubmit={handlePostComment} className="glass-panel" style={{ padding: "1.5rem", marginBottom: "2rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <h3 style={{ margin: 0, fontSize: "1.1rem" }}>Add to the discussion</h3>
           
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <span style={{ fontSize: "0.85rem", color: "var(--text-dark-muted)" }}>Post as role:</span>
-            <select 
-              value={selectedRole} 
-              onChange={(e) => setSelectedRole(e.target.value as any)}
-              style={{ background: "#111216", border: "1px solid var(--dark-border)", color: "#fff", padding: "6px 12px", borderRadius: "6px", fontSize: "0.85rem" }}
-            >
-              <option value="User">Normal User (Priority 0)</option>
-              <option value="Plus">Panelva Plus Member (Priority 1)</option>
-              <option value="Premium">Panelva Premium Member (Priority 2)</option>
-              <option value="Creator">Creator (Priority 3)</option>
-              <option value="Admin">Administrator (Priority 4)</option>
-            </select>
-          </div>
-
           <textarea
             placeholder="Write a comment..."
             value={newCommentText}
@@ -179,6 +176,11 @@ export default function CommunityPage() {
               <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-dark)", lineHeight: 1.4 }}>{comment.text}</p>
             </div>
           ))}
+          {sortedComments.length === 0 && (
+            <div style={{ textAlign: "center", padding: "3rem", border: "1px dashed var(--dark-border)", borderRadius: "12px", color: "var(--text-dark-muted)" }}>
+              No comments posted yet. Be the first to start the conversation!
+            </div>
+          )}
         </div>
       </div>
     </div>

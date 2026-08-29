@@ -1,68 +1,179 @@
 import { prisma } from "@panelva/db";
 
 /**
- * Recalculates and updates the tiers of all chapters for a given series
- * to align with the 3/3/4 ratio (30% Free, 30% Ad-Locked, 40% Premium).
- * 
- * Sorts chapters by chapterIndex ascending.
+ * Intelligent Chapter Access System
+ * Preserves creator revenue and reader experience.
  */
 export async function updateSeriesTiers(seriesId: string, txClient?: any): Promise<void> {
   const client = txClient || prisma;
 
-  // 1. Fetch all chapters in the series, sorted by chapterIndex ascending
-  const chapters = await client.chapter.findMany({
-    where: { seriesId },
-    orderBy: { chapterIndex: "asc" },
+  // 1. Fetch series and its chapters sorted by chapterIndex ascending
+  const series = await client.series.findUnique({
+    where: { id: seriesId },
+    include: { chapters: { orderBy: { chapterIndex: "asc" } } }
   });
 
+  if (!series) return;
+  const chapters = series.chapters;
   const N = chapters.length;
   if (N === 0) return;
 
-  // 2. Deterministically split based on 3/3/4 ratio
-  // Premium: newest 40% of chapters
-  // Ad-locked: middle 30% of chapters
-  // Free: oldest 30% of chapters
-  let premiumCount = Math.max(1, Math.round(N * 0.4));
-  let adCount = Math.round(N * 0.3);
-  let freeCount = N - premiumCount - adCount;
+  const now = new Date();
 
-  if (freeCount < 0) {
-    freeCount = 0;
-    adCount = N - premiumCount;
-  }
+  // 2. Creator Inactivity Protection check
+  // Find the latest uploaded chapter based on createdAt
+  const sortedByCreated = [...chapters].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const latestChapter = sortedByCreated[0];
+  const fourteenDaysMs = 14 * 24 * 3600 * 1000;
+  const inactive = (now.getTime() - latestChapter.createdAt.getTime()) > fourteenDaysMs;
 
-  // 3. Update each chapter's tier in the database if it differs
-  for (let i = 0; i < N; i++) {
-    let targetTier = "FREE";
-    if (i >= freeCount + adCount) {
-      targetTier = "PREMIUM";
-    } else if (i >= freeCount) {
-      targetTier = "AD_SUPPORTED";
+  let isPaused = series.isProgressionPaused;
+  let pausedAt = series.progressionPausedAt;
+
+  if (inactive && !isPaused) {
+    // Transition to Paused status: stop all active countdown timers
+    isPaused = true;
+    pausedAt = now;
+    await client.series.update({
+      where: { id: seriesId },
+      data: { isProgressionPaused: true, progressionPausedAt: now }
+    });
+  } else if (!inactive && isPaused && pausedAt) {
+    // Transition to Active status: resume paused countdown timers by shifting the dates
+    const pausedDurationMs = now.getTime() - pausedAt.getTime();
+    isPaused = false;
+    
+    // Shift waitTierDropAt forward for all pending chapters
+    for (const ch of chapters) {
+      if (ch.waitTierDropAt) {
+        const newUnlockDate = new Date(ch.waitTierDropAt.getTime() + pausedDurationMs);
+        await client.chapter.update({
+          where: { id: ch.id },
+          data: { waitTierDropAt: newUnlockDate }
+        });
+      }
     }
 
-    if (chapters[i].tier !== targetTier) {
-      await client.chapter.update({
-        where: { id: chapters[i].id },
-        data: { tier: targetTier },
+    await client.series.update({
+      where: { id: seriesId },
+      data: { isProgressionPaused: false, progressionPausedAt: null }
+    });
+  }
+
+  // If the progression timers are active and not paused, check progression
+  if (!isPaused) {
+    // 3. Initial Series Distribution (runs only during first publication of a series)
+    if (!series.isInitiallyDistributed) {
+      if (N === 1) {
+        // 1 Chapter -> Watch to Unlock
+        await client.chapter.update({
+          where: { id: chapters[0].id },
+          data: { tier: "AD_SUPPORTED", waitTierDropAt: new Date(now.getTime() + 7 * 24 * 3600 * 1000) }
+        });
+      } else if (N === 2) {
+        // 2 Chapters -> Watch to Unlock, Premium
+        await client.chapter.update({
+          where: { id: chapters[0].id },
+          data: { tier: "AD_SUPPORTED", waitTierDropAt: new Date(now.getTime() + 7 * 24 * 3600 * 1000) }
+        });
+        await client.chapter.update({
+          where: { id: chapters[1].id },
+          data: { tier: "PREMIUM", waitTierDropAt: new Date(now.getTime() + 7 * 24 * 3600 * 1000) }
+        });
+      } else if (N === 3) {
+        // 3 Chapters -> Free, Watch to Unlock, Premium
+        await client.chapter.update({
+          where: { id: chapters[0].id },
+          data: { tier: "FREE", waitTierDropAt: null }
+        });
+        await client.chapter.update({
+          where: { id: chapters[1].id },
+          data: { tier: "AD_SUPPORTED", waitTierDropAt: new Date(now.getTime() + 7 * 24 * 3600 * 1000) }
+        });
+        await client.chapter.update({
+          where: { id: chapters[2].id },
+          data: { tier: "PREMIUM", waitTierDropAt: new Date(now.getTime() + 7 * 24 * 3600 * 1000) }
+        });
+      } else {
+        // More than 3 Chapters: Free and Watch to Unlock balanced, Premium largest portion
+        const X = Math.floor(N / 3);
+        const freeCount = X;
+        const adCount = X;
+        const premiumCount = N - 2 * X;
+
+        let premiumStaggerIdx = 0;
+
+        for (let i = 0; i < N; i++) {
+          const ch = chapters[i];
+          if (i < freeCount) {
+            await client.chapter.update({
+              where: { id: ch.id },
+              data: { tier: "FREE", waitTierDropAt: null }
+            });
+          } else if (i < freeCount + adCount) {
+            await client.chapter.update({
+              where: { id: ch.id },
+              data: { tier: "AD_SUPPORTED", waitTierDropAt: new Date(now.getTime() + 7 * 24 * 3600 * 1000) }
+            });
+          } else {
+            // Bulk release premium chapters: stagger progression offsets
+            premiumStaggerIdx++;
+            const staggerDays = 7 * premiumStaggerIdx;
+            await client.chapter.update({
+              where: { id: ch.id },
+              data: { tier: "PREMIUM", waitTierDropAt: new Date(now.getTime() + staggerDays * 24 * 3600 * 1000) }
+            });
+          }
+        }
+      }
+
+      // Mark initial distribution completed
+      await client.series.update({
+        where: { id: seriesId },
+        data: { isInitiallyDistributed: true }
       });
+    } else {
+      // 4. Automatic Chapter Progression (transitions for existing chapters)
+      // Check countdowns and advance expired timers
+      for (const ch of chapters) {
+        if (ch.waitTierDropAt && ch.waitTierDropAt <= now) {
+          if (ch.tier === "PREMIUM") {
+            // Premium -> 7 Days -> Watch to Unlock
+            await client.chapter.update({
+              where: { id: ch.id },
+              data: { 
+                tier: "AD_SUPPORTED", 
+                waitTierDropAt: new Date(now.getTime() + 7 * 24 * 3600 * 1000) 
+              }
+            });
+          } else if (ch.tier === "AD_SUPPORTED") {
+            // Watch to Unlock -> 7 Days -> Free
+            await client.chapter.update({
+              where: { id: ch.id },
+              data: { 
+                tier: "FREE", 
+                waitTierDropAt: null 
+              }
+            });
+          }
+        }
+      }
     }
   }
 }
 
 /**
- * Idempotent background job to scan all ongoing series and align their chapters with the 3/3/4 ratio.
+ * Background job scanning all ongoing series and running lifecycle checks
  */
 export async function runChapterLifecycleJob(txClient?: any): Promise<number> {
   const client = txClient || prisma;
   
-  // Find all ongoing series
   const seriesList = await client.series.findMany({
     where: { status: "ONGOING" },
   });
 
   let processedCount = 0;
   for (const series of seriesList) {
-    // Process each series in a transaction to ensure isolation and idempotency
     await client.$transaction(async (tx: any) => {
       await updateSeriesTiers(series.id, tx);
     });

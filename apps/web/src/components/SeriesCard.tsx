@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 export interface SeriesCardProps {
   title: string;
@@ -29,7 +30,14 @@ export function SeriesCard({
         style={(!isDirectImage && (coverBg || imageSrc)) ? { background: coverBg || imageSrc, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
       >
         {isDirectImage ? (
-          <img src={imageSrc} alt={title} className="h-full w-full object-cover" />
+          <Image
+            src={imageSrc}
+            alt={title}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 768px) 25vw, (max-width: 1024px) 16vw, 12vw"
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 flex items-center justify-center">
             {!(coverBg || imageSrc) && (

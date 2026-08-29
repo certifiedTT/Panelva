@@ -403,9 +403,6 @@ export default function PublishGuidePage() {
                 <Link href="/help" style={{ textDecoration: "none", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)", color: "#fff", padding: "8px 16px", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "6px" }} className="hover:bg-white/10 transition">
                   Help Center
                 </Link>
-                <Link href="/community" style={{ textDecoration: "none", color: "#3b82f6", fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }} className="hover:underline">
-                  Creator Forums <ChevronRight size={14} />
-                </Link>
               </div>
             </section>
 

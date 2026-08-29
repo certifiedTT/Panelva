@@ -28,7 +28,7 @@ export default function ApplicationDetailsPage({ params }: { params: { id: strin
       refetch();
       alert("Application successfully reviewed!");
     },
-    onError: (err) => {
+    onError: (err: any) => {
       setIsSubmitting(false);
       alert(`Review Error: ${err.message}`);
     }

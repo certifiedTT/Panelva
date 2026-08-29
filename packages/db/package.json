@@ -9,7 +9,7 @@
     "db:start": "docker-compose up -d"
   },
   "dependencies": {
-    "@prisma/client": "^5.14.0"
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "prisma": "^5.14.0",

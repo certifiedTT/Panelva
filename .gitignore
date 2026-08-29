@@ -10,3 +10,8 @@ NewProject
 *.tsbuildinfo
 .vercel
 .env*
+.expo/
+.expo
+scratch/
+scratch_*
+task.md

@@ -1,19 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { trpc } from "../../lib/trpc";
 
 export default function PremiumPage() {
+  const router = useRouter();
+  
+  const upgradeMutation = trpc.user.upgradeSubscription.useMutation({
+    onSuccess: (data: any) => {
+      alert(`Successfully upgraded to Panelva ${data.tier}!`);
+      router.push("/library");
+    },
+    onError: (err: any) => {
+      alert(err.message || "Failed to upgrade subscription.");
+    }
+  });
+
+  const handleUpgrade = (tier: "PLUS" | "PREMIUM") => {
+    upgradeMutation.mutate({ tier });
+  };
   const plusPerks = [
+    "Early access to new series & chapters 2 hours after Premium",
     "Ad-free reading",
     "Offline-reading on mobile",
     "Changeable outside app logo for mobile",
     "Plus Badge (Blue)",
     "Priority comments (Rank 1)",
-    "Early access to chapters"
   ];
 
   const premiumPerks = [
-    "Early access to chapters",
+    "Instant Early Access to new series & chapters immediately upon release",
     "Ad-free reading",
     "Offline-reading on mobile",
     "Changeable outside app logo for mobile",
@@ -107,7 +124,7 @@ export default function PremiumPage() {
               ))}
             </ul>
 
-            <button style={{ marginTop: "auto", background: "#3498db", border: "none", color: "#fff", padding: "14px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "1rem", transition: "all 0.2s" }} onClick={() => alert(`Subscribed to Panelva Plus at ${selectedRegion.symbol}${selectedRegion.plus}/mo!`)}>
+            <button style={{ marginTop: "auto", background: "#3498db", border: "none", color: "#fff", padding: "14px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "1rem", transition: "all 0.2s" }} onClick={() => handleUpgrade("PLUS")}>
               Upgrade to Plus
             </button>
           </div>
@@ -137,7 +154,7 @@ export default function PremiumPage() {
               ))}
             </ul>
 
-            <button style={{ marginTop: "auto", background: "var(--gradient-main)", border: "none", color: "#fff", padding: "14px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "1rem", transition: "all 0.2s" }} onClick={() => alert(`Subscribed to Panelva Premium at ${selectedRegion.symbol}${selectedRegion.premium}/mo!`)}>
+            <button style={{ marginTop: "auto", background: "var(--gradient-main)", border: "none", color: "#fff", padding: "14px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "1rem", transition: "all 0.2s" }} onClick={() => handleUpgrade("PREMIUM")}>
               Upgrade to Premium
             </button>
           </div>

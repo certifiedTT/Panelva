@@ -1,14 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { trpc } from "../lib/trpc";
 import { CarouselSection } from "./CarouselSection";
 import { Sparkles } from "lucide-react";
 
 export default function RecommendationsSection({ seriesId }: { seriesId: string }) {
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const { data: recommendations, isLoading } = trpc.series.getRecommendations.useQuery(
+  const { data: recommendations, isLoading } = (trpc.series.getRecommendations as any).useQuery(
     { seriesId, limit: 8 },
     { enabled: !!seriesId }
   );
@@ -17,18 +14,11 @@ export default function RecommendationsSection({ seriesId }: { seriesId: string 
     return null; // hide if loading or none found
   }
 
-  const handleNext = () => {
-    setActiveIndex((prev) => (prev + 1) % recommendations.length);
-  };
-
-  const handlePrev = () => {
-    setActiveIndex((prev) => (prev - 1 + recommendations.length) % recommendations.length);
-  };
-
-  const formattedItems = recommendations.map(rec => ({
+  const formattedItems = (recommendations as any[]).map((rec: any) => ({
     id: rec.id,
     title: rec.title,
     genre: rec.genre || "Unknown",
+    coverUrl: rec.coverUrl || null,
     coverBg: rec.coverUrl ? `url(${rec.coverUrl}) center/cover` : "linear-gradient(to bottom, #1e3a8a, #111827)",
     likes: (rec.likes / 1000).toFixed(1) + "k",
     chapters: rec.chapters?.length || 0,
@@ -40,9 +30,6 @@ export default function RecommendationsSection({ seriesId }: { seriesId: string 
         title="Readers Also Liked"
         subtitle="Discover similar stories you'll love"
         items={formattedItems}
-        activeIndex={activeIndex}
-        onNext={handleNext}
-        onPrev={handlePrev}
         seeAllLink="/explore"
         icon={<Sparkles size={24} color="#8b5cf6" />}
         sectionBadgeType="none"

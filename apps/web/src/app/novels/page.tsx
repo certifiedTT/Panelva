@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "../../lib/trpc";
 
 interface Novel {
@@ -25,6 +25,14 @@ export default function NovelsPage() {
   const [selectedGenre, setSelectedGenre] = useState("All Genres");
   const [selectedStatus, setSelectedStatus] = useState("All Statuses");
   const [sortBy, setSortBy] = useState("Popularity");
+  
+  const [page, setPage] = useState(1);
+  const limit = 12;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedFormat, selectedGenre, selectedStatus, sortBy]);
 
   const genres = [
     "All Genres",
@@ -196,12 +204,14 @@ export default function NovelsPage() {
     }
   ], []);
 
-  // Fetch from tRPC API
+  // Fetch from tRPC API with pagination
   const { data: dbNovels } = trpc.series.getMany.useQuery({
     type: "NOVEL",
     searchQuery: searchQuery || undefined,
     genre: selectedGenre !== "All Genres" ? selectedGenre : undefined,
     sortBy: sortBy === "Newest" ? "Newest" : sortBy === "Likes" ? "Likes" : sortBy === "Alphabetical" ? "Alphabetical" : "Popularity",
+    limit,
+    skip: (page - 1) * limit,
   });
 
   const formatLikes = (likesCount: number): string => {
@@ -245,7 +255,7 @@ export default function NovelsPage() {
     });
   }, [novels, searchQuery, selectedFormat, selectedGenre, selectedStatus]);
 
-  const displayList = dbNovels && dbNovels.length > 0
+  const displayList: Novel[] = dbNovels && dbNovels.length > 0
     ? dbNovels.map(mapDbItem)
     : filteredNovels;
 
@@ -389,7 +399,7 @@ export default function NovelsPage() {
         </div>
       ) : (
         <div className="explore-items-grid">
-          {displayList.map((novel) => (
+          {displayList.map((novel: Novel) => (
             <Link key={novel.id} href={`/read/${novel.id}`} style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: "10px", width: "100%", minWidth: 0 }}>
               <div style={{
                 position: "relative",
@@ -442,6 +452,50 @@ export default function NovelsPage() {
           ))}
         </div>
       )}
+
+      {/* Pagination Controls */}
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1.5rem", marginTop: "3rem", width: "100%" }}>
+        <button 
+          disabled={page === 1}
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          style={{
+            background: "#111216",
+            border: "1px solid var(--dark-border, #1a1c23)",
+            color: page === 1 ? "#4a4b50" : "#fff",
+            padding: "10px 20px",
+            borderRadius: "20px",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            cursor: page === 1 ? "not-allowed" : "pointer",
+            transition: "all 0.2s"
+          }}
+          className="hover:border-blue-500/50"
+        >
+          Previous
+        </button>
+        <span style={{ color: "#9ca3af", fontSize: "0.9rem", fontWeight: 700 }}>
+          Page {page}
+        </span>
+        <button 
+          disabled={displayList.length < limit}
+          onClick={() => setPage(p => p + 1)}
+          style={{
+            background: "#111216",
+            border: "1px solid var(--dark-border, #1a1c23)",
+            color: displayList.length < limit ? "#4a4b50" : "#fff",
+            padding: "10px 20px",
+            borderRadius: "20px",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            cursor: displayList.length < limit ? "not-allowed" : "pointer",
+            transition: "all 0.2s"
+          }}
+          className="hover:border-blue-500/50"
+        >
+          Next
+        </button>
+      </div>
+
       </div>
     </div>
   );

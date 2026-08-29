@@ -7,10 +7,13 @@ import {
   User, Shield, Bell, LogOut, ChevronRight, Mail, Lock, 
   Globe, Moon, Sparkles, Smartphone, Check, HelpCircle
 } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { trpc } from "../../lib/trpc";
+import { useAuth } from "../../components/AuthContext";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const { user, isLoading, refetchUser, signOut } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [activeTab, setActiveTab] = useState<"account" | "security" | "preferences">("account");
@@ -28,88 +31,83 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState("English");
   const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // Sync state with localStorage
+  const updateProfileMutation = trpc.user.updateProfile.useMutation({
+    onSuccess: () => {
+      refetchUser();
+      setIsEditingUsername(false);
+      alert("Username updated successfully!");
+    },
+    onError: (err: any) => {
+      alert(`Failed to update username: ${err.message}`);
+    }
+  });
+
+  // Sync state with database user
   useEffect(() => {
     const storedTheme = localStorage.getItem("panelva_theme") || "dark";
     setIsDarkMode(storedTheme === "dark");
 
-    const user = localStorage.getItem("panelva_user");
     if (user) {
-      setIsSignedIn(true);
-      setUsername(user);
-      setTempUsername(user);
-      
-      const customEmail = localStorage.getItem(`panelva_email_${user}`) || `${user.toLowerCase()}@gmail.com`;
-      setEmail(customEmail);
-      setTempEmail(customEmail);
-    } else {
-      setIsSignedIn(false);
-      // If not logged in, redirect to login
-      router.push("/auth");
+      setUsername(user.username);
+      setTempUsername(user.username);
+      setEmail(user.email);
+      setTempEmail(user.email);
     }
-  }, [router]);
+  }, [user]);
 
   const handleUpdateUsername = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempUsername.trim()) return;
-
-    const oldUser = username;
-    const newUser = tempUsername.trim();
-
-    // Save previous email under new key
-    const oldEmail = localStorage.getItem(`panelva_email_${oldUser}`) || `${oldUser.toLowerCase()}@gmail.com`;
-    localStorage.setItem(`panelva_email_${newUser}`, oldEmail);
-
-    // Save user roles mapping
-    try {
-      const rolesMap = JSON.parse(localStorage.getItem("panelva_user_roles") || "{}");
-      if (rolesMap[oldUser]) {
-        rolesMap[newUser] = rolesMap[oldUser];
-        delete rolesMap[oldUser];
-        localStorage.setItem("panelva_user_roles", JSON.stringify(rolesMap));
-      }
-    } catch (e) {}
-
-    localStorage.setItem("panelva_user", newUser);
-    setUsername(newUser);
-    setIsEditingUsername(false);
-
-    // Dispatch update event so Header immediately displays new username
-    window.dispatchEvent(new Event("panelva_user_update"));
-    alert("Username updated successfully!");
+    updateProfileMutation.mutate({ username: tempUsername.trim() });
   };
 
-  const handleUpdateEmail = (e: React.FormEvent) => {
+  const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempEmail.trim()) return;
-
-    localStorage.setItem(`panelva_email_${username}`, tempEmail.trim());
-    setEmail(tempEmail.trim());
-    setIsEditingEmail(false);
-    alert("Email address updated successfully!");
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ email: tempEmail.trim() });
+      if (error) throw error;
+      setEmail(tempEmail.trim());
+      setIsEditingEmail(false);
+      alert("A verification link has been sent to the new email address. Please click it to complete the update.");
+      refetchUser();
+    } catch (err: any) {
+      alert(`Failed to update email: ${err.message}`);
+    }
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsEditingPassword(false);
-    setPassword("");
-    alert("Password updated successfully!");
+    if (!password) return;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setPassword("");
+      setIsEditingPassword(false);
+      alert("Password updated successfully!");
+    } catch (err: any) {
+      alert(`Failed to update password: ${err.message}`);
+    }
   };
 
-  const handleSignOut = () => {
-    localStorage.removeItem("panelva_user");
-    localStorage.removeItem("panelva_role");
-    window.dispatchEvent(new Event("panelva_user_update"));
+  const handleSignOut = async () => {
+    await signOut();
     alert("Signed out successfully.");
     router.push("/");
   };
 
-  if (!isSignedIn) {
+  if (isLoading) {
     return (
       <div style={{ minHeight: "80vh", backgroundColor: "#07080a", color: "#fff", display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <p style={{ color: "var(--text-dark-muted)" }}>Redirecting to login...</p>
+        <p style={{ color: "var(--text-dark-muted)" }}>Loading settings...</p>
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   const userInitial = username ? username.charAt(0).toUpperCase() : "U";

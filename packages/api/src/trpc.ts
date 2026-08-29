@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { TRPCContext } from "./context";
 import { UserRole } from "@panelva/db";
+import { hasPermission, Permission } from "./permissions";
 
 const t = initTRPC.context<TRPCContext>().create();
 
@@ -20,7 +21,7 @@ export const protectedProcedure = t.procedure.use(({ ctx, next, rawInput }) => {
   if (rawInput && typeof rawInput === "object" && "userId" in rawInput) {
     const inputUserId = (rawInput as any).userId;
     const isSelf = inputUserId === ctx.session.userId;
-    const isAdmin = ctx.session.role === UserRole.ADMIN || ctx.session.role === UserRole.MASTER_ADMIN;
+    const isAdmin = ctx.session.role !== UserRole.USER && ctx.session.role !== UserRole.CREATOR;
 
     if (!isSelf && !isAdmin) {
       throw new TRPCError({
@@ -40,16 +41,32 @@ export const protectedProcedure = t.procedure.use(({ ctx, next, rawInput }) => {
 // Admin-Only Procedure (Vetting queue access, payouts)
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   const role = ctx.session.role;
-  if (role !== UserRole.ADMIN && role !== UserRole.MASTER_ADMIN) {
+  const isAdmin = role !== UserRole.USER && role !== UserRole.CREATOR;
+  if (!isAdmin) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient administrative roles" });
   }
   return next();
 });
 
-// Creator-Only Procedure (Studio uploads)
+// Creator-Only Procedure (Studio uploads, creator workspace)
 export const creatorProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.session.role !== UserRole.CREATOR && ctx.session.role !== UserRole.MASTER_ADMIN) {
+  const role = ctx.session.role;
+  const isCreator = role === UserRole.CREATOR;
+  if (!isCreator) {
     throw new TRPCError({ code: "FORBIDDEN", message: "User is not a verified creator" });
   }
   return next();
 });
+
+// Dynamic Permission-based Procedure
+export const permissionProcedure = (permission: Permission) =>
+  protectedProcedure.use(async ({ ctx, next }) => {
+    if (!hasPermission(ctx.session.role, permission)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Insufficient permissions: require ${permission}`,
+      });
+    }
+    return next({ ctx });
+  });
+

@@ -4,10 +4,18 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { NotificationIcon } from "@/components/StateIcons";
-import { Crown, Sparkles, ChevronRight, User, Settings2, Clock, Settings, LogOut, Search, Bell } from "lucide-react";
+import { Crown, Sparkles, ChevronRight, User, Settings2, Clock, Settings, LogOut, Search, Bell, Eye, EyeOff } from "lucide-react";
 import { trpc } from "../lib/trpc";
 import { InvitationModal } from "./InvitationModal";
-
+import { motion } from "framer-motion";
+import ActivityDropdown, { ActivityItem, NotificationType, formatRelativeTime } from "./ui/activity-dropdown";
+import {
+  getRoleDisplayName,
+  isAdminRole,
+  SUPPORTED_PREVIEW_ROLES,
+} from "../lib/roleUtils";
+import { useAuth } from "./AuthContext";
+import { createClient } from "@/utils/supabase/client";
 
 interface WebNotification {
   id: string;
@@ -18,55 +26,92 @@ interface WebNotification {
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isSignedIn, setIsSignedIn] = useState<boolean>(false); // Start logged out by default
-  const [username, setUsername] = useState<string>("");
-  const [userJoinedDate, setUserJoinedDate] = useState<string>("Joined Just now");
+  const {
+    user,
+    role: effectiveRole,
+    actualRole,
+    isSignedIn,
+    isLoading: isAuthLoading,
+    previewRole,
+    setPreviewRole,
+    clearPreviewRole,
+    signOut,
+  } = useAuth();
+
+  const username = user?.username || "";
+
+  const userJoinedDate = useMemo(() => {
+    if (!user?.createdAt) return "Joined Just now";
+    try {
+      const date = new Date(user.createdAt);
+      return `Joined ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+    } catch {
+      return "Joined Just now";
+    }
+  }, [user?.createdAt]);
+
   const [isMoreOpen, setIsMoreOpen] = useState<boolean>(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+
 
   const [isImmersiveMode, setIsImmersiveMode] = useState<boolean>(false);
 
-  // Sync user state and immersive state with localStorage
+  // Sync immersive state with localStorage
   useEffect(() => {
-    const checkUser = () => {
-      const user = localStorage.getItem("panelva_user");
-      if (user) {
-        setIsSignedIn(true);
-        setUsername(user);
-        const savedDate = localStorage.getItem("panelva_joined_date") || (user === "notjud3" ? "Joined May 28, 2026" : "Joined Just now");
-        setUserJoinedDate(savedDate);
-      } else {
-        setIsSignedIn(false);
-        setUsername("");
-      }
-    };
     const checkImmersive = () => {
       const val = localStorage.getItem("panelva_reader_immersive") === "true";
       setIsImmersiveMode(val);
     };
-    checkUser();
     checkImmersive();
-    window.addEventListener("storage", checkUser);
-    window.addEventListener("panelva_user_update", checkUser);
     window.addEventListener("panelva_immersive_update", checkImmersive);
     return () => {
-      window.removeEventListener("storage", checkUser);
-      window.removeEventListener("panelva_user_update", checkUser);
       window.removeEventListener("panelva_immersive_update", checkImmersive);
     };
   }, []);
   
   // Notifications State
-  const [notifications, setNotifications] = useState<WebNotification[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState<boolean>(false);
 
   // Collaboration Invitation states & queries
   const [activeInvitation, setActiveInvitation] = useState<any>(null);
-  const { data: dbInvitations, refetch: refetchInvitations } = trpc.collaboration.getReceivedInvitations.useQuery(undefined, {
+  const { data: dbInvitations, refetch: refetchInvitations } = (trpc.collaboration.getReceivedInvitations as any).useQuery(undefined, {
     enabled: isSignedIn,
+  });
+
+  const isCreatorOrAdmin = useMemo(() => {
+    return isSignedIn && effectiveRole !== "USER";
+  }, [isSignedIn, effectiveRole]);
+
+  const showBecomeCreator = useMemo(() => {
+    return !isSignedIn || effectiveRole === "USER";
+  }, [isSignedIn, effectiveRole]);
+
+  const { data: dbNotifications, refetch: refetchNotifications } = (trpc.creator.getCreatorNotifications as any).useQuery(undefined, {
+    enabled: isCreatorOrAdmin,
+  });
+
+  const { data: dbReaderNotifications, refetch: refetchReaderNotifications } = (trpc.user.getReaderNotifications as any).useQuery(undefined, {
+    enabled: isSignedIn,
+  });
+
+  const markReadMutation = trpc.creator.markNotificationRead.useMutation({
+    onSuccess: () => {
+      refetchNotifications();
+    }
+  });
+
+  const markReaderReadMutation = trpc.user.markNotificationRead.useMutation({
+    onSuccess: () => {
+      refetchReaderNotifications();
+    }
+  });
+
+  const markAllReaderReadMutation = trpc.user.markAllNotificationsRead.useMutation({
+    onSuccess: () => {
+      refetchReaderNotifications();
+    }
   });
 
   const respondMutation = trpc.collaboration.respondToInvitation.useMutation({
@@ -75,7 +120,7 @@ export default function Header() {
       alert("Successfully responded to the collaboration invitation.");
       setActiveInvitation(null);
     },
-    onError: (err) => {
+    onError: (err: any) => {
       alert(`Error responding to invitation: ${err.message}`);
     }
   });
@@ -88,10 +133,198 @@ export default function Header() {
     });
   };
 
-  // Auth Form fields
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [penName, setPenName] = useState("");
+  const handleRespondInvitation = (id: string, response: "ACCEPT" | "DECLINE") => {
+    respondMutation.mutate({
+      invitationId: id,
+      response,
+    });
+  };
+
+  // Build unified notification items
+  const activityItems = useMemo(() => {
+    const list: ActivityItem[] = [];
+
+    // 1. Collaboration Invitations
+    if (dbInvitations) {
+      dbInvitations.forEach((inv: any) => {
+        list.push({
+          id: inv.id,
+          type: "COLLABORATION",
+          title: "Collaboration Invite",
+          description: `Invite as ${inv.role} for series "${inv.series.title}"`,
+          time: formatRelativeTime(inv.createdAt),
+          isRead: false,
+          image: inv.sender?.avatarUrl || undefined,
+          category: "INVITATION",
+          rawItem: inv,
+        });
+      });
+    }
+
+    // 2. Database Creator Notifications
+    if (dbNotifications) {
+      dbNotifications.forEach((notif: any) => {
+        let typeVal: NotificationType = "SYSTEM";
+        const validTypes: NotificationType[] = [
+          "SYSTEM", "PAYMENT", "CREATOR", "SOCIAL", "MEMBERSHIP", 
+          "ADMIN", "SECURITY", "ENGAGEMENT", "CONTENT", "DISCOVERY", 
+          "COLLABORATION", "ACHIEVEMENT"
+        ];
+        if (validTypes.includes(notif.type as any)) {
+          typeVal = notif.type as NotificationType;
+        }
+
+        list.push({
+          id: notif.id,
+          type: typeVal,
+          title: notif.title,
+          description: notif.message,
+          time: formatRelativeTime(notif.createdAt),
+          isRead: notif.isRead,
+          category: "CREATOR_NOTIFICATION",
+          rawItem: notif,
+        });
+      });
+    }
+
+    // 3. Local storage notifications
+    if (notifications) {
+      notifications.forEach((notif: any) => {
+        list.push({
+          id: notif.id,
+          type: "CREATOR",
+          title: "Creator Update",
+          description: notif.text,
+          time: formatRelativeTime(notif.timestamp),
+          isRead: notif.isRead ?? false,
+          category: "LOCAL_NOTIFICATION",
+          rawItem: notif,
+        });
+      });
+    }
+
+    // 4. Reader Notifications (New Chapter Alerts)
+    if (dbReaderNotifications) {
+      dbReaderNotifications.forEach((notif: any) => {
+        list.push({
+          id: notif.id,
+          type: "CONTENT",
+          title: notif.title,
+          description: notif.message,
+          time: formatRelativeTime(notif.createdAt),
+          isRead: notif.isRead,
+          category: "CREATOR_NOTIFICATION",
+          rawItem: notif,
+        });
+      });
+    }
+
+    // Sort by timestamp desc
+    list.sort((a: any, b: any) => {
+      const timeA = a.rawItem.createdAt 
+        ? new Date(a.rawItem.createdAt).getTime() 
+        : (a.rawItem.timestamp && !isNaN(Date.parse(a.rawItem.timestamp)) ? new Date(a.rawItem.timestamp).getTime() : 0);
+      const timeB = b.rawItem.createdAt 
+        ? new Date(b.rawItem.createdAt).getTime() 
+        : (b.rawItem.timestamp && !isNaN(Date.parse(b.rawItem.timestamp)) ? new Date(b.rawItem.timestamp).getTime() : 0);
+      return timeB - timeA;
+    });
+
+    return list;
+  }, [dbInvitations, dbNotifications, dbReaderNotifications, notifications]);
+
+  // Unified Unread Count
+  const totalUnreadCount = useMemo(() => {
+    let count = 0;
+    count += dbInvitations?.length || 0;
+    count += dbNotifications?.filter((n: any) => !n.isRead).length || 0;
+    count += dbReaderNotifications?.filter((n: any) => !n.isRead).length || 0;
+    count += unreadCount;
+    return count;
+  }, [dbInvitations, dbNotifications, dbReaderNotifications, unreadCount]);
+
+  // Bell animate state on new notification
+  const [bellWiggle, setBellWiggle] = useState(false);
+  const prevUnreadCountRef = useRef(0);
+
+  useEffect(() => {
+    if (totalUnreadCount > prevUnreadCountRef.current) {
+      setBellWiggle(true);
+      const timer = setTimeout(() => setBellWiggle(false), 800);
+      return () => clearTimeout(timer);
+    }
+    prevUnreadCountRef.current = totalUnreadCount;
+  }, [totalUnreadCount]);
+
+  const handleMarkRead = (id: string, category: ActivityItem["category"]) => {
+    if (category === "CREATOR_NOTIFICATION") {
+      // Check if it's in dbReaderNotifications
+      const isReader = dbReaderNotifications?.some((n: any) => n.id === id);
+      if (isReader) {
+        markReaderReadMutation.mutate({ notificationId: id });
+      } else {
+        markReadMutation.mutate({ id });
+      }
+    } else if (category === "LOCAL_NOTIFICATION") {
+      const existing = localStorage.getItem("panelva_notifications");
+      if (existing) {
+        const parsed = JSON.parse(existing) as any[];
+        const updated = parsed.map((item: any) => {
+          if (item.id === id) {
+            return { ...item, isRead: true };
+          }
+          return item;
+        });
+        localStorage.setItem("panelva_notifications", JSON.stringify(updated));
+        
+        setUnreadCount(prev => {
+          const next = Math.max(0, prev - 1);
+          localStorage.setItem("panelva_notifications_unread", next.toString());
+          return next;
+        });
+
+        window.dispatchEvent(new Event("panelva_notification_update"));
+      }
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    // 1. DB Creator notifications
+    const unreadDb = dbNotifications?.filter((n: any) => !n.isRead) || [];
+    if (unreadDb.length > 0) {
+      try {
+        await Promise.all(unreadDb.map((n: any) => markReadMutation.mutateAsync({ id: n.id })));
+      } catch (e) {
+        console.error("Failed to mark all DB creator notifications as read", e);
+      }
+    }
+
+    // 2. DB Reader notifications
+    const unreadReader = dbReaderNotifications?.filter((n: any) => !n.isRead) || [];
+    if (unreadReader.length > 0) {
+      try {
+        await markAllReaderReadMutation.mutateAsync();
+      } catch (e) {
+        console.error("Failed to mark all reader notifications as read", e);
+      }
+    }
+
+    // 3. Local notifications
+    const existing = localStorage.getItem("panelva_notifications");
+    if (existing) {
+      const parsed = JSON.parse(existing) as any[];
+      const updated = parsed.map((item: any) => ({ ...item, isRead: true }));
+      localStorage.setItem("panelva_notifications", JSON.stringify(updated));
+    }
+    setUnreadCount(0);
+    localStorage.setItem("panelva_notifications_unread", "0");
+
+    refetchNotifications();
+    refetchReaderNotifications();
+    window.dispatchEvent(new Event("panelva_notification_update"));
+  };
+
+
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
@@ -105,12 +338,26 @@ export default function Header() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  const { data: searchResults, isLoading: isSearchLoading } = trpc.series.search.useQuery(
+  const { data: searchResults, isLoading: isSearchLoading } = (trpc.series.search as any).useQuery(
     { query: debouncedQuery, limit: 8 },
     { enabled: debouncedQuery.length > 0 }
   );
 
   const filteredSuggestions = searchResults || [];
+  
+  const highlightText = (text: string, query: string) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, "gi"));
+    return (
+      <span>
+        {parts.map((part, i) => 
+          part.toLowerCase() === query.toLowerCase() 
+            ? <mark key={i} className="bg-blue-500/30 text-blue-400 rounded px-0.5">{part}</mark>
+            : part
+        )}
+      </span>
+    );
+  };
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -145,6 +392,9 @@ export default function Header() {
       const count = localStorage.getItem("panelva_notifications_unread") || "0";
       setUnreadCount(Number(count));
       refetchInvitations();
+      if (isCreatorOrAdmin) {
+        refetchNotifications();
+      }
     };
 
     const handleUpdate = () => {
@@ -158,6 +408,9 @@ export default function Header() {
         return next;
       });
       refetchInvitations();
+      if (isCreatorOrAdmin) {
+        refetchNotifications();
+      }
     };
 
     loadNotifications();
@@ -167,71 +420,34 @@ export default function Header() {
       window.removeEventListener("panelva_notification_update", handleUpdate);
       window.removeEventListener("storage", loadNotifications);
     };
-  }, [refetchInvitations]);
-
-  const getRoleForUser = (user: string) => {
-    if (!user || user === "Guest") return "USER";
-    
-    // 1. Check custom stored role in panelva_role if it matches the current user
-    const storedCurrentRole = localStorage.getItem("panelva_role");
-    const storedCurrentUser = localStorage.getItem("panelva_user");
-    if (storedCurrentRole && storedCurrentUser === user) {
-      return storedCurrentRole;
-    }
-    
-    // 2. Check in the custom roles database mapping
-    try {
-      const rolesMap = JSON.parse(localStorage.getItem("panelva_user_roles") || "{}");
-      if (rolesMap[user]) return rolesMap[user];
-    } catch (e) {}
-
-    // 3. Fallback to default name-based heuristics
-    if (user === "notjud3" || user === "iseniyijude" || user === "iseniyijude_gmail" || user.toLowerCase().includes("master")) return "MASTER_ADMIN";
-    if (user.toLowerCase().includes("admin") || user === "TO30") return "ADMIN";
-    if (user.toLowerCase().includes("creator") || user.toLowerCase().includes("artist") || user.toLowerCase().includes("author") || user.toLowerCase().includes("novelist")) return "CREATOR";
-    return "USER";
-  };
+  }, [refetchInvitations, refetchNotifications, isCreatorOrAdmin]);
 
   const getRoleInfo = () => {
-    const role = getRoleForUser(username);
+    const role = effectiveRole;
 
     if (role === "MASTER_ADMIN") {
       return { text: "Command Center", link: "/admin", isDashboard: true, badge: "Master Admin" };
-    } else if (role === "ADMIN") {
-      return { text: "Admin Dashboard", link: "/admin", isDashboard: true, badge: "Admin" };
-    } else if (role === "CREATOR") {
-      return { text: "Creator Studio", link: "/creator", isDashboard: true, badge: "Creator" };
+    } else if (isAdminRole(role)) {
+      return { text: "Admin Dashboard", link: "/admin", isDashboard: true, badge: getRoleDisplayName(role) };
+    } else if (role === "CREATOR" || role === "VERIFIED_CREATOR") {
+      return { text: "Creator Studio", link: "/studio", isDashboard: true, badge: "Creator" };
     }
     return { text: "", link: "", isDashboard: false, badge: "User" };
   };
 
-  // Suppress header on reading pages only when immersive mode is active
+  // Suppress header on dedicated workspace pages (Studio & Admin) and reading immersive mode
+  const isWorkspacePage = pathname?.startsWith("/studio") || pathname?.startsWith("/admin");
   const isReadingPage = pathname?.includes("/read") || pathname?.includes("/chapter");
-  if (isReadingPage && isImmersiveMode) {
+  if (isWorkspacePage || (isReadingPage && isImmersiveMode)) {
     return null;
   }
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      alert("Please fill in all fields.");
-      return;
-    }
-    
-    const displayUser = penName || email.split("@")[0] || "User";
-    setUsername(displayUser);
-    setIsSignedIn(true);
-    setIsAuthModalOpen(false);
-    alert(authMode === "signin" ? `Successfully signed in as ${displayUser}!` : `Successfully registered as ${displayUser}!`);
-  };
 
-  const handleSignOut = () => {
-    setIsSignedIn(false);
-    setUsername("");
+  const handleSignOut = async () => {
+    await signOut();
     setIsMoreOpen(false);
-    localStorage.removeItem("panelva_user");
-    localStorage.removeItem("panelva_role");
     alert("Signed out successfully.");
+    router.push("/");
   };
 
   const handleOpenNotifications = () => {
@@ -280,15 +496,16 @@ export default function Header() {
               >
                 Novels
               </Link>
+
               <Link
-                href="/community"
+                href="/creator_hub"
                 className={`transition-colors duration-200 ${
-                  pathname === "/community"
+                  pathname === "/creator_hub"
                     ? "text-white [.light-theme_&]:text-zinc-900 font-semibold"
                     : "text-zinc-400 hover:text-white [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
                 }`}
               >
-                Community
+                Creator Hub
               </Link>
 
               {/* More Section Dropdown */}
@@ -299,7 +516,7 @@ export default function Header() {
                     isMoreOpen ? "text-white [.light-theme_&]:text-zinc-900" : "text-zinc-400 [.light-theme_&]:text-zinc-500"
                   }`}
                 >
-                  More <span style={{ transition: "transform var(--transition-fast)", display: "inline-block", transform: isMoreOpen ? "rotate(180deg)" : "rotate(0deg)", fontSize: "0.7rem" }}>▼</span>
+                  More
                 </button>
 
               {isMoreOpen && (
@@ -318,17 +535,20 @@ export default function Header() {
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                       Novels
                     </Link>
-                    <Link href="/community" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                      Community
+
+                    <Link href="/creator_hub" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--secondary)" }}><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                      Creator Hub
                     </Link>
                     <div className="dropdown-divider"></div>
                   </div>
 
-                  <Link href="/creator/apply" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--secondary)" }}><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                    Become a creator
-                  </Link>
+                  {showBecomeCreator && (
+                    <Link href="/creator/apply" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--secondary)" }}><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      Become a creator
+                    </Link>
+                  )}
                   <Link href="/redeem" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="10" y2="8"></line><line x1="6" y1="12" x2="18" y2="12"></line><line x1="6" y1="16" x2="10" y2="16"></line></svg>
                     Redeem code
@@ -336,10 +556,16 @@ export default function Header() {
                   
                   {/* My Library conditionally active based on Signed In status */}
                   {isSignedIn ? (
-                    <Link href="/library" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                      My library
-                    </Link>
+                    <>
+                      <Link href="/library" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                        My library
+                      </Link>
+                      <Link href="/history" className="dropdown-item-link" onClick={() => setIsMoreOpen(false)}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#3498db" }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        Reading history
+                      </Link>
+                    </>
                   ) : (
                     <div 
                       className="dropdown-item-disabled" 
@@ -421,7 +647,7 @@ export default function Header() {
                     No results found
                   </div>
                 ) : (
-                  filteredSuggestions.map((item) => (
+                  filteredSuggestions.map((item: any) => (
                     <div
                       key={item.id}
                       onMouseDown={() => {
@@ -432,7 +658,7 @@ export default function Header() {
                       className="flex flex-col gap-1 px-3 py-2 rounded-lg cursor-pointer transition-colors duration-200 hover:bg-white/5 [.light-theme_&]:hover:bg-zinc-100"
                     >
                       <div className="text-xs font-semibold text-white [.light-theme_&]:text-zinc-900">
-                        {item.title}
+                        {highlightText(item.title, searchQuery)}
                       </div>
                       <div className="flex gap-2 items-center text-[10px] text-zinc-500">
                         <span style={{ 
@@ -462,60 +688,26 @@ export default function Header() {
                 title="Notifications / Inbox" 
                 className="relative flex items-center hover:text-white transition-colors duration-200 text-zinc-400 [.light-theme_&]:text-zinc-500 [.light-theme_&]:hover:text-zinc-900"
               >
-                <Bell size={20} />
-                {(unreadCount > 0 || (dbInvitations && dbInvitations.length > 0)) && (
+                <motion.div
+                  animate={bellWiggle ? { rotate: [0, 15, -15, 12, -12, 6, -6, 0] } : { rotate: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="flex items-center justify-center"
+                >
+                  <Bell size={20} />
+                </motion.div>
+                {totalUnreadCount > 0 && (
                   <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 )}
               </button>
-              {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-white/5 bg-[#0b0c10]/95 backdrop-blur-md p-1 shadow-xl z-50 [.light-theme_&]:bg-white/95 [.light-theme_&]:border-zinc-200">
-                  <div className="px-3 py-2 border-b border-white/5 text-xs font-bold text-white [.light-theme_&]:text-zinc-900 [.light-theme_&]:border-zinc-200">
-                    Subscriber Updates
-                  </div>
-                  <div className="max-h-64 overflow-y-auto p-1">
-                    {dbInvitations && dbInvitations.length > 0 && (
-                      <div className="mb-2 border-b border-white/5 pb-1">
-                        <div className="px-3 py-1 text-[9px] font-bold text-blue-400 uppercase tracking-wider bg-blue-500/5 rounded">
-                          Collaboration Invites
-                        </div>
-                        {dbInvitations.map((invitation) => (
-                          <div 
-                            key={invitation.id} 
-                            onClick={() => {
-                              setActiveInvitation(invitation);
-                              setIsNotificationsOpen(false);
-                            }}
-                            className="px-3 py-2 mt-1 rounded-lg hover:bg-white/5 cursor-pointer flex flex-col gap-1 text-xs transition"
-                          >
-                            <span className="text-white font-semibold flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                              Collab: {invitation.series.title}
-                            </span>
-                            <span className="text-zinc-400">
-                              Invite as <strong>{invitation.role}</strong>
-                            </span>
-                            <span className="text-[10px] text-zinc-500">
-                              From @{invitation.series.creator.penName}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {notifications.length === 0 && (!dbInvitations || dbInvitations.length === 0) ? (
-                      <div className="px-3 py-4 text-xs text-zinc-500 text-center">
-                        No new updates from creators.
-                      </div>
-                    ) : (
-                      notifications.map((notif) => (
-                        <div key={notif.id} className="px-3 py-2 border-b border-white/5 last:border-none flex flex-col gap-1 text-xs [.light-theme_&]:border-zinc-200">
-                          <span className="text-zinc-300 font-medium leading-relaxed [.light-theme_&]:text-zinc-700">{notif.text}</span>
-                          <span className="text-[10px] text-zinc-500">{notif.timestamp}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
+              <ActivityDropdown
+                isOpen={isNotificationsOpen}
+                onClose={() => setIsNotificationsOpen(false)}
+                items={activityItems}
+                onMarkRead={handleMarkRead}
+                onMarkAllRead={handleMarkAllRead}
+                onOpenInvitation={setActiveInvitation}
+                onRespondInvitation={handleRespondInvitation}
+              />
             </div>
             <div className="relative dropdown-container" ref={profileDropdownRef}>
               <button
@@ -531,10 +723,10 @@ export default function Header() {
               >
                 {isSignedIn ? (
                   <span className="text-xs font-medium text-zinc-300">
-                    {username ? username.charAt(0).toUpperCase() : "J"}
+                    {username ? username.charAt(0).toUpperCase() : "U"}
                   </span>
                 ) : (
-                  <span className="text-xs font-medium text-zinc-300">J</span>
+                  <User size={16} className="text-zinc-400" />
                 )}
               </button>
               {isSignedIn && isProfileDropdownOpen && (
@@ -655,6 +847,62 @@ export default function Header() {
           onClose={() => setActiveInvitation(null)}
           onResponse={handleInvitationResponse}
         />
+      )}
+
+      {/* Role Preview Panel — Master Admin Only */}
+      {isSignedIn && actualRole === "MASTER_ADMIN" && (
+        <div className="fixed bottom-4 right-4 z-[9999] bg-[#0d0e12]/95 backdrop-blur-md border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] p-3.5 rounded-xl w-60 flex flex-col gap-2.5 text-[11px] font-sans text-white">
+          <div className="flex justify-between items-center">
+            <span className="font-extrabold text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-amber-500" /> Role Preview
+            </span>
+            <span className="bg-amber-600/20 text-amber-400 font-extrabold text-[7px] uppercase px-1.5 py-0.5 rounded tracking-wide border border-amber-500/20">
+              Master Admin
+            </span>
+          </div>
+          
+          <div className="flex flex-col gap-1">
+            <select
+              value={previewRole || "ACTUAL"}
+              onChange={(e) => {
+                const newRole = e.target.value;
+                if (newRole === "ACTUAL") {
+                  clearPreviewRole();
+                } else {
+                  setPreviewRole(newRole);
+                }
+                // Force re-render
+                window.location.reload();
+              }}
+              className="w-full bg-[#161b22] border border-gray-800 hover:border-zinc-700 text-white rounded-lg px-2 py-1.5 text-[11px] focus:outline-none transition cursor-pointer"
+            >
+              {SUPPORTED_PREVIEW_ROLES.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="text-[9px] text-gray-500 leading-tight border-t border-zinc-800/60 pt-1.5">
+            <p>Viewing as: <strong className="text-amber-400 uppercase">{getRoleDisplayName(effectiveRole)}</strong></p>
+          </div>
+        </div>
+      )}
+
+      {/* Persistent Preview Mode Banner */}
+      {isSignedIn && previewRole && actualRole === "MASTER_ADMIN" && (
+        <div className="fixed top-16 left-0 right-0 z-[9998] bg-amber-500/10 border-b border-amber-500/20 backdrop-blur-md px-6 py-2.5 flex items-center justify-center gap-3 text-amber-400 font-semibold text-xs shadow-[0_4px_12px_rgba(245,158,11,0.08)]">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span>Preview Mode Active — Viewing Platform as: <strong className="text-white uppercase tracking-wider">{getRoleDisplayName(effectiveRole)}</strong></span>
+          <button 
+            onClick={() => {
+              clearPreviewRole();
+              window.location.reload();
+            }}
+            className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-extrabold px-3 py-1 rounded-lg text-[10px] uppercase transition-colors border border-amber-500/30 flex items-center gap-1"
+          >
+            <EyeOff size={10} /> Exit Preview
+          </button>
+        </div>
       )}
     </>
   );

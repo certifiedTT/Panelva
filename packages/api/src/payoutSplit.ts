@@ -12,19 +12,19 @@ interface SplitResult {
 
 /**
  * Calculates creator splits after platform cuts
- * @param giftValueCoins The WCoins sent as a gift
+ * @param giftValueCredits The Credits sent as a gift
  * @param collaborators List of collaborators with their configured splits
  * @returns Split payouts in USD equivalent
  */
 export function calculatePayoutSplit(
-  giftValueCoins: number,
+  giftValueCredits: number,
   collaborators: PayoutRecipient[]
 ): SplitResult[] {
   // 1. platform cut = 25%
   const panelvaCutRatio = 0.25;
-  const netCoins = giftValueCoins * (1 - panelvaCutRatio);
-  // Convert WCoins to USD cents value: 50 WCoins = 100 cents -> 1 WCoin = 2 cents
-  const totalCentsValue = netCoins * 2;
+  const netCredits = giftValueCredits * (1 - panelvaCutRatio);
+  // Convert Credits to USD cents value: 50 Credits = 100 cents -> 1 Credit = 2 cents
+  const totalCentsValue = netCredits * 2;
 
   if (collaborators.length === 0) {
     return [];

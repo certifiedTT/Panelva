@@ -4,23 +4,65 @@ import { prisma } from "@panelva/db";
 import { cookies } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 
-// Simple in-memory rate limiter for tRPC endpoints
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+// Persistent database-backed rate limiter for tRPC endpoints
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_REQUESTS = 100; // 100 requests per minute
 
-const isRateLimited = (ip: string) => {
-  const now = Date.now();
-  const limitInfo = rateLimitMap.get(ip);
-  if (!limitInfo || now > limitInfo.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+// In-memory fallback map in case database fails
+const fallbackRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+const isRateLimited = async (ip: string): Promise<boolean> => {
+  const now = new Date();
+  const key = `ratelimit:${ip}`;
+
+  try {
+    const record = await prisma.rateLimit.findUnique({
+      where: { key },
+    });
+
+    if (!record || now > record.resetTime) {
+      await prisma.rateLimit.upsert({
+        where: { key },
+        create: {
+          key,
+          count: 1,
+          resetTime: new Date(Date.now() + RATE_LIMIT_WINDOW),
+        },
+        update: {
+          count: 1,
+          resetTime: new Date(Date.now() + RATE_LIMIT_WINDOW),
+        },
+      });
+      return false;
+    }
+
+    if (record.count >= MAX_REQUESTS) {
+      return true;
+    }
+
+    await prisma.rateLimit.update({
+      where: { key },
+      data: {
+        count: { increment: 1 },
+      },
+    });
+    return false;
+  } catch (error) {
+    console.error("Rate limiter database error, falling back to in-memory:", error);
+    
+    // In-memory fallback implementation
+    const nowMs = Date.now();
+    const limitInfo = fallbackRateLimitMap.get(ip);
+    if (!limitInfo || nowMs > limitInfo.resetTime) {
+      fallbackRateLimitMap.set(ip, { count: 1, resetTime: nowMs + RATE_LIMIT_WINDOW });
+      return false;
+    }
+    if (limitInfo.count >= MAX_REQUESTS) {
+      return true;
+    }
+    limitInfo.count += 1;
     return false;
   }
-  if (limitInfo.count >= MAX_REQUESTS) {
-    return true;
-  }
-  limitInfo.count += 1;
-  return false;
 };
 const isRequestAuthorized = (req: Request): boolean => {
   const origin = req.headers.get("origin");
@@ -29,6 +71,22 @@ const isRequestAuthorized = (req: Request): boolean => {
 
   const isAuthorizedHost = (h: string | null): boolean => {
     if (!h) return false;
+    
+    // In development mode, allow localhost/LAN hosts on any port
+    const isDev = process.env.NODE_ENV === "development";
+    if (isDev) {
+      const hostWithoutPort = h.split(":")[0];
+      if (
+        hostWithoutPort === "localhost" ||
+        hostWithoutPort === "127.0.0.1" ||
+        hostWithoutPort.startsWith("192.168.") ||
+        hostWithoutPort.startsWith("10.") ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostWithoutPort)
+      ) {
+        return true;
+      }
+    }
+
     if (h === "localhost:3000" || h === "127.0.0.1:3000") return true;
     if (h.endsWith(".vercel.app")) return true;
     if (process.env.NEXT_PUBLIC_SITE_URL) {
@@ -90,7 +148,7 @@ const handler = async (req: Request) => {
   }
 
   const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown-ip";
-  if (isRateLimited(ip)) {
+  if (await isRateLimited(ip)) {
     return new Response(
       JSON.stringify({
         error: {
@@ -113,9 +171,32 @@ const handler = async (req: Request) => {
 
       try {
         const cookieStore = cookies();
-        const supabase = createClient(await cookieStore);
+        const allCookies = cookieStore.getAll();
+        const hasSupabaseCookie = allCookies.some(
+          (c) => c.name.includes("auth-token") || c.name.startsWith("sb-")
+        );
 
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const authHeader = req.headers.get("authorization");
+        let user = null;
+
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+          const token = authHeader.substring(7);
+          const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+          const supabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+          );
+          const { data, error } = await supabase.auth.getUser(token);
+          if (data && data.user) {
+            user = data.user;
+          }
+        } else if (hasSupabaseCookie) {
+          const supabase = createClient(await cookieStore);
+          const { data, error } = await supabase.auth.getUser();
+          if (data && data.user) {
+            user = data.user;
+          }
+        }
 
         if (user && user.email) {
           // Verify user exists in the Prisma database and fetch their role
@@ -129,6 +210,15 @@ const handler = async (req: Request) => {
               email: dbUser.email,
               role: dbUser.role,
             };
+          }
+        }
+
+
+        // Apply dynamic preview role override — ONLY for MASTER_ADMIN sessions
+        if (session) {
+          const xPreviewRole = req.headers.get("x-preview-role");
+          if (xPreviewRole && session.role === "MASTER_ADMIN") {
+            session.role = xPreviewRole as any;
           }
         }
       } catch (e) {

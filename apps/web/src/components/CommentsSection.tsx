@@ -69,14 +69,14 @@ export default function CommentsSection({ chapterId, currentUser }: { chapterId:
   const [shakeRulesBanner, setShakeRulesBanner] = useState(false);
   const [activeAccordionIndex, setActiveAccordionIndex] = useState<number | null>(null);
 
-  const { data: dbComments, refetch: refetchComments } = trpc.chapter.getComments.useQuery(
+  const { data: dbComments, refetch: refetchComments } = (trpc.chapter.getComments as any).useQuery(
     { chapterId: chapterId },
     { enabled: !!chapterId }
   );
 
   const utils = trpc.useContext();
   const postCommentMutation = trpc.chapter.postComment.useMutation({
-    onMutate: async (newComment) => {
+    onMutate: async (newComment: any) => {
       await utils.chapter.getComments.cancel({ chapterId });
       const previousComments = utils.chapter.getComments.getData({ chapterId });
       
@@ -97,7 +97,7 @@ export default function CommentsSection({ chapterId, currentUser }: { chapterId:
       }
       return { previousComments };
     },
-    onError: (err, newComment, context) => {
+    onError: (err: any, newComment: any, context: any) => {
       if (context?.previousComments) {
         utils.chapter.getComments.setData({ chapterId }, context.previousComments);
       }
@@ -127,7 +127,7 @@ export default function CommentsSection({ chapterId, currentUser }: { chapterId:
     });
   };
 
-  const commentsFeed = dbComments && dbComments.length > 0 ? dbComments.map(c => ({
+  const commentsFeed = dbComments && (dbComments as any[]).length > 0 ? (dbComments as any[]).map((c: any) => ({
     id: c.id,
     author: c.user?.username || "Unknown User",
     avatar: (c.user?.username || "U")[0].toUpperCase(),
@@ -160,7 +160,7 @@ export default function CommentsSection({ chapterId, currentUser }: { chapterId:
             { id: "best", label: "Best" },
             { id: "newest", label: "Newest" },
             { id: "oldest", label: "Oldest" }
-          ].map(sort => (
+          ].map((sort: any) => (
             <button
               key={sort.id}
               onClick={() => setCommentSort(sort.id as any)}
@@ -251,7 +251,7 @@ export default function CommentsSection({ chapterId, currentUser }: { chapterId:
 
       {/* Comments List Feed */}
       <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "1rem" }}>
-        {commentsFeed.map((c) => (
+        {commentsFeed.map((c: any) => (
           <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             
             {/* Single Comment */}

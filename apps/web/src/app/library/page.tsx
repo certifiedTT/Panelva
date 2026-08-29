@@ -3,16 +3,30 @@
 import Link from "next/link";
 import { useState } from "react";
 import { DownloadDoneIcon } from "@/components/StateIcons";
+import { trpc } from "../../lib/trpc";
 
 export default function LibraryPage() {
-  const [bookmarks, setBookmarks] = useState([
-    { id: "1", title: "Shadow Hunter Chronicles", type: "Comic", lastRead: "Chapter 9", earlyChaptersAvailable: true, downloaded: true },
-    { id: "4", title: "The Silent Alchemist", type: "Novel", lastRead: "Chapter 12", earlyChaptersAvailable: false, downloaded: false }
-  ]);
+  const { data: dbLibrary, isLoading } = trpc.user.getLibrary.useQuery();
+  const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
 
   const toggleDownload = (id: string) => {
-    setBookmarks(prev => prev.map(b => b.id === id ? { ...b, downloaded: !b.downloaded } : b));
+    setDownloadedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "var(--dark-bg)", color: "var(--text-dark)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <p style={{ color: "var(--text-dark-muted)" }}>Loading Library...</p>
+      </div>
+    );
+  }
+
+  const bookmarks = (dbLibrary || []).map((b: any) => ({
+    ...b,
+    downloaded: downloadedIds.includes(b.id),
+  }));
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--dark-bg)", color: "var(--text-dark)", padding: "4rem 2rem", fontFamily: "var(--font-sans)" }}>
@@ -25,7 +39,7 @@ export default function LibraryPage() {
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {bookmarks.map((bookmark) => (
+          {bookmarks.map((bookmark: any) => (
             <div key={bookmark.id} className="glass-panel" style={{ padding: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "2rem" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -76,6 +90,14 @@ export default function LibraryPage() {
               </div>
             </div>
           ))}
+          {bookmarks.length === 0 && (
+            <div style={{ textAlign: "center", padding: "4rem 2rem", border: "1px dashed #1c1e24", borderRadius: "16px", color: "var(--text-dark-muted)" }}>
+              <p style={{ margin: "0 0 1rem 0" }}>You haven't bookmarked any titles yet.</p>
+              <Link href="/comics" style={{ color: "var(--secondary)", fontWeight: "bold", textDecoration: "underline" }}>
+                Browse Comics & Novels
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

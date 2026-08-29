@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { prisma } from "@panelva/db";
 import { updateSeriesTiers } from "./chapterLifecycleWorker";
 
-describe("Chapter Lifecycle 3/3/4 Ratio transitions", () => {
+describe("Intelligent Chapter Access System & Progression lifecycle", () => {
   let creatorId: string;
   let seriesId: string;
 
@@ -28,8 +28,8 @@ describe("Chapter Lifecycle 3/3/4 Ratio transitions", () => {
 
     const series = await prisma.series.create({
       data: {
-        title: "Test Lifecycle Series",
-        description: "Testing deterministic 3/3/4 transitions",
+        title: "Test Lifecycle Series " + Date.now(),
+        description: "Testing intelligent progressive transitions",
         coverUrl: "https://example.com/cover.jpg",
         type: "COMIC",
         creatorId: creator.id,
@@ -40,8 +40,8 @@ describe("Chapter Lifecycle 3/3/4 Ratio transitions", () => {
     seriesId = series.id;
   });
 
-  it("partitions 1 chapter correctly as PREMIUM", async () => {
-    await prisma.chapter.create({
+  it("partitions 1 chapter correctly as AD_SUPPORTED (Watch to Unlock)", async () => {
+    const ch = await prisma.chapter.create({
       data: {
         seriesId,
         title: "Chapter 1",
@@ -52,15 +52,17 @@ describe("Chapter Lifecycle 3/3/4 Ratio transitions", () => {
 
     await updateSeriesTiers(seriesId);
 
-    const chapters = await prisma.chapter.findMany({
-      where: { seriesId },
-      orderBy: { chapterIndex: "asc" },
-    });
-    expect(chapters).toHaveLength(1);
-    expect(chapters[0].tier).toBe("PREMIUM");
+    const updatedCh = await prisma.chapter.findUnique({ where: { id: ch.id } });
+    expect(updatedCh?.tier).toBe("AD_SUPPORTED");
   });
 
   it("partitions 3 chapters correctly as 1 FREE, 1 AD_SUPPORTED, 1 PREMIUM", async () => {
+    // Reset initial distributed flag for test
+    await prisma.series.update({
+      where: { id: seriesId },
+      data: { isInitiallyDistributed: false }
+    });
+
     await prisma.chapter.create({
       data: {
         seriesId,
@@ -85,16 +87,20 @@ describe("Chapter Lifecycle 3/3/4 Ratio transitions", () => {
       orderBy: { chapterIndex: "asc" },
     });
     expect(chapters).toHaveLength(3);
-    // Sort asc: idx 1, 2, 3
-    // 3/3/4 for N=3: Math.round(3*0.4)=1 Premium, Math.round(3*0.3)=1 Ad, N-1-1=1 Free
     expect(chapters[0].tier).toBe("FREE");
     expect(chapters[1].tier).toBe("AD_SUPPORTED");
     expect(chapters[2].tier).toBe("PREMIUM");
   });
 
-  it("partitions 10 chapters correctly as 3 FREE, 3 AD_SUPPORTED, 4 PREMIUM (3/3/4 exact ratio)", async () => {
-    // Currently we have 3 chapters. Add 7 more.
-    for (let idx = 4; idx <= 10; idx++) {
+  it("staggers Premium chapters during bulk releases", async () => {
+    // Clean series chapters and recreate 6 chapters
+    await prisma.chapter.deleteMany({ where: { seriesId } });
+    await prisma.series.update({
+      where: { id: seriesId },
+      data: { isInitiallyDistributed: false }
+    });
+
+    for (let idx = 1; idx <= 6; idx++) {
       await prisma.chapter.create({
         data: {
           seriesId,
@@ -111,14 +117,40 @@ describe("Chapter Lifecycle 3/3/4 Ratio transitions", () => {
       where: { seriesId },
       orderBy: { chapterIndex: "asc" },
     });
-    expect(chapters).toHaveLength(10);
+    expect(chapters).toHaveLength(6);
+    // N=6: X=2 => 2 Free, 2 Ad, 2 Premium
+    expect(chapters[0].tier).toBe("FREE");
+    expect(chapters[1].tier).toBe("FREE");
+    expect(chapters[2].tier).toBe("AD_SUPPORTED");
+    expect(chapters[3].tier).toBe("AD_SUPPORTED");
+    expect(chapters[4].tier).toBe("PREMIUM");
+    expect(chapters[5].tier).toBe("PREMIUM");
 
-    const freeCount = chapters.filter((c) => c.tier === "FREE").length;
-    const adCount = chapters.filter((c) => c.tier === "AD_SUPPORTED").length;
-    const premiumCount = chapters.filter((c) => c.tier === "PREMIUM").length;
+    // Check stagger dates
+    const unlock4 = chapters[4].waitTierDropAt;
+    const unlock5 = chapters[5].waitTierDropAt;
+    expect(unlock4).not.toBeNull();
+    expect(unlock5).not.toBeNull();
+    const diff = unlock5!.getTime() - unlock4!.getTime();
+    expect(diff).toBeGreaterThanOrEqual(6 * 24 * 3600 * 1000); // approx 7 days stagger
+  });
 
-    expect(freeCount).toBe(3);
-    expect(adCount).toBe(3);
-    expect(premiumCount).toBe(4);
+  it("pauses progression timers during creator inactivity", async () => {
+    // Make latest chapter created 15 days ago
+    const chapters = await prisma.chapter.findMany({ where: { seriesId } });
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 3600 * 1000);
+    
+    for (const ch of chapters) {
+      await prisma.chapter.update({
+        where: { id: ch.id },
+        data: { createdAt: fifteenDaysAgo }
+      });
+    }
+
+    await updateSeriesTiers(seriesId);
+
+    const updatedSeries = await prisma.series.findUnique({ where: { id: seriesId } });
+    expect(updatedSeries?.isProgressionPaused).toBe(true);
+    expect(updatedSeries?.progressionPausedAt).not.toBeNull();
   });
 });

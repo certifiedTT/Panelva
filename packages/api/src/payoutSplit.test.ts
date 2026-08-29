@@ -3,7 +3,7 @@ import { calculatePayoutSplit } from "./payoutSplit";
 import { Prisma } from "@panelva/db";
 
 describe("calculatePayoutSplit", () => {
-  it("splits WCoin values correctly minus the 25% platform cut", () => {
+  it("splits Credit values correctly minus the 25% platform cut", () => {
     const recipients = [
       { userId: "user-1", shareRatio: new Prisma.Decimal(50.00) },
       { userId: "user-2", shareRatio: new Prisma.Decimal(50.00) },
@@ -26,7 +26,7 @@ describe("calculatePayoutSplit", () => {
     ];
     const result = calculatePayoutSplit(10, recipients);
     expect(result).toHaveLength(2);
-    // 10 WCoins * 0.75 * 2 = 15 cents.
+    // 10 Credits * 0.75 * 2 = 15 cents.
     // 50% split should give 8 cents and 7 cents respectively, summing to exactly 15 cents.
     const totalDistributed = result[0].amountUsd + result[1].amountUsd;
     expect(totalDistributed).toBe(15);

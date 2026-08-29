@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { prisma, Role } from "@panelva/db";
+import { prisma, UserRole } from "@panelva/db";
 import { appRouter } from "./index";
 import { createTRPCContext } from "../context";
 
@@ -23,7 +23,7 @@ describe("Creator Collaboration tRPC Router", () => {
       data: {
         email: `primary-${suffix}@panelva.com`,
         username: `primary_${suffix}`,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
 
@@ -41,7 +41,7 @@ describe("Creator Collaboration tRPC Router", () => {
       data: {
         email: `cocreator-${suffix}@panelva.com`,
         username: `cocreator_${suffix}`,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
 
@@ -59,7 +59,7 @@ describe("Creator Collaboration tRPC Router", () => {
       data: {
         email: `cocreator2-${suffix}@panelva.com`,
         username: `cocreator2_${suffix}`,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
 
@@ -77,7 +77,7 @@ describe("Creator Collaboration tRPC Router", () => {
       data: {
         email: `normal-${suffix}@panelva.com`,
         username: `normal_${suffix}`,
-        role: Role.USER,
+        role: UserRole.USER,
       },
     });
 
@@ -97,7 +97,7 @@ describe("Creator Collaboration tRPC Router", () => {
         seriesId: series.id,
         userId: primaryUser.id,
         shareRatio: 100,
-        role: "Primary Creator",
+        role: "PrimaryCreator",
         isAgreed: true,
         agreedAt: new Date(),
       },
@@ -109,7 +109,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: coCreatorUser.id,
         email: coCreatorUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const caller = appRouter.createCaller(ctx);
@@ -129,7 +129,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: primaryUser.id,
         email: primaryUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const caller = appRouter.createCaller(ctx);
@@ -149,7 +149,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: primaryUser.id,
         email: primaryUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const caller = appRouter.createCaller(ctx);
@@ -182,7 +182,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: primaryUser.id,
         email: primaryUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const caller = appRouter.createCaller(ctx);
@@ -202,7 +202,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: primaryUser.id,
         email: primaryUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const caller = appRouter.createCaller(ctx);
@@ -224,7 +224,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: primaryUser.id,
         email: primaryUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const primaryCaller = appRouter.createCaller(primaryCtx);
@@ -241,7 +241,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: coCreatorUser2.id,
         email: coCreatorUser2.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const receiverCaller = appRouter.createCaller(receiverCtx);
@@ -275,7 +275,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: coCreatorUser.id,
         email: coCreatorUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const receiverCaller = appRouter.createCaller(receiverCtx);
@@ -325,7 +325,7 @@ describe("Creator Collaboration tRPC Router", () => {
       session: {
         userId: primaryUser.id,
         email: primaryUser.email,
-        role: Role.CREATOR,
+        role: UserRole.CREATOR,
       },
     });
     const primaryCaller = appRouter.createCaller(primaryCtx);
@@ -333,7 +333,7 @@ describe("Creator Collaboration tRPC Router", () => {
     const invite = await primaryCaller.collaboration.sendInvitation({
       seriesId: series.id,
       receiverId: coCreatorUser2.id,
-      role: "Studio Assistant",
+      role: "Studio",
       shareRatio: 5,
     });
 

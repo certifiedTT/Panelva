@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ThemeSync from "../components/ThemeSync";
 import { TRPCProvider } from "../components/TRPCProvider";
+import { AuthProvider } from "../components/AuthContext";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
@@ -21,10 +22,12 @@ export default function RootLayout({
     <html lang="en">
       <body style={{ display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: "var(--bg-color)" }}>
         <TRPCProvider>
-          <ThemeSync />
-          <Header />
-          <main style={{ flex: 1 }}>{children}</main>
-          <Footer />
+          <AuthProvider>
+            <ThemeSync />
+            <Header />
+            <main style={{ flex: 1 }}>{children}</main>
+            <Footer />
+          </AuthProvider>
         </TRPCProvider>
         <Analytics />
       </body>

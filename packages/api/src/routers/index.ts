@@ -3,8 +3,9 @@ import { chapterRouter } from "./chapterRouter";
 import { seriesRouter } from "./seriesRouter";
 import { creatorRouter } from "./creatorRouter";
 import { collaborationRouter } from "./collaborationRouter";
-
 import { adminRouter } from "./adminRouter";
+import { userRouter } from "./userRouter";
+import { postRouter } from "./postRouter";
 
 export const appRouter = router({
   chapter: chapterRouter,
@@ -12,6 +13,8 @@ export const appRouter = router({
   creator: creatorRouter,
   collaboration: collaborationRouter,
   admin: adminRouter,
+  user: userRouter,
+  post: postRouter,
 });
 
 export type AppRouter = typeof appRouter;

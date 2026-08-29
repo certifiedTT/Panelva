@@ -13,6 +13,17 @@ enum UserRole {
   CREATOR
   ADMIN
   MASTER_ADMIN
+  FINANCE_ADMIN
+  COMMUNITY_MODERATOR
+  SAFETY_SPECIALIST
+  CUSTOMER_SUPPORT
+  EDITORIAL_TEAM
+  MARKETING_MANAGER
+  PARTNERSHIP_MANAGER
+  REGIONAL_ADMIN
+  OPERATIONS_ADMIN
+  BUSINESS_ADMIN
+  MODERATOR
 }
 
 enum SubscriptionTier {
@@ -39,7 +50,10 @@ enum CreatorType {
 
 enum SeriesStatus {
   ONGOING
+  COMING_SOON
+  SEASON_ENDED
   HIATUS
+  NEW_SEASON_COMING
   COMPLETED
 }
 
@@ -50,7 +64,7 @@ enum SeriesType {
 
 enum ChapterTier {
   FREE
-  EARLY_ACCESS
+  AD_SUPPORTED
   PREMIUM
 }
 
@@ -118,6 +132,9 @@ model User {
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
 
+  emailVerified             Boolean          @default(false)
+  phoneVerified             Boolean          @default(false)
+
   realName    String?
   payoutEmail String?
   taxId       String?
@@ -131,11 +148,17 @@ model User {
   reportsSubmitted    SafetyReport[]            @relation("Reporter")
   collaborations      Collaboration[]
   follows             Follow[]                  @relation("Follower")
+  membershipSubscriptions UserMembershipSubscription[]
   likes               Like[]
   comments            Comment[]
   sentInvitations     CollaborationInvitation[] @relation("InvitationSender")
   receivedInvitations CollaborationInvitation[] @relation("InvitationReceiver")
   collabAuditLogs     CollaborationAuditLog[]   @relation("CollabAuditActor")
+  creatorPostComments CreatorPostComment[]
+  creatorPostLikes    CreatorPostLike[]
+  creatorPostBookmarks CreatorPostBookmark[]
+  followedCreators    CreatorFollow[]
+  notifications       Notification[]
 
   @@index([email])
 }
@@ -172,9 +195,22 @@ model CreatorProfile {
   viewCount     Int         @default(0)
   createdAt     DateTime    @default(now())
 
+  monetizationStatus        String           @default("NOT_APPLIED")
+  monetizationNotes         String?
+  verificationStatus        String           @default("NOT_VERIFIED")
+  verificationNotes         String?
+  isFeatured                Boolean          @default(false)
+  governmentId              String?
+  businessVerification      String?
+
   series      Series[]
+  membershipTiers           MembershipTier[]
+  creatorGoals              CreatorGoal[]
+  creatorNotifications      CreatorNotification[]
   studioStaff StudioStaff[] @relation("StaffCreator")
   studio      StudioStaff[] @relation("StudioCreator")
+  creatorPosts              CreatorPost[]
+  followers                 CreatorFollow[]
 
   @@index([userId])
 }
@@ -200,6 +236,8 @@ model Series {
   genre       String         @default("Fantasy")
   type        SeriesType
   status      SeriesStatus   @default(ONGOING)
+  statusMessage String?
+  statusUpdatedAt DateTime   @default(now())
   creatorId   String
   creator     CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   views       Int            @default(0)
@@ -207,9 +245,14 @@ model Series {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  isProgressionPaused Boolean @default(false)
+  progressionPausedAt DateTime?
+  isInitiallyDistributed Boolean @default(false)
+
   adSystemEnabled Boolean @default(true)
   milestoneLocked Boolean @default(false)
   waitForFreeDays Int     @default(7)
+  linkedSeriesId  String?
 
   chapters        Chapter[]
   collaborators   Collaboration[]
@@ -217,6 +260,7 @@ model Series {
   follows         Follow[]                  @relation("FollowedSeries")
   invitations     CollaborationInvitation[]
   collabAuditLogs CollaborationAuditLog[]
+  notifications   Notification[]
 
   @@index([creatorId])
 }
@@ -246,6 +290,8 @@ model Chapter {
   series         Series      @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   title          String
   chapterIndex   Int
+  displayNumber  String      @default("1")
+  sortKey        String      @default("000001.000000.000000.000000")
   tier           ChapterTier @default(FREE)
   waitTierDropAt DateTime?
   createdAt      DateTime    @default(now())
@@ -259,6 +305,7 @@ model Chapter {
   comments       Comment[]
 
   @@unique([seriesId, chapterIndex])
+  @@index([seriesId, sortKey])
 }
 
 model Comment {
@@ -443,5 +490,184 @@ model CollaborationAuditLog {
   details   String
   createdAt DateTime          @default(now())
 
+  @@index([seriesId])
+}
+
+model MembershipTier {
+  id               String                       @id @default(uuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile               @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  name             String
+  description      String
+  priceUsd         Float
+  priceCoins       Int
+  badgeUrl         String?
+  colorTheme       String                       @default("#7c3aed")
+  benefits         String                       @default("[]")
+  isFeatured       Boolean                      @default(false)
+  isPublished      Boolean                      @default(false)
+  isArchived       Boolean                      @default(false)
+  orderIndex       Int                          @default(0)
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  subscriptions    UserMembershipSubscription[]
+}
+
+model UserMembershipSubscription {
+  id               String                       @id @default(uuid())
+  userId           String
+  user             User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tierId           String
+  tier             MembershipTier               @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  status           String                       @default("ACTIVE")
+  paymentMethod    String                       @default("DIRECT")
+  currentPeriodEnd DateTime
+  autoRenew        Boolean                      @default(true)
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  @@unique([userId, tierId])
+}
+
+model CreatorGoal {
+  id               String                       @id @default(uuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile               @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  title            String
+  description      String
+  type             String
+  targetAmount     Int
+  currentProgress  Int                          @default(0)
+  reward           String
+  endDate          DateTime?
+  isPublic         Boolean                      @default(true)
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+}
+
+model CreatorNotification {
+  id               String                       @id @default(uuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile               @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  userId           String?
+  title            String
+  message          String
+  type             String
+  isRead           Boolean                      @default(false)
+  createdAt        DateTime                     @default(now())
+}
+
+model CreatorPost {
+  id               String                 @id @default(uuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile         @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  title            String
+  content          String                 @db.Text
+  type             String                 @default("TEXT") // TEXT, ANNOUNCEMENT, CONCEPT_ART, POLL, QA, PROGRESS_UPDATE, MEMBERSHIP_EXCLUSIVE, etc.
+  visibility       String                 @default("PUBLIC") // PUBLIC, FOLLOWERS_ONLY, MEMBERS_ONLY, TIER_ONLY
+  allowedTierId    String?
+  mediaUrls        String                 @default("[]") // JSON string array
+  pollOptions      String                 @default("[]") // JSON string array for choices
+  pollVotes        String                 @default("{}") // JSON string of user votes { "userId": choiceIndex }
+  qaAnswers        String                 @default("[]") // JSON string of answers [ { "userId": "...", "answer": "..." } ]
+  isPinned         Boolean                @default(false)
+  status           String                 @default("PUBLISHED") // PUBLISHED, DRAFT, SCHEDULED, ARCHIVED
+  scheduledFor     DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  viewsCount       Int                    @default(0)
+  sharesCount      Int                    @default(0)
+  tipsCount        Int                    @default(0)
+  giftsCount       Int                    @default(0)
+  
+  comments         CreatorPostComment[]
+  likes            CreatorPostLike[]
+  bookmarks        CreatorPostBookmark[]
+  
+  @@index([creatorProfileId])
+  @@index([status])
+}
+
+model CreatorPostComment {
+  id               String                 @id @default(uuid())
+  postId           String
+  post             CreatorPost            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content          String                 @db.Text
+  parentId         String?
+  isPinned         Boolean                @default(false)
+  isHearted        Boolean                @default(false)
+  createdAt        DateTime               @default(now())
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model CreatorPostLike {
+  postId           String
+  post             CreatorPost            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+}
+
+model CreatorPostBookmark {
+  postId           String
+  post             CreatorPost            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+}
+
+model CreatorFollow {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@unique([userId, creatorProfileId])
+}
+
+model AdminNotification {
+  id        String   @id @default(uuid())
+  userId    String?  // Optional: target specific user
+  role      UserRole // Target administrative role
+  title     String
+  message   String
+  priority  String   @default("Medium") // Low, Medium, High, Critical
+  category  String   @default("System")
+  isRead    Boolean  @default(false)
+  deepLink  String?
+  createdAt DateTime @default(now())
+
+  @@index([role])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int
+  resetTime DateTime
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creatorId String?
+  seriesId  String?
+  series    Series?  @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  type      String   @default("series_status") // "new_series" | "new_chapter" | "series_status"
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(Desc)])
   @@index([seriesId])
 }

@@ -2,47 +2,47 @@
 
 import React, { useState } from "react";
 import { Ticket, ShieldCheck, History, Info } from "lucide-react";
+import { trpc } from "../../lib/trpc";
+import { useAuth } from "../../components/AuthContext";
 
 export default function RedeemPage() {
+  const { user } = useAuth();
   const [code, setCode] = useState("");
   const [log, setLog] = useState<string[]>([]);
-  const [currentUserStatus, setCurrentUserStatus] = useState({
-    tier: "Free Member",
-    isPromotional: false,
-    viewEarningContributed: true
+
+  const { data: me, refetch: refetchMe, isLoading } = (trpc.user.getMe as any).useQuery(undefined, {
+    enabled: !!user,
+  });
+
+  const redeemPromoMutation = trpc.user.redeemPromoCode.useMutation({
+    onSuccess: (data: any, variables: any) => {
+      refetchMe();
+      const message = `Success! Activated promotional code "${variables.code}". Code is valid for ${data.premiumDays} days.`;
+      setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev]);
+      setCode("");
+      alert("Code redeemed successfully!");
+    },
+    onError: (err: any, variables: any) => {
+      const message = `Error: ${err.message || "Failed to redeem code."}`;
+      setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev]);
+      alert(`Redemption failed: ${err.message || "Invalid or already used code."}`);
+    },
   });
 
   const handleRedeem = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      alert("Please log in first to redeem promo codes.");
+      return;
+    }
     if (!code.trim()) return;
+    redeemPromoMutation.mutate({ code: code.trim().toUpperCase() });
+  };
 
-    const codeUpper = code.trim().toUpperCase();
-    let message = "";
-    let updatedStatus = { ...currentUserStatus };
-
-    if (codeUpper.startsWith("PROMO")) {
-      updatedStatus = {
-        tier: codeUpper.includes("PREMIUM") ? "Panelva Premium (Promo)" : "Panelva Plus (Promo)",
-        isPromotional: true,
-        viewEarningContributed: false
-      };
-      message = `Success! Activated promotional code "${codeUpper}". Promotional accounts exclude creator view payout cuts.`;
-    } else if (codeUpper.startsWith("PAID") || codeUpper.startsWith("GIFT")) {
-      updatedStatus = {
-        tier: codeUpper.includes("PREMIUM") ? "Panelva Premium (Paid)" : "Panelva Plus (Paid)",
-        isPromotional: false,
-        viewEarningContributed: true
-      };
-      message = `Success! Activated paid subscription code "${codeUpper}". Regular subscriber view analytics enabled.`;
-    } else {
-      message = `Error: Code "${codeUpper}" is invalid. Try "PROMO-PREMIUM" or "PAID-PREMIUM".`;
-    }
-
-    if (!message.startsWith("Error")) {
-      setCurrentUserStatus(updatedStatus);
-    }
-    setLog((prev) => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev]);
-    setCode("");
+  const currentUserStatus = {
+    tier: me ? `${me.subscription || "Free Member"}` : "Free Member",
+    isPromotional: me ? me.isPromotionalSubscription : false,
+    viewEarningContributed: me ? !me.isPromotionalSubscription : true,
   };
 
   return (

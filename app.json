@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Panelva",
+    "slug": "sync",
+    "version": "1.0.0",
+    "owner": "sync001s-team",
+    "extra": {
+      "eas": {
+        "projectId": "09f0bfe1-ad98-4cc0-836c-215e35b98f1d"
+      }
+    }
+  }
+}

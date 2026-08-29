@@ -31,7 +31,7 @@ const DEFAULT_PLANS: Plan[] = [
     highlightColor: "#a78bfa",
     badgeBg: "rgba(167, 139, 250, 0.15)",
     features: [
-      { title: "6-hour early access on new chapters", subtitle: "Read fresh releases before everyone else" },
+      { title: "Early access 2 hours after Premium", subtitle: "Read newly published releases 2 hours after Premium subscribers" },
       { title: "Basic offline downloads", subtitle: "Save up to 10 chapters encrypting at rest" },
       { title: "No banner ads", subtitle: "Enjoy a cleaner reading interface" }
     ]
@@ -44,7 +44,7 @@ const DEFAULT_PLANS: Plan[] = [
     highlightColor: "#fbbf24",
     badgeBg: "rgba(251, 191, 36, 0.15)",
     features: [
-      { title: "Instant early access to all content", subtitle: "No wait times or schedules on early chapters" },
+      { title: "Instant early access to all new content", subtitle: "Immediate 0-hour access to all new series and chapters upon release" },
       { title: "Unlimited offline downloads", subtitle: "AES-256 secure encrypted caching" },
       { title: "No ads, animated PFP & badges", subtitle: "Plus the rest of the Premium perks" }
     ]

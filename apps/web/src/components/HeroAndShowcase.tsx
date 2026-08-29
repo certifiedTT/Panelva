@@ -1,5 +1,6 @@
 import Link from "next/link";
 import React from "react";
+import Image from "next/image";
 import { SeriesCard } from "./SeriesCard";
 
 export interface SeriesItem {
@@ -10,6 +11,7 @@ export interface SeriesItem {
   genre: string;
   chapters: number;
   coverBg: string;
+  coverUrl?: string | null;
   isNew?: boolean;
   bannerUrl?: string | null;
   description?: string;
@@ -37,13 +39,15 @@ export default function HeroAndShowcase({
     ? `/read/${featuredSeries.id}?title=${encodeURIComponent(featuredSeries.title)}&genre=${featuredSeries.genre}&chapters=${featuredSeries.chapters || 24}&likes=${featuredSeries.likes}`
     : "/premium";
 
-  const heroBgStyle = {
-    backgroundImage: featuredSeries?.bannerUrl
-      ? `url(${featuredSeries.bannerUrl})`
-      : (featuredSeries?.coverBg && (featuredSeries.coverBg.startsWith("url") || featuredSeries.coverBg.startsWith("linear-gradient")))
-        ? featuredSeries.coverBg
-        : "url('https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1200&auto=format&fit=crop')"
+  const getImageUrl = (bg?: string | null) => {
+    if (!bg) return null;
+    if (bg.startsWith("http")) return bg;
+    const match = bg.match(/url\(['"]?([^'"]+)['"]?\)/);
+    return match ? match[1] : null;
   };
+
+  const bannerImageSrc = featuredSeries?.bannerUrl || getImageUrl(featuredSeries?.coverBg) || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1200&auto=format&fit=crop';
+  const isGradient = !featuredSeries?.bannerUrl && featuredSeries?.coverBg && (featuredSeries.coverBg.startsWith("linear-gradient") || featuredSeries.coverBg.startsWith("radial-gradient"));
 
   return (
     <main className="min-h-screen bg-[#0b0c10] pt-16 text-white">
@@ -55,10 +59,23 @@ export default function HeroAndShowcase({
         <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c10] to-transparent z-10" />
         
         {/* Dynamic artwork background with fallback */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-40 transition-all duration-500" 
-          style={heroBgStyle} 
-        />
+        {isGradient ? (
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-40 transition-all duration-500" 
+            style={{ background: featuredSeries.coverBg }} 
+          />
+        ) : (
+          bannerImageSrc && (
+            <Image
+              src={bannerImageSrc}
+              alt={heroTitle}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover opacity-40 transition-all duration-500"
+            />
+          )
+        )}
 
         {/* Hero Content Area */}
         <div className="relative z-20 mx-auto max-w-7xl px-6 md:px-8 w-full flex h-full flex-col justify-center">

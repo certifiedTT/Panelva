@@ -39,7 +39,7 @@ interface InvitationModalProps {
 
 export function InvitationModal({ invitation, onClose, onResponse }: InvitationModalProps) {
   // Query other collaborations to show the breakdown
-  const { data: collabData, isLoading } = trpc.collaboration.getSeriesCollaborations.useQuery(
+  const { data: collabData, isLoading } = (trpc.collaboration.getSeriesCollaborations as any).useQuery(
     { seriesId: invitation.seriesId },
     { enabled: !!invitation.seriesId }
   );
@@ -56,10 +56,10 @@ export function InvitationModal({ invitation, onClose, onResponse }: InvitationM
 
     // Find the primary creator's collaboration entry
     const activeOthers = collabData.activeCollaborators.filter(
-      (c) => c.user.id !== invitation.sender.username // sender username is actually primary user username or id
+      (c: any) => c.user.id !== invitation.sender.username // sender username is actually primary user username or id
     );
 
-    const activeOtherTotal = activeOthers.reduce((acc, c) => acc + c.shareRatio, 0);
+    const activeOtherTotal = activeOthers.reduce((acc: number, c: any) => acc + c.shareRatio, 0);
     const newPrimaryShare = 100 - (activeOtherTotal + invitation.shareRatio);
 
     const list = [
@@ -80,7 +80,7 @@ export function InvitationModal({ invitation, onClose, onResponse }: InvitationM
     ];
 
     // Add other active co-creators
-    collabData.activeCollaborators.forEach((c) => {
+    collabData.activeCollaborators.forEach((c: any) => {
       const isPrimary = c.role === "PrimaryCreator" || c.user.username === invitation.series.creator.user.username;
       if (!isPrimary) {
         list.push({
@@ -248,7 +248,7 @@ export function InvitationModal({ invitation, onClose, onResponse }: InvitationM
               <div style={{ fontSize: "0.8rem", color: "#71717a" }}>Loading distribution info...</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {splitsPreview.map((item, idx) => (
+                {splitsPreview.map((item: any, idx: number) => (
                   <div 
                     key={idx} 
                     style={{

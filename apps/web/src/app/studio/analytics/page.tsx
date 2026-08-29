@@ -19,8 +19,8 @@ export default function StudioAnalyticsPage() {
   }
 
   // Calculate totals for quick stats
-  const totalViews = analytics.reduce((acc, curr) => acc + curr.views, 0);
-  const totalRevenue = analytics.reduce((acc, curr) => acc + curr.revenue, 0);
+  const totalViews = analytics.reduce((acc: number, curr: any) => acc + curr.views, 0);
+  const totalRevenue = analytics.reduce((acc: number, curr: any) => acc + curr.revenue, 0);
   
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-color)", color: "var(--text-color)" }}>
@@ -113,7 +113,7 @@ export default function StudioAnalyticsPage() {
                   <YAxis stroke="#888" tick={{ fill: '#888' }} />
                   <Tooltip contentStyle={{ background: "#111", border: "1px solid #333", borderRadius: "8px" }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
                   <Legend />
-                  <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} name="W-Coin Revenue ($)" />
+                  <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} name="W-Credits Revenue ($)" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

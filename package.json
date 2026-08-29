@@ -10,13 +10,27 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "start": "npm --workspace=apps/mobile run start",
+    "ios": "npm --workspace=apps/mobile run ios",
+    "android": "npm --workspace=apps/mobile run android",
+    "mobile": "npm --workspace=apps/mobile run start"
   },
   "devDependencies": {
+    "@swc/helpers": "^0.5.23",
+    "@types/node": "^26.2.0",
+    "prisma": "^5.22.0",
     "turbo": "^2.0.0",
     "vitest": "^4.1.8"
   },
   "dependencies": {
+    "@alloc/quick-lru": "^5.2.0",
+    "@supabase/auth-js": "^2.112.3",
+    "@turbo/windows-64": "^2.10.11",
     "framer-motion": "^12.40.0"
+  },
+  "overrides": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0"
   }
 }

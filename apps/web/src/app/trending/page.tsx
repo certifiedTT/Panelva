@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { trpc } from "../../lib/trpc";
 
 interface CountdownItem {
   id: string;
@@ -13,13 +14,14 @@ interface CountdownItem {
 }
 
 export default function TrendingPage() {
-  const initialCountdowns: CountdownItem[] = [
-    { id: "c1", title: "Shadow Hunter Chronicles", chapter: "Chapter 15", fromTier: "Premium (Tier 3)", toTier: "Ad-supported (Tier 2)", secondsRemaining: 3600 * 24 * 3 + 3600 * 4 },
-    { id: "c2", title: "Levelling Up in the Underworld", chapter: "Chapter 11", fromTier: "Ad-supported (Tier 2)", toTier: "Free (Tier 1)", secondsRemaining: 3600 * 5 },
-    { id: "c3", title: "The Silent Alchemist", chapter: "Chapter 14", fromTier: "Premium (Tier 3)", toTier: "Ad-supported (Tier 2)", secondsRemaining: 3600 * 24 * 6 + 3600 * 22 }
-  ];
+  const { data: dbCountdowns, isLoading } = trpc.chapter.getTrendingCountdowns.useQuery();
+  const [countdowns, setCountdowns] = useState<CountdownItem[]>([]);
 
-  const [countdowns, setCountdowns] = useState<CountdownItem[]>(initialCountdowns);
+  useEffect(() => {
+    if (dbCountdowns) {
+      setCountdowns(dbCountdowns);
+    }
+  }, [dbCountdowns]);
 
   // Decrement counters every second
   useEffect(() => {
@@ -43,6 +45,14 @@ export default function TrendingPage() {
     
     return `${days > 0 ? `${days}d ` : ""}${hours}h ${mins}m ${secs}s`;
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "var(--dark-bg)", color: "var(--text-dark)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <p style={{ color: "var(--text-dark-muted)" }}>Loading countdowns...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--dark-bg)", color: "var(--text-dark)", padding: "4rem 2rem", fontFamily: "var(--font-sans)" }}>
@@ -86,6 +96,11 @@ export default function TrendingPage() {
                 </div>
               </div>
             ))}
+            {countdowns.length === 0 && (
+              <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-dark-muted)", fontStyle: "italic" }}>
+                No upcoming chapter tier drops scheduled.
+              </div>
+            )}
           </div>
         </div>
 

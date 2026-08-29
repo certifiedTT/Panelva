@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, Upload, CheckCircle2, AlertCircle, FileText, 
   Sparkles, Globe, Users, PenTool, BookOpen, Clock, RefreshCw, Send
 } from "lucide-react";
 import { trpc } from "../../../lib/trpc";
+import { isAdminRole, isCreatorRole } from "../../../lib/roleUtils";
 
 // Extensible form configuration definitions for role-based signups
 const CREATOR_CATEGORIES = {
@@ -165,6 +167,7 @@ const CREATOR_CATEGORIES = {
 };
 
 export default function CreatorApplyPage() {
+  const router = useRouter();
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState("");
   const [penName, setPenName] = useState("");
@@ -179,7 +182,7 @@ export default function CreatorApplyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // tRPC Status Queries
-  const { data: appStatus, refetch: refetchStatus, isLoading: isLoadingStatus } = trpc.creator.getApplicantStatus.useQuery(undefined, {
+  const { data: appStatus, refetch: refetchStatus, isLoading: isLoadingStatus } = (trpc.creator.getApplicantStatus as any).useQuery(undefined, {
     enabled: isSignedIn
   });
 
@@ -189,7 +192,7 @@ export default function CreatorApplyPage() {
       refetchStatus();
       alert("Application submitted successfully!");
     },
-    onError: (err) => {
+    onError: (err: any) => {
       setIsSubmitting(false);
       alert(`Submission Error: ${err.message}`);
     }
@@ -197,12 +200,20 @@ export default function CreatorApplyPage() {
 
   useEffect(() => {
     const user = localStorage.getItem("panelva_user");
-    if (user) {
+    const role = localStorage.getItem("panelva_role") || "USER";
+    if (user && user !== "Guest") {
       setIsSignedIn(true);
       setCurrentUser(user);
       setPenName(user);
+
+      // RBAC redirect if already admin or creator
+      if (isAdminRole(role)) {
+        router.replace("/admin");
+      } else if (isCreatorRole(role)) {
+        router.replace("/studio");
+      }
     }
-  }, []);
+  }, [router]);
 
   // Set default values when creator type changes
   useEffect(() => {
@@ -221,15 +232,56 @@ export default function CreatorApplyPage() {
     }));
   };
 
-  const handleFileUploadMock = (fieldId: string, accept: string) => {
-    // Simulate dynamic file uploading to keep UX reactive
-    const fakeFileName = `uploaded_${fieldId}_${Math.random().toString(36).substring(7)}` + 
-                         (accept.includes("image") ? ".png" : ".pdf");
-    setUploadStatus(prev => ({ ...prev, [fieldId]: true }));
-    setDynamicValues(prev => ({
-      ...prev,
-      [fieldId]: `https://panelva-assets.s3.amazonaws.com/uploads/${fakeFileName}`
-    }));
+  const handleRealFileUpload = async (fieldId: string, accept: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accept;
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setUploadStatus(prev => ({ ...prev, [fieldId]: false }));
+      
+      try {
+        const chunkSize = 1024 * 1024; // 1MB chunks
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        const filename = `${Date.now()}_${file.name}`;
+        
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          const start = chunkIndex * chunkSize;
+          const end = Math.min(file.size, start + chunkSize);
+          const chunk = file.slice(start, end);
+          
+          const formData = new FormData();
+          formData.append("chunk", chunk);
+          formData.append("filename", filename);
+          formData.append("chunkIndex", chunkIndex.toString());
+          formData.append("totalChunks", totalChunks.toString());
+          
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+          
+          if (!res.ok) {
+            throw new Error(`Upload failed for chunk ${chunkIndex}`);
+          }
+          
+          const data = await res.json();
+          if (chunkIndex === totalChunks - 1 && data.url) {
+            setUploadStatus(prev => ({ ...prev, [fieldId]: true }));
+            setDynamicValues(prev => ({
+              ...prev,
+              [fieldId]: data.url,
+            }));
+            alert(`File "${file.name}" uploaded successfully!`);
+          }
+        }
+      } catch (err: any) {
+        alert(`Upload failed: ${err.message}`);
+      }
+    };
+    input.click();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -627,7 +679,7 @@ export default function CreatorApplyPage() {
 
                           {field.type === "file" && (
                             <div 
-                              onClick={() => handleFileUploadMock(field.id, (field as any).accept || "")}
+                              onClick={() => handleRealFileUpload(field.id, (field as any).accept || "")}
                               className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
                                 isUploaded 
                                   ? "border-emerald-500/40 bg-emerald-500/5" 
@@ -639,8 +691,8 @@ export default function CreatorApplyPage() {
                                 <strong className="text-xs block text-zinc-300">
                                   {isUploaded ? "Document successfully loaded!" : "Click to select a file"}
                                 </strong>
-                                <span className="text-[10px] text-zinc-500 block mt-0.5">
-                                  {isUploaded ? "Mock S3 URL Generated" : field.description || "PDF or Word document up to 10MB"}
+                                <span className="text-[10px] text-zinc-500 block mt-0.5" style={{ wordBreak: "break-all" }}>
+                                  {isUploaded ? `Uploaded path: ${dynamicValues[field.id]}` : field.description || "PDF or Word document up to 10MB"}
                                 </span>
                               </div>
                             </div>

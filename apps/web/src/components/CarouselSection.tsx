@@ -1,13 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 
 export function CarouselSection({
   title,
   subtitle,
   items,
-  activeIndex,
-  onNext,
-  onPrev,
   seeAllLink,
   icon,
   sectionBadgeText,
@@ -16,14 +16,23 @@ export function CarouselSection({
   title: string;
   subtitle: string;
   items: any[];
-  activeIndex: number;
-  onNext: () => void;
-  onPrev: () => void;
   seeAllLink: string;
   icon?: React.ReactNode;
   sectionBadgeText?: string;
   sectionBadgeType?: "cobalt" | "gold" | "none";
 }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const onNext = () => {
+    if (items.length === 0) return;
+    setActiveIndex((prev) => (prev + 1) % items.length);
+  };
+
+  const onPrev = () => {
+    if (items.length === 0) return;
+    setActiveIndex((prev) => (prev - 1 + items.length) % items.length);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -66,6 +75,7 @@ export function CarouselSection({
           }
 
           const linkHref = `/read/${item.id}?title=${encodeURIComponent(item.title)}&genre=${item.genre}&chapters=${item.chapters || 24}&likes=${item.likes}`;
+          const imageUrl = item.coverUrl || (item.coverBg && item.coverBg.startsWith("url") ? item.coverBg.match(/url\(['"]?([^'"]+)['"]?\)/)?.[1] : null);
 
           return (
             <Link key={`${item.id}-${index}`} href={linkHref} style={{ textDecoration: "none", display: "flex", flexDirection: "column", gap: "10px", width: "100%", minWidth: 0 }}>
@@ -74,7 +84,7 @@ export function CarouselSection({
                 width: "100%",
                 aspectRatio: "3/4",
                 borderRadius: "12px",
-                background: item.coverBg,
+                background: imageUrl ? undefined : item.coverBg,
                 border: "1px solid rgba(255, 255, 255, 0.05)",
                 boxShadow: "0 8px 20px rgba(0, 0, 0, 0.4)",
                 display: "flex",
@@ -86,9 +96,20 @@ export function CarouselSection({
               onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.02)"}
               onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
               >
-                <div style={{ padding: "1rem", textAlign: "center", fontWeight: 800, fontSize: "0.85rem", color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
-                  {item.title}
-                </div>
+                {imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={item.title}
+                    fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 25vw, (max-width: 1024px) 16vw, 12vw"
+                    className="object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div style={{ padding: "1rem", textAlign: "center", fontWeight: 800, fontSize: "0.85rem", color: "#fff", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+                    {item.title}
+                  </div>
+                )}
                 
                 {badgeText && (
                   <div style={{

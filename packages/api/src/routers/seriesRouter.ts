@@ -2,6 +2,8 @@ import { z } from "zod";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import { SeriesType, SeriesStatus } from "@panelva/db";
 import { TRPCError } from "@trpc/server";
+import { getEarlyAccessSchedule } from "../earlyAccess";
+import { FollowerNotificationService } from "../services/notificationService";
 
 export const seriesRouter = router({
   // Fetch series owned by current creator
@@ -53,7 +55,7 @@ export const seriesRouter = router({
         include: {
           creator: true,
           chapters: {
-            orderBy: { chapterIndex: "asc" },
+            orderBy: { sortKey: "asc" },
           },
         },
       });
@@ -87,12 +89,13 @@ export const seriesRouter = router({
   getMany: publicProcedure
     .input(
       z.object({
-        type: z.enum(["COMIC", "NOVEL"]),
+        type: z.enum(["COMIC", "NOVEL"]).optional(),
         searchQuery: z.string().optional(),
         genre: z.string().optional(),
         status: z.nativeEnum(SeriesStatus).optional(),
         sortBy: z.enum(["Popularity", "Likes", "Newest", "Alphabetical"]).default("Popularity"),
         limit: z.number().min(1).max(100).default(24),
+        skip: z.number().int().min(0).default(0).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -105,9 +108,10 @@ export const seriesRouter = router({
         orderBy = { title: "asc" };
       }
 
-      const where: any = {
-        type: input.type,
-      };
+      const where: any = {};
+      if (input.type) {
+        where.type = input.type;
+      }
 
       if (input.searchQuery) {
         where.title = {
@@ -129,10 +133,11 @@ export const seriesRouter = router({
         where,
         orderBy,
         take: input.limit,
+        skip: input.skip,
         include: {
           creator: true,
           chapters: {
-            orderBy: { chapterIndex: "asc" },
+            orderBy: { sortKey: "asc" },
           },
         },
       });
@@ -147,7 +152,7 @@ export const seriesRouter = router({
         include: {
           creator: true,
           chapters: {
-            orderBy: { chapterIndex: "asc" },
+            orderBy: { sortKey: "asc" },
           },
           collaborators: true,
         },
@@ -157,7 +162,68 @@ export const seriesRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Series not found" });
       }
 
-      return series;
+      // Fetch linked series if linkedSeriesId is configured
+      let linkedSeries: any = null;
+      if (series.linkedSeriesId) {
+        linkedSeries = await ctx.prisma.series.findUnique({
+          where: { id: series.linkedSeriesId },
+          include: {
+            creator: true,
+            chapters: {
+              orderBy: { sortKey: "asc" },
+            },
+          },
+        });
+      }
+
+      // Compute early access schedule for the series and each chapter
+      const seriesEarlyAccess = getEarlyAccessSchedule(series.createdAt);
+      const chaptersWithEarlyAccess = series.chapters.map((ch) => {
+        const chapterEarlyAccess = getEarlyAccessSchedule(ch.createdAt);
+        return {
+          ...ch,
+          isEarlyAccess: chapterEarlyAccess.isEarlyAccessActive,
+          earlyAccess: chapterEarlyAccess,
+        };
+      });
+
+      return {
+        ...series,
+        isEarlyAccess: seriesEarlyAccess.isEarlyAccessActive,
+        earlyAccess: seriesEarlyAccess,
+        chapters: chaptersWithEarlyAccess,
+        linkedSeries: linkedSeries ? {
+          ...linkedSeries,
+          isEarlyAccess: getEarlyAccessSchedule(linkedSeries.createdAt).isEarlyAccessActive,
+          earlyAccess: getEarlyAccessSchedule(linkedSeries.createdAt),
+          chapters: linkedSeries.chapters?.map((ch: any) => ({
+            ...ch,
+            isEarlyAccess: getEarlyAccessSchedule(ch.createdAt).isEarlyAccessActive,
+            earlyAccess: getEarlyAccessSchedule(ch.createdAt),
+          })) || [],
+        } : null,
+      };
+    }),
+
+  // Fetch only linked series details
+  getLinkedSeries: publicProcedure
+    .input(z.object({ seriesId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const series = await ctx.prisma.series.findUnique({
+        where: { id: input.seriesId },
+        select: { linkedSeriesId: true },
+      });
+      if (!series || !series.linkedSeriesId) return null;
+
+      return await ctx.prisma.series.findUnique({
+        where: { id: series.linkedSeriesId },
+        include: {
+          creator: true,
+          chapters: {
+            orderBy: { chapterIndex: "asc" },
+          },
+        },
+      });
     }),
 
   // 4. Recommendation Engine (Users who read X also read Y)
@@ -211,5 +277,120 @@ export const seriesRouter = router({
       }
 
       return recommendations;
+    }),
+
+  toggleFollowSeries: protectedProcedure
+    .input(z.object({ seriesId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.userId;
+      const { seriesId } = input;
+
+      const existing = await ctx.prisma.follow.findUnique({
+        where: {
+          userId_seriesId: {
+            userId,
+            seriesId
+          }
+        }
+      });
+
+      if (existing) {
+        await ctx.prisma.follow.delete({
+          where: {
+            id: existing.id
+          }
+        });
+        return { followed: false };
+      } else {
+        await ctx.prisma.follow.create({
+          data: {
+            userId,
+            seriesId
+          }
+        });
+        return { followed: true };
+      }
+    }),
+
+  isFollowingSeries: protectedProcedure
+    .input(z.object({ seriesId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.userId;
+      const existing = await ctx.prisma.follow.findUnique({
+        where: {
+          userId_seriesId: {
+            userId,
+            seriesId: input.seriesId,
+          },
+        },
+      });
+      return { followed: !!existing };
+    }),
+
+  updateStatus: protectedProcedure
+    .input(
+      z.object({
+        seriesId: z.string().uuid(),
+        status: z.nativeEnum(SeriesStatus),
+        statusMessage: z.string().max(1000).optional().nullable(),
+        seasonNumber: z.number().int().min(1).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.session.userId },
+        include: { creatorProfiles: true },
+      });
+      if (!user) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "User not found" });
+      }
+
+      const series = await ctx.prisma.series.findUnique({
+        where: { id: input.seriesId },
+        include: {
+          creator: true,
+          collaborators: true,
+        },
+      });
+      if (!series) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Series not found" });
+      }
+
+      // Check if user is creator owner, collaborator, or admin
+      const isOwner = user.creatorProfiles.some((cp) => cp.id === series.creatorId);
+      const isCollab = series.collaborators.some((c) => c.userId === user.id && c.isAgreed);
+      const isAdmin = user.role === "ADMIN" || user.role === "MASTER_ADMIN";
+
+      if (!isOwner && !isCollab && !isAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not authorized to update the status of this series",
+        });
+      }
+
+      const updatedSeries = await ctx.prisma.series.update({
+        where: { id: input.seriesId },
+        data: {
+          status: input.status,
+          statusMessage: input.statusMessage ?? null,
+          statusUpdatedAt: new Date(),
+        },
+        include: {
+          creator: true,
+        },
+      });
+
+      // Broadcast notifications to followers (deduplicated)
+      await FollowerNotificationService.notifyStatusChange({
+        seriesId: updatedSeries.id,
+        seriesTitle: updatedSeries.title,
+        status: input.status,
+        statusMessage: input.statusMessage,
+        seasonNumber: input.seasonNumber,
+        creatorProfileId: updatedSeries.creatorId,
+        senderUserId: user.id,
+      });
+
+      return updatedSeries;
     }),
 });

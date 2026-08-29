@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "../../../lib/trpc";
+import { useAuth } from "../../../components/AuthContext";
 import { ContentAccessModal } from "../../../components/ContentAccessModal";
 import CommentsSection from "../../../components/CommentsSection";
 import RecommendationsSection from "../../../components/RecommendationsSection";
@@ -60,31 +61,32 @@ export default function ReaderPage() {
   const queryChapters = searchParams?.get("chapters") ? parseInt(searchParams.get("chapters")!) : null;
   const queryLikes = searchParams?.get("likes") || "";
 
-  const [currentUser, setCurrentUser] = useState("Guest");
+  const { user } = useAuth();
+  const currentUser = user?.username || "Guest";
   const [isReading, setIsReading] = useState(true); // Default to Reader View
   const [currentChapter, setCurrentChapter] = useState(2); // Default to Episode 2: Confirmation
 
   // tRPC queries
-  const { data: dbSeries } = trpc.series.getById.useQuery(
+  const { data: dbSeries } = (trpc.series.getById as any).useQuery(
     { id: id || "" },
     { enabled: !!id && id.length === 36 }
   );
 
   const activeChapterData = dbSeries?.chapters?.find((ch: any) => ch.chapterIndex === currentChapter);
 
-  const { data: dbChapter } = trpc.chapter.getChapter.useQuery(
+  const { data: dbChapter } = (trpc.chapter.getChapter as any).useQuery(
     { chapterId: activeChapterData?.id || "" },
     { enabled: !!activeChapterData?.id }
   );
 
-  const { data: dbComments, refetch: refetchComments } = trpc.chapter.getComments.useQuery(
+  const { data: dbComments, refetch: refetchComments } = (trpc.chapter.getComments as any).useQuery(
     { chapterId: activeChapterData?.id || "" },
     { enabled: !!activeChapterData?.id }
   );
 
   const utils = trpc.useContext();
   const postCommentMutation = trpc.chapter.postComment.useMutation({
-    onMutate: async (newComment) => {
+    onMutate: async (newComment: any) => {
       await utils.chapter.getComments.cancel({ chapterId: activeChapterData?.id || "" });
       const previousComments = utils.chapter.getComments.getData({ chapterId: activeChapterData?.id || "" });
       
@@ -105,7 +107,7 @@ export default function ReaderPage() {
       }
       return { previousComments };
     },
-    onError: (err, newComment, context) => {
+    onError: (err: any, newComment: any, context: any) => {
       if (context?.previousComments) {
         utils.chapter.getComments.setData({ chapterId: activeChapterData?.id || "" }, context.previousComments);
       }
@@ -215,8 +217,11 @@ export default function ReaderPage() {
   const handleCloseAdModal = () => {
     if (adCompleted) {
       setUnlockedAdChapters((prev) => ({ ...prev, [currentChapter]: true }));
+      try {
+        localStorage.setItem(`ad_unlocked_${id}_${currentChapter}`, "true");
+      } catch (e) {}
       // Log unlock to backend Express server
-      fetch("http://localhost:3001/api/chapters/unlock-ad", {
+      fetch("/api/chapters/unlock-ad", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chapterId: activeChapterData?.id || "mock-chapter-id", userId: currentUser })
@@ -228,7 +233,43 @@ export default function ReaderPage() {
   // Custom states for interactive reader overhauls
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersive, setIsImmersive] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  // Bookmark live integration
+  const { data: dbBookmarks, refetch: refetchBookmarks } = (trpc.user.getBookmarks as any).useQuery(undefined, {
+    enabled: currentUser !== "Guest",
+  });
+
+  const toggleBookmarkMutation = trpc.chapter.toggleBookmark.useMutation({
+    onSuccess: () => {
+      refetchBookmarks();
+    },
+    onError: (err: any) => {
+      alert(err.message || "Failed to update bookmark.");
+    }
+  });
+
+  const isBookmarked = dbBookmarks?.some((b: any) => b.id === id) || false;
+  
+  // Series follow states
+  const { data: followStatus, refetch: refetchFollow } = (trpc.series.isFollowingSeries as any).useQuery({ seriesId: id }, { enabled: currentUser !== "Guest" });
+  const isFollowing = followStatus?.followed || false;
+
+  const toggleFollowMutation = trpc.series.toggleFollowSeries.useMutation({
+    onSuccess: () => {
+      refetchFollow();
+    },
+    onError: (err: any) => {
+      alert(err.message || "Failed to update follow status.");
+    }
+  });
+
+  const reportMutation = trpc.user.reportContent.useMutation({
+    onSuccess: () => {
+      alert("Flagged content reported to safety moderators successfully.");
+    },
+    onError: (err: any) => {
+      alert(err.message || "Failed to submit safety report.");
+    }
+  });
   
   // Like simulation states
   const [likesCount, setLikesCount] = useState(436);
@@ -314,6 +355,23 @@ export default function ReaderPage() {
     return match ? match.chapters : 24;
   };
 
+  const getStatusStyle = (st: string) => {
+    switch (st?.toUpperCase()) {
+      case "ONGOING":
+        return { label: "Ongoing", color: "#10b981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)" };
+      case "COMING_SOON":
+        return { label: "Coming Soon", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.15)", border: "rgba(59, 130, 246, 0.3)" };
+      case "HIATUS":
+        return { label: "Hiatus", color: "#f97316", bg: "rgba(249, 115, 22, 0.15)", border: "rgba(249, 115, 22, 0.3)" };
+      case "SEASON_ENDED":
+        return { label: "Season Ended", color: "#9ca3af", bg: "rgba(156, 163, 175, 0.15)", border: "rgba(156, 163, 175, 0.3)" };
+      case "NEW_SEASON_COMING":
+        return { label: "New Season Coming", color: "#c084fc", bg: "rgba(192, 132, 252, 0.15)", border: "rgba(192, 132, 252, 0.3)" };
+      default:
+        return { label: st || "Ongoing", color: "#10b981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)" };
+    }
+  };
+
   const dbSeriesMapped = dbSeries ? {
     title: dbSeries.title,
     alt: dbSeries.title,
@@ -325,7 +383,10 @@ export default function ReaderPage() {
       : getFallbackChapters(dbSeries.title),
     subscribers: "10K",
     views: dbSeries.views >= 1000 ? `${(dbSeries.views/1000).toFixed(1)}k` : dbSeries.views.toString(),
-    status: dbSeries.status === "COMPLETED" ? "Completed" : "Ongoing",
+    status: dbSeries.status ? getStatusStyle(dbSeries.status).label : "Ongoing",
+    rawStatus: dbSeries.status || "ONGOING",
+    statusMessage: dbSeries.statusMessage || null,
+    statusUpdatedAt: dbSeries.statusUpdatedAt || null,
     type: dbSeries.type === "COMIC" ? "MANHWA" : "NOVEL",
     author: dbSeries.creator?.penName || "Unknown Creator",
     artist: "Artist",
@@ -343,16 +404,6 @@ export default function ReaderPage() {
   };
 
   useEffect(() => {
-    const user = localStorage.getItem("panelva_user") || "Guest";
-    setCurrentUser(user);
-
-    // Sync bookmark status
-    try {
-      const saved = localStorage.getItem(`panelva_bookmarks_${user}`) || localStorage.getItem("panelva_bookmarks") || "[]";
-      const list = JSON.parse(saved);
-      setIsBookmarked(list.includes(id));
-    } catch (e) {}
-
     // Initialize immersive mode setting
     const storedImmersive = localStorage.getItem("panelva_reader_immersive") === "true";
     setIsImmersive(storedImmersive);
@@ -460,28 +511,54 @@ export default function ReaderPage() {
   }, [currentChapter]);
 
   const handleToggleBookmark = () => {
-    try {
-      const saved = localStorage.getItem(`panelva_bookmarks_${currentUser}`) || localStorage.getItem("panelva_bookmarks") || "[]";
-      let list = JSON.parse(saved);
-      let nextState = false;
-
-      if (list.includes(id)) {
-        list = list.filter((item: string) => item !== id);
-        nextState = false;
-      } else {
-        list.push(id);
-        nextState = true;
-      }
-
-      setIsBookmarked(nextState);
-      localStorage.setItem(`panelva_bookmarks_${currentUser}`, JSON.stringify(list));
-      localStorage.setItem("panelva_bookmarks", JSON.stringify(list));
-    } catch (e) {}
+    if (currentUser === "Guest") {
+      alert("Please log in first to bookmark this series.");
+      return;
+    }
+    toggleBookmarkMutation.mutate({ seriesId: id });
   };
+
+  const handleToggleFollow = () => {
+    if (currentUser === "Guest") {
+      alert("Please sign in to follow series.");
+      return;
+    }
+    toggleFollowMutation.mutate({ seriesId: id });
+  };
+
+  useEffect(() => {
+    try {
+      const keys = Object.keys(localStorage);
+      const unlocked: Record<number, boolean> = {};
+      for (const key of keys) {
+        if (key.startsWith(`ad_unlocked_${id}_`)) {
+          const idx = parseInt(key.replace(`ad_unlocked_${id}_`, ""), 10);
+          if (!isNaN(idx)) {
+            unlocked[idx] = true;
+          }
+        }
+      }
+      setUnlockedAdChapters(unlocked);
+    } catch (e) {}
+  }, [id]);
 
   const handleSimulateVerification = () => {
     setIsVerified(true);
     alert("Email verification successful! Token claims and comments unlocked.");
+  };
+
+  const handleReportContent = () => {
+    if (currentUser === "Guest") {
+      alert("Please sign in to report content.");
+      return;
+    }
+    const reason = prompt("Please enter the reason for reporting this content:", "Inappropriate language or harassment");
+    if (!reason || !reason.trim()) return;
+
+    reportMutation.mutate({
+      chapterId: activeChapterData?.id,
+      reason: reason.trim()
+    });
   };
 
   const handlePostComment = (e: React.FormEvent) => {
@@ -523,7 +600,7 @@ export default function ReaderPage() {
   };
 
   const commentsFeed = dbComments && dbComments.length > 0
-    ? dbComments.map(c => ({
+    ? dbComments.map((c: any) => ({
         id: c.id,
         author: c.user?.username || "ReaderUser",
         isPremium: c.priorityScore >= 2,
@@ -537,7 +614,7 @@ export default function ReaderPage() {
         replies: [],
         showReplies: false
       }))
-    : commentsList.map(c => ({
+    : commentsList.map((c: any) => ({
         ...c,
         role: (c.author === "notjud3" || c.author === "iseniyijude" || c.author === "iseniyijude_gmail") ? "MASTER_ADMIN" : c.author === "TO30" ? "ADMIN" : "USER",
         subscription: c.isPremium ? "PREMIUM" : "NONE",
@@ -546,15 +623,15 @@ export default function ReaderPage() {
   const displayCommentsCount = dbComments && dbComments.length > 0 ? dbComments.length : commentsCount;
 
   const toggleRepliesVisibility = (commentId: string) => {
-    setCommentsList(prev => prev.map(c => c.id === commentId ? { ...c, showReplies: !c.showReplies } : c));
+    setCommentsList(prev => prev.map((c: any) => c.id === commentId ? { ...c, showReplies: !c.showReplies } : c));
   };
 
   const handleLikeComment = (commentId: string) => {
-    setCommentsList(prev => prev.map(c => c.id === commentId ? { ...c, likes: c.likes + 1 } : c));
+    setCommentsList(prev => prev.map((c: any) => c.id === commentId ? { ...c, likes: c.likes + 1 } : c));
   };
 
   const handleDislikeComment = (commentId: string) => {
-    setCommentsList(prev => prev.map(c => c.id === commentId ? { ...c, dislikes: c.dislikes + 1 } : c));
+    setCommentsList(prev => prev.map((c: any) => c.id === commentId ? { ...c, dislikes: c.dislikes + 1 } : c));
   };
 
   const toggleImmersiveMode = () => {
@@ -590,7 +667,7 @@ export default function ReaderPage() {
     };
   });
 
-  const filteredChapters = allChapters.filter(ch => ch.title.toLowerCase().includes(chapterSearch.toLowerCase()));
+  const filteredChapters = allChapters.filter((ch: any) => ch.title.toLowerCase().includes(chapterSearch.toLowerCase()));
 
   // ─── READER VIEW SCREEN ───
   if (isReading) {
@@ -891,7 +968,7 @@ export default function ReaderPage() {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "1px", padding: "0.5rem" }}>
-                  {filteredChapters.map((ch) => {
+                  {filteredChapters.map((ch: any) => {
                     const isActive = ch.number === currentChapter;
                     return (
                       <div 
@@ -1053,7 +1130,7 @@ export default function ReaderPage() {
                     </span>
                   </button>
                   <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "4px 0" }} />
-                  <button onClick={() => { setIsMoreMenuOpen(false); alert("Flagged content reported successfully."); }} style={{ width: "100%", padding: "8px", textAlign: "left", color: "#ef4444", fontSize: "0.8rem", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Report Content</button>
+                  <button onClick={() => { setIsMoreMenuOpen(false); handleReportContent(); }} style={{ width: "100%", padding: "8px", textAlign: "left", color: "#ef4444", fontSize: "0.8rem", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Report Content</button>
                   <button onClick={() => { setIsMoreMenuOpen(false); alert("Downloading chapter for offline reading..."); }} style={{ width: "100%", padding: "8px", textAlign: "left", color: "#fff", fontSize: "0.8rem", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Download Offline</button>
                   <button onClick={() => { setIsMoreMenuOpen(false); alert("Link copied to clipboard!"); }} style={{ width: "100%", padding: "8px", textAlign: "left", color: "#fff", fontSize: "0.8rem", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Share Episode</button>
                 </div>
@@ -1204,22 +1281,27 @@ export default function ReaderPage() {
           </div>
 
           {/* Status & Type */}
-          <div className="glass-panel" style={{ padding: "1.25rem", background: "var(--panel-color)", border: "1px solid var(--border-color)", borderRadius: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div>
-              <span style={{ fontSize: "0.7rem", color: "var(--text-muted-color)", display: "block" }}>Status</span>
-              <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6", display: "inline-block" }}></span>
-                {series.status}
-              </span>
-            </div>
-            <div>
-              <span style={{ fontSize: "0.7rem", color: "var(--text-muted-color)", display: "block" }}>Type</span>
-              <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6", display: "inline-block" }}></span>
-                {series.type}
-              </span>
-            </div>
-          </div>
+          {(() => {
+            const stStyle = getStatusStyle(series.rawStatus || series.status);
+            return (
+              <div className="glass-panel" style={{ padding: "1.25rem", background: "var(--panel-color)", border: "1px solid var(--border-color)", borderRadius: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted-color)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Status</span>
+                  <span style={{ fontWeight: 800, fontSize: "0.85rem", color: stStyle.color, display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "4px", background: stStyle.bg, border: `1px solid ${stStyle.border}`, padding: "2px 10px", borderRadius: "100px" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: stStyle.color, display: "inline-block" }}></span>
+                    {stStyle.label}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted-color)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Type</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6", display: "inline-block" }}></span>
+                    {series.type}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Author & Artist */}
           <div className="glass-panel" style={{ padding: "1.25rem", background: "var(--panel-color)", border: "1px solid var(--border-color)", borderRadius: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1254,9 +1336,61 @@ export default function ReaderPage() {
           {/* Main detail card (mockup 7) */}
           <div className="glass-panel" style={{ padding: "2rem", background: "var(--panel-color)", border: "1px solid var(--border-color)", borderRadius: "16px", display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2.5rem", fontWeight: 800, margin: 0, color: "#fff" }}>{series.title}</h1>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+                <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2.5rem", fontWeight: 800, margin: 0, color: "#fff" }}>{series.title}</h1>
+                {(() => {
+                  const stStyle = getStatusStyle(series.rawStatus || series.status);
+                  return (
+                    <span style={{
+                      background: stStyle.bg,
+                      border: `1px solid ${stStyle.border}`,
+                      color: stStyle.color,
+                      padding: "4px 14px",
+                      borderRadius: "9999px",
+                      fontSize: "0.75rem",
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      letterSpacing: "0.05em",
+                    }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: stStyle.color }}></span>
+                      {stStyle.label}
+                    </span>
+                  );
+                })()}
+              </div>
               <span style={{ fontSize: "0.9rem", color: "var(--text-muted-color)", display: "block", marginTop: "4px" }}>{series.alt}</span>
             </div>
+
+            {/* Creator Status Announcement Banner */}
+            {series.statusMessage && (
+              <div style={{
+                padding: "1rem 1.25rem",
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                borderRadius: "14px",
+                display: "flex",
+                gap: "12px",
+                alignItems: "flex-start",
+              }}>
+                <span style={{ fontSize: "1.25rem", lineHeight: 1 }}>📢</span>
+                <div>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", color: "#fbbf24", letterSpacing: "0.05em", display: "block" }}>
+                    Creator Status Notice
+                  </span>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "0.9rem", color: "#fef3c7", fontStyle: "italic", lineHeight: 1.5 }}>
+                    "{series.statusMessage}"
+                  </p>
+                  {series.statusUpdatedAt && (
+                    <span style={{ fontSize: "0.7rem", color: "#d97706", display: "block", marginTop: "4px" }}>
+                      Updated on {new Date(series.statusUpdatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             <p style={{ color: "#d1d5db", margin: 0, fontSize: "0.95rem", lineHeight: 1.6 }}>{series.description}</p>
             
@@ -1281,6 +1415,27 @@ export default function ReaderPage() {
               >
                 <Bookmark size={16} style={{ fill: isBookmarked ? "#2563eb" : "none" }} />
                 {isBookmarked ? "Bookmarked" : "Bookmark"}
+              </button>
+
+              {/* Follow Series Toggle */}
+              <button 
+                onClick={handleToggleFollow}
+                style={{
+                  background: isFollowing ? "rgba(16,185,129,0.1)" : "none",
+                  border: isFollowing ? "1px solid #10b981" : "1px solid var(--border-color)",
+                  color: isFollowing ? "#10b981" : "#fff",
+                  padding: "12px 24px",
+                  borderRadius: "10px",
+                  fontWeight: 700,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px"
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill={isFollowing ? "#10b981" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                {isFollowing ? "Following" : "Follow"}
               </button>
 
               {/* Start reading button */}
@@ -1352,7 +1507,7 @@ export default function ReaderPage() {
 
             {/* List mapping */}
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto", paddingRight: "6px" }}>
-              {filteredChapters.map((ch) => (
+              {filteredChapters.map((ch: any) => (
                 <div 
                   key={ch.number}
                   onClick={() => { setCurrentChapter(ch.number); setIsReading(true); }}

@@ -31,6 +31,13 @@ export default function ThemeSync() {
     };
     window.addEventListener("storage", handleStorageChange);
 
+    // Register offline Service Worker
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js")
+        .then((reg) => console.log("Service Worker registered on scope:", reg.scope))
+        .catch((err) => console.error("Service Worker registration failed:", err));
+    }
+
     return () => {
       window.removeEventListener("panelva_theme_update", applyTheme);
       window.removeEventListener("storage", handleStorageChange);
