@@ -15,24 +15,21 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
-  Linking,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../theme/ThemeContext';
-import { trpc } from '../../../lib/trpc';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Button } from '../common/Button';
 import {
-  CloseIcon,
-  EyeIcon,
-  EyeOffIcon,
-  LockIcon,
-  MailIcon,
-  UserIcon,
-  HelpCircleIcon,
-  CheckIcon,
-  AlertTriangleIcon,
-} from '../common/Icons';
-import { MOCK_ACCOUNTS_LIST, MockAccount } from '../../data/mockRoles';
-
+  X,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  User,
+  HelpCircle,
+  AlertTriangle,
+} from 'lucide-react-native';
+import { MOCK_ACCOUNTS_LIST, MockAccountProfile } from '../../data/mockRoles';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -45,11 +42,11 @@ interface AuthBottomSheetProps {
   trpcClient?: any;
 }
 
-// Google 'G' Icon Component (SVG-style using vector paths / shapes)
+// Google 'G' Icon Component
 function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
     <View style={[styles.providerIconContainer, { width: size, height: size }]}>
-      <Text style={{ fontSize: size * 0.9, fontWeight: '900', color: '#EA4335', textAlign: 'center', lineHeight: size }}>
+      <Text style={{ fontSize: size * 0.9, fontWeight: '900', color: colors.danger, textAlign: 'center', lineHeight: size }}>
         G
       </Text>
     </View>
@@ -57,10 +54,10 @@ function GoogleIcon({ size = 20 }: { size?: number }) {
 }
 
 // Apple Icon Component
-function AppleIcon({ size = 20, color = '#FFFFFF' }: { size?: number; color?: string }) {
+function AppleIcon({ size = 20, color = colors.text }: { size?: number; color?: string }) {
   return (
     <View style={[styles.providerIconContainer, { width: size, height: size }]}>
-      <Text style={{ fontSize: size * 0.95, color: color, textAlign: 'center', lineHeight: size }}>
+      <Text style={{ fontSize: size * 0.95, color, textAlign: 'center', lineHeight: size }}>
         
       </Text>
     </View>
@@ -74,7 +71,6 @@ export function AuthBottomSheet({
   initialMode = 'signin',
   devBaseUrl = 'http://localhost:3000',
 }: AuthBottomSheetProps) {
-  const { colors } = useTheme();
   const [isLogin, setIsLogin] = useState(initialMode === 'signin');
   const [identifier, setIdentifier] = useState(''); // Email or Username
   const [username, setUsername] = useState('');
@@ -173,9 +169,10 @@ export function AuthBottomSheet({
         subscription: 'PREMIUM',
         creditsBalance: 300,
         wCoinBalance: 300,
-        avatarUrl: provider === 'google'
-          ? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'
-          : null,
+        avatarUrl:
+          provider === 'google'
+            ? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'
+            : null,
       };
 
       onSuccess(mockToken, mockUser);
@@ -260,7 +257,7 @@ export function AuthBottomSheet({
         });
         handleClose();
       } else {
-        Alert.alert('Account Created! 🎉', 'Welcome to Panelva! Please sign in with your new account.');
+        Alert.alert('Account Created', 'Welcome to Panelva! Please sign in with your new account.');
         setIsLogin(true);
         setPassword('');
       }
@@ -289,7 +286,7 @@ export function AuthBottomSheet({
   };
 
   // 1-Tap Fast Test Login with any mock account
-  const handleQuickSignIn = (acc: MockAccount) => {
+  const handleQuickSignIn = (acc: MockAccountProfile) => {
     triggerHaptic();
     const token = `quick-${acc.roleKey.toLowerCase()}-${Date.now()}`;
     const user = {
@@ -297,7 +294,7 @@ export function AuthBottomSheet({
       email: acc.email,
       username: acc.username,
       role: acc.roleKey,
-      subscription: acc.subscriptionTier,
+      subscription: acc.subscription,
       creditsBalance: acc.creditsBalance,
       wCoinBalance: acc.creditsBalance,
       avatarUrl: acc.avatarUrl,
@@ -306,7 +303,6 @@ export function AuthBottomSheet({
     handleClose();
   };
 
-
   // Footer Links Modals / Handlers
   const handleTroubleLoggingIn = () => {
     triggerHaptic();
@@ -314,7 +310,11 @@ export function AuthBottomSheet({
       'Need Help Signing In?',
       'If you have trouble accessing your account, you can reset your password or contact Panelva support at support@panelva.com.',
       [
-        { text: 'Reset Password', onPress: () => Alert.alert('Password Reset', 'Password reset instructions have been sent to your email.') },
+        {
+          text: 'Reset Password',
+          onPress: () =>
+            Alert.alert('Password Reset', 'Password reset instructions have been sent to your email.'),
+        },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
@@ -363,8 +363,6 @@ export function AuthBottomSheet({
             style={[
               styles.sheetContainer,
               {
-                backgroundColor: '#1A1A2E',
-                borderColor: '#28283C',
                 transform: [{ translateY }],
               },
             ]}
@@ -375,7 +373,7 @@ export function AuthBottomSheet({
             </View>
 
             {/* Header */}
-            <View style={[styles.header, { borderBottomColor: '#242436' }]}>
+            <View style={styles.header}>
               <Text style={styles.headerTitle}>
                 {isLogin ? 'Welcome to Panelva' : 'Create an Account'}
               </Text>
@@ -383,9 +381,10 @@ export function AuthBottomSheet({
                 style={styles.closeBtn}
                 onPress={handleClose}
                 activeOpacity={0.7}
+                accessibilityRole="button"
                 accessibilityLabel="Close sign in sheet"
               >
-                <CloseIcon size={20} color="#94A3B8" />
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -397,7 +396,7 @@ export function AuthBottomSheet({
               {/* Error Message Box */}
               {errorMessage ? (
                 <View style={styles.errorContainer}>
-                  <AlertTriangleIcon size={16} color="#EF4444" />
+                  <AlertTriangle size={16} color={colors.danger} />
                   <Text style={styles.errorText}>{errorMessage}</Text>
                 </View>
               ) : null}
@@ -414,7 +413,7 @@ export function AuthBottomSheet({
                   accessibilityLabel={isLogin ? 'Sign in with Google' : 'Sign up with Google'}
                 >
                   {isSubmitting && activeSocialProvider === 'google' ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
                     <>
                       <View style={styles.googleIconCircle}>
@@ -437,10 +436,10 @@ export function AuthBottomSheet({
                   accessibilityLabel={isLogin ? 'Sign in with Apple' : 'Sign up with Apple'}
                 >
                   {isSubmitting && activeSocialProvider === 'apple' ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={colors.text} />
                   ) : (
                     <>
-                      <AppleIcon size={20} color="#FFFFFF" />
+                      <AppleIcon size={20} color={colors.text} />
                       <Text style={styles.appleButtonText}>
                         {isLogin ? 'Sign in with Apple' : 'Sign up with Apple'}
                       </Text>
@@ -451,11 +450,11 @@ export function AuthBottomSheet({
 
               {/* Divider: "Or sign in with" */}
               <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: '#28283C' }]} />
+                <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>
                   {isLogin ? 'Or sign in with' : 'Or sign up with'}
                 </Text>
-                <View style={[styles.dividerLine, { backgroundColor: '#28283C' }]} />
+                <View style={styles.dividerLine} />
               </View>
 
               {/* 2. Email / Username Form */}
@@ -465,12 +464,12 @@ export function AuthBottomSheet({
                   <Text style={styles.inputLabel}>
                     {isLogin ? 'Email or Username' : 'Email Address'}
                   </Text>
-                  <View style={[styles.inputWrapper, { backgroundColor: '#0F0F1A', borderColor: '#28283C' }]}>
-                    <MailIcon size={18} color="#94A3B8" />
+                  <View style={styles.inputWrapper}>
+                    <Mail size={18} color={colors.textMuted} />
                     <TextInput
                       style={styles.textInput}
                       placeholder={isLogin ? 'Enter email or username' : 'name@domain.com'}
-                      placeholderTextColor="#64748B"
+                      placeholderTextColor={colors.textMuted}
                       value={identifier}
                       onChangeText={(text) => {
                         setIdentifier(text);
@@ -488,12 +487,12 @@ export function AuthBottomSheet({
                 {!isLogin && (
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Username</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: '#0F0F1A', borderColor: '#28283C' }]}>
-                      <UserIcon size={18} color="#94A3B8" />
+                    <View style={styles.inputWrapper}>
+                      <User size={18} color={colors.textMuted} />
                       <TextInput
                         style={styles.textInput}
                         placeholder="Choose a username"
-                        placeholderTextColor="#64748B"
+                        placeholderTextColor={colors.textMuted}
                         value={username}
                         onChangeText={(text) => {
                           setUsername(text);
@@ -510,12 +509,12 @@ export function AuthBottomSheet({
                 {/* Password Field */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Password</Text>
-                  <View style={[styles.inputWrapper, { backgroundColor: '#0F0F1A', borderColor: '#28283C' }]}>
-                    <LockIcon size={18} color="#94A3B8" />
+                  <View style={styles.inputWrapper}>
+                    <Lock size={18} color={colors.textMuted} />
                     <TextInput
                       style={styles.textInput}
                       placeholder="Enter password"
-                      placeholderTextColor="#64748B"
+                      placeholderTextColor={colors.textMuted}
                       secureTextEntry={!showPassword}
                       value={password}
                       onChangeText={(text) => {
@@ -530,38 +529,35 @@ export function AuthBottomSheet({
                       onPress={() => setShowPassword(!showPassword)}
                       activeOpacity={0.7}
                       style={styles.eyeBtn}
+                      accessibilityRole="button"
                       accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
-                        <EyeOffIcon size={18} color="#94A3B8" />
+                        <EyeOff size={18} color={colors.textMuted} />
                       ) : (
-                        <EyeIcon size={18} color="#94A3B8" />
+                        <Eye size={18} color={colors.textMuted} />
                       )}
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 {/* Primary CTA (Sign In / Sign Up) */}
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    { backgroundColor: '#2563EB' },
-                    isSubmitting && styles.buttonDisabled,
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={isSubmitting}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={isLogin ? 'Sign In' : 'Sign Up'}
-                >
-                  {isSubmitting && !activeSocialProvider ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>
-                      {isLogin ? 'Sign In' : 'Sign Up'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ marginTop: spacing.xs }}>
+                  <Button
+                    title={
+                      isSubmitting && !activeSocialProvider
+                        ? isLogin
+                          ? 'Signing In...'
+                          : 'Creating Account...'
+                        : isLogin
+                        ? 'Sign In'
+                        : 'Sign Up'
+                    }
+                    variant="primary"
+                    disabled={isSubmitting}
+                    onPress={handleSubmit}
+                  />
+                </View>
 
                 {/* Switch between Sign In and Sign Up */}
                 <View style={styles.switchModeContainer}>
@@ -575,8 +571,10 @@ export function AuthBottomSheet({
                       setErrorMessage('');
                     }}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={isLogin ? 'Switch to Sign Up' : 'Switch to Sign In'}
                   >
-                    <Text style={[styles.switchModeLink, { color: '#2563EB' }]}>
+                    <Text style={styles.switchModeLink}>
                       {isLogin ? 'Sign Up' : 'Sign In'}
                     </Text>
                   </TouchableOpacity>
@@ -590,7 +588,7 @@ export function AuthBottomSheet({
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                    contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.xs }}
                   >
                     {MOCK_ACCOUNTS_LIST.map((acc) => (
                       <TouchableOpacity
@@ -604,9 +602,19 @@ export function AuthBottomSheet({
                         ]}
                         onPress={() => handleQuickSignIn(acc)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Quick sign in as ${acc.displayName}`}
                       >
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: acc.badgeColor, marginRight: 4 }} />
-                        <Text style={[styles.quickPillText, { color: acc.badgeColor, fontWeight: '700' }]}>
+                        <View
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: radius.full,
+                            backgroundColor: acc.badgeColor,
+                            marginRight: spacing.xs,
+                          }}
+                        />
+                        <Text style={[styles.quickPillText, { color: acc.badgeColor }]}>
                           {acc.displayName}
                         </Text>
                       </TouchableOpacity>
@@ -615,24 +623,35 @@ export function AuthBottomSheet({
                 </View>
               )}
 
-
               {/* 3. Authentication Footer */}
               <View style={styles.footerSection}>
                 <TouchableOpacity
                   onPress={handleTroubleLoggingIn}
                   activeOpacity={0.7}
                   style={styles.footerTroubleBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Need help logging in?"
                 >
-                  <HelpCircleIcon size={14} color="#94A3B8" />
+                  <HelpCircle size={14} color={colors.textMuted} />
                   <Text style={styles.footerTroubleText}>Have trouble logging in?</Text>
                 </TouchableOpacity>
 
                 <View style={styles.agreementRow}>
-                  <TouchableOpacity onPress={handleUserAgreement} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    onPress={handleUserAgreement}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="User Agreement"
+                  >
                     <Text style={styles.agreementLink}>User Agreement</Text>
                   </TouchableOpacity>
                   <Text style={styles.agreementDot}>•</Text>
-                  <TouchableOpacity onPress={handlePrivacyAgreement} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    onPress={handlePrivacyAgreement}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Privacy Agreement"
+                  >
                     <Text style={styles.agreementLink}>Privacy Agreement</Text>
                   </TouchableOpacity>
                 </View>
@@ -660,102 +679,105 @@ const styles = StyleSheet.create({
   sheetContainer: {
     width: '100%',
     maxHeight: SCREEN_HEIGHT * 0.9,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     borderWidth: 1,
+    borderColor: colors.border,
     borderBottomWidth: 0,
+    backgroundColor: colors.background,
     overflow: 'hidden',
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   dragHandle: {
     width: 40,
     height: 4,
-    borderRadius: 2,
-    backgroundColor: '#64748B',
+    borderRadius: radius.full,
+    backgroundColor: colors.border,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
     fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
+    color: colors.text,
   },
   closeBtn: {
-    padding: 6,
-    borderRadius: 8,
+    padding: spacing.xs,
+    borderRadius: radius.sm,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.lg,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#EF4444',
+    borderColor: colors.danger,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 16,
-    gap: 8,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   errorText: {
     flex: 1,
-    color: '#EF4444',
-    fontSize: 13,
+    color: colors.danger,
+    fontSize: typography.small.fontSize,
     fontWeight: '500',
   },
   socialAuthSection: {
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 50,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    gap: 10,
+    height: 48,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
   },
   googleButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   googleIconCircle: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   googleButtonText: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text,
   },
   appleButton: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
   appleButtonText: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
   },
   providerIconContainer: {
     alignItems: 'center',
@@ -764,137 +786,117 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 14,
-    gap: 12,
+    marginVertical: spacing.sm,
+    gap: spacing.sm,
   },
   dividerLine: {
     flex: 1,
     height: 1,
+    backgroundColor: colors.border,
   },
   dividerText: {
-    color: '#94A3B8',
-    fontSize: 13,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
     fontWeight: '500',
   },
   formSection: {
-    gap: 14,
+    gap: spacing.md,
   },
   inputGroup: {
-    gap: 6,
+    gap: spacing.xs,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
-    color: '#E2E8F0',
+    color: colors.text,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
     height: 48,
-    gap: 10,
+    gap: spacing.sm,
   },
   textInput: {
     flex: 1,
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.text,
+    fontSize: typography.small.fontSize,
     paddingVertical: 0,
   },
   eyeBtn: {
-    padding: 6,
-  },
-  primaryButton: {
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
+    padding: spacing.xs,
   },
   switchModeContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: spacing.xs,
   },
   switchModeText: {
-    color: '#94A3B8',
-    fontSize: 14,
+    color: colors.textMuted,
+    fontSize: typography.small.fontSize,
   },
   switchModeLink: {
-    fontSize: 14,
+    fontSize: typography.small.fontSize,
     fontWeight: '600',
+    color: colors.primary,
   },
   quickSignInSection: {
-    marginTop: 18,
-    paddingTop: 14,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#242436',
+    borderTopColor: colors.border,
   },
   quickSignInTitle: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
-    color: '#94A3B8',
-    marginBottom: 8,
-  },
-  quickPillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
   },
   quickPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
     borderWidth: 1,
   },
   quickPillText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
   footerSection: {
-    marginTop: 20,
-    paddingTop: 14,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#242436',
+    borderTopColor: colors.border,
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm,
   },
   footerTroubleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
   },
   footerTroubleText: {
-    color: '#94A3B8',
-    fontSize: 13,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
   },
   agreementRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   agreementLink: {
-    color: '#64748B',
-    fontSize: 12,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
   },
   agreementDot: {
-    color: '#64748B',
-    fontSize: 12,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
   },
 });

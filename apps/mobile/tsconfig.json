@@ -7,7 +7,12 @@
     "strict": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@panelva/ui": ["../../packages/ui/src/index.native.ts"],
+      "@panelva/theme": ["../../packages/theme/src/index.ts"]
+    }
   },
   "include": [
     "**/*.ts",

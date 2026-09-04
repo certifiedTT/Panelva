@@ -7,8 +7,8 @@
   --max-reader-width: 800px;
   --glass-bg: rgba(255, 255, 255, 0.08);
   --glass-border: rgba(255, 255, 255, 0.12);
-  --primary-accent: #6c5ce7;
-  --primary-gradient: linear-gradient(135deg, #6c5ce7, #a8a5e6);
+  --primary-accent: #2563eb;
+  --primary-gradient: linear-gradient(135deg, #1d4ed8, #2563eb);
 }
 
 /* Comic Layout (Webtoon Vertical Layout) */

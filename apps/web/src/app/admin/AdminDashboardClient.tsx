@@ -9,6 +9,7 @@ import {
   Settings, Activity, RefreshCw, AlertTriangle, Bell, Clock, Info, HelpCircle
 } from "lucide-react";
 import { trpc } from "../../lib/trpc";
+import { Card, Button, Badge } from "@panelva/ui";
 import { hasPermission, Permission } from "@panelva/api";
 import RoleBadge from "@/components/RoleBadge";
 import {
@@ -523,10 +524,17 @@ export default function AdminDashboardClient() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#07080a] flex items-center justify-center p-8 text-center font-sans">
-        <div className="flex flex-col items-center gap-4 text-zinc-400">
-          <RefreshCw className="w-8 h-8 animate-spin text-blue-500 animate-pulse" />
-          <p className="text-sm font-semibold text-zinc-300">Loading Command Center...</p>
+      <div className="min-h-screen bg-slate-950 p-8 flex flex-col gap-6 animate-pulse" role="status" aria-label="Loading Admin Command Center">
+        <div className="h-16 bg-slate-900 rounded-xl border border-slate-800" />
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="h-20 bg-slate-900 rounded-xl border border-slate-800" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="h-72 bg-slate-900 rounded-2xl border border-slate-800" />
+          <div className="h-72 bg-slate-900 rounded-2xl border border-slate-800" />
+          <div className="h-72 bg-slate-900 rounded-2xl border border-slate-800" />
         </div>
       </div>
     );
@@ -575,15 +583,17 @@ export default function AdminDashboardClient() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-[#07080a] flex items-center justify-center p-8 text-center font-sans">
-        <div className="p-8 bg-[#0d0e12] border border-[#1c1e24] rounded-2xl max-w-sm flex flex-col items-center gap-4">
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-8 text-center font-sans">
+        <Card className="p-8 max-w-sm flex flex-col items-center gap-4 text-center">
           <Shield className="w-16 h-16 text-red-500" />
-          <h2 className="text-xl font-black text-white">Access Denied</h2>
-          <p className="text-xs text-gray-500 leading-relaxed">You do not have administrative credentials to access the Panelva Command Center.</p>
-          <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors w-full mt-4">
-            Return to Home
+          <h2 className="text-xl font-bold text-white">Access Denied</h2>
+          <p className="text-xs text-slate-400 leading-relaxed">You do not have administrative credentials to access the Panelva Command Center.</p>
+          <Link href="/" className="w-full mt-4">
+            <Button variant="primary" fullWidth size="md">
+              Return to Home
+            </Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -689,12 +699,13 @@ export default function AdminDashboardClient() {
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               <span>PREVIEW MODE ACTIVE: Viewing Admin Console as <strong className="text-white uppercase tracking-wider">{getRoleDisplayName(userRole)}</strong></span>
             </div>
-            <button 
+            <Button 
+              variant="outline"
+              size="sm"
               onClick={() => handlePreviewRoleChange("ACTUAL")}
-              className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-extrabold px-3 py-1.5 rounded-lg text-[10px] uppercase transition-colors border border-amber-500/30"
             >
               Exit Preview Mode
-            </button>
+            </Button>
           </div>
         )}
 

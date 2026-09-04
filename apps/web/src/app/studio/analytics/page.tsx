@@ -72,7 +72,7 @@ export default function StudioAnalyticsPage() {
           </div>
 
           <div style={{ background: "var(--panel-color)", padding: "1.5rem", borderRadius: "12px", border: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(139, 92, 246, 0.1)", display: "flex", justifyContent: "center", alignItems: "center", color: "#8b5cf6" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(37, 99, 235, 0.1)", display: "flex", justifyContent: "center", alignItems: "center", color: "#2563eb" }}>
               <TrendingUp size={24} />
             </div>
             <div>

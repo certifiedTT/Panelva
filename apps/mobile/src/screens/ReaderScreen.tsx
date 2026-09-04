@@ -3,19 +3,19 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   SafeAreaView,
   StatusBar,
   Alert,
-  TouchableOpacity,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { trpc } from '../../lib/trpc';
 import { useSeriesDetail } from '../hooks/useSeriesDetail';
-import { Series, Chapter, Creator } from '../types';
+import { Series, Chapter } from '../types';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
-import { AlertTriangleIcon } from '../components/common/Icons';
+import { AlertTriangle } from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Button } from '../components/common/Button';
 import { ReaderHeader } from '../components/reader/ReaderHeader';
 import { ReaderProgressBar } from '../components/reader/ReaderProgressBar';
 import { ComicReader } from '../components/reader/ComicReader';
@@ -40,6 +40,32 @@ export interface ReaderScreenProps {
   onOpenWallet?: () => void;
 }
 
+function ReaderSkeleton() {
+  return (
+    <SafeAreaView style={styles.skeletonContainer}>
+      {/* Top Header Placeholder */}
+      <View style={styles.skeletonHeader}>
+        <View style={styles.skeletonBackBtn} />
+        <View style={{ flex: 1, gap: spacing.xs }}>
+          <View style={styles.skeletonTitle} />
+          <View style={styles.skeletonSubtitle} />
+        </View>
+      </View>
+
+      {/* Page Canvas Placeholders */}
+      <View style={styles.skeletonCanvas}>
+        <View style={styles.skeletonPageBlock} />
+      </View>
+
+      {/* Bottom Bar Placeholder */}
+      <View style={styles.skeletonFooter}>
+        <View style={styles.skeletonNavBtn} />
+        <View style={styles.skeletonNavBtn} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
 /**
  * Inner Reader Screen coordinating modular sub-components.
  * Contains ZERO format-switching controls (format selection happens strictly on Series Details page).
@@ -56,11 +82,11 @@ function ReaderScreenInner({
   onRequireAuth,
   onOpenWallet,
 }: ReaderScreenProps) {
-  const { colors } = useTheme();
-
   // Resolve target series ID
   const effectiveSeriesId = passedSeriesId || route?.params?.seriesId || passedSeries?.id;
-  const isUuid = typeof effectiveSeriesId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveSeriesId);
+  const isUuid =
+    typeof effectiveSeriesId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveSeriesId);
 
   // Fetch / normalize series details
   const {
@@ -144,7 +170,8 @@ function ReaderScreenInner({
   );
 
   const prevChapter = currentChapterPos > 0 ? sortedChapters[currentChapterPos - 1] : null;
-  const nextChapter = currentChapterPos < sortedChapters.length - 1 ? sortedChapters[currentChapterPos + 1] : null;
+  const nextChapter =
+    currentChapterPos < sortedChapters.length - 1 ? sortedChapters[currentChapterPos + 1] : null;
 
   // Chapter access validation helper
   const navigateToChapter = useCallback(
@@ -207,26 +234,21 @@ function ReaderScreenInner({
     }
   };
 
-  // Loading Screen
+  // Loading Screen using skeleton loader
   if (isLoading && !activeSeries.title) {
-    return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading reader...</Text>
-      </SafeAreaView>
-    );
+    return <ReaderSkeleton />;
   }
 
   // Error Screen
   if (error && !activeSeries.title) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
-        <AlertTriangleIcon size={36} color="#EF4444" />
-        <Text style={[styles.errorTitle, { color: colors.text }]}>Unable to load chapter</Text>
-        <Text style={[styles.errorSubtitle, { color: colors.textMuted }]}>{error.message}</Text>
-        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}>
-          <Text style={styles.retryBtnText}>Retry</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={styles.errorContainer}>
+        <AlertTriangle size={36} color={colors.danger} />
+        <Text style={styles.errorTitle}>Unable to load chapter</Text>
+        <Text style={styles.errorSubtitle}>{error.message}</Text>
+        <View style={{ marginTop: spacing.md }}>
+          <Button title="Retry" variant="primary" onPress={() => refetch()} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -256,7 +278,7 @@ function ReaderScreenInner({
   }, [effectiveChapter.pages]);
 
   return (
-    <View style={[styles.container, { backgroundColor: isNovelFormat ? colors.bg : '#000000' }]}>
+    <View style={[styles.container, { backgroundColor: isNovelFormat ? colors.background : colors.surface }]}>
       <StatusBar hidden={!isControlsVisible} barStyle="light-content" />
 
       {/* 1. Header (Minimal: Back, Chapter number, Series title - NO format switch) */}
@@ -371,34 +393,86 @@ const styles = StyleSheet.create({
   canvasContainer: {
     flex: 1,
   },
-  loadingContainer: {
+  skeletonContainer: {
     flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'space-between',
+  },
+  skeletonHeader: {
+    height: 56,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  skeletonBackBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    backgroundColor: colors.card,
+  },
+  skeletonTitle: {
+    width: '40%',
+    height: 16,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+  },
+  skeletonSubtitle: {
+    width: '60%',
+    height: 12,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+  },
+  skeletonCanvas: {
+    flex: 1,
+    padding: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  skeletonPageBlock: {
+    width: '85%',
+    height: '60%',
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  skeletonFooter: {
+    height: 64,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  skeletonNavBtn: {
+    width: 64,
+    height: 32,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+  },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    padding: 24,
-  },
-  loadingText: {
-    fontSize: 14,
+    gap: spacing.sm,
+    padding: spacing.lg,
   },
   errorTitle: {
-    fontSize: 18,
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
     fontWeight: '700',
-    marginTop: 8,
+    color: colors.text,
+    marginTop: spacing.xs,
   },
   errorSubtitle: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
     textAlign: 'center',
-  },
-  retryBtn: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-  },
-  retryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.textMuted,
   },
 });

@@ -28,7 +28,8 @@
     "@alloc/quick-lru": "^5.2.0",
     "@supabase/auth-js": "^2.112.3",
     "@turbo/windows-64": "^2.10.11",
-    "framer-motion": "^12.40.0"
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^1.37.0"
   },
   "overrides": {
     "@types/react": "^18.3.3",

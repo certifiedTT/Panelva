@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import Image from "next/image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export function CarouselSection({
   title,
@@ -34,23 +35,31 @@ export function CarouselSection({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-          <h2 style={{ fontSize: "1.35rem", fontWeight: 750, margin: 0, color: "var(--text-color, #fff)", fontFamily: "var(--font-display)" }}>{title}</h2>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-muted-color, #a1a1aa)" }}>{subtitle}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, color: "var(--text-color, #fff)", fontFamily: "var(--font-display)" }}>{title}</h2>
+          <span style={{ fontSize: "0.875rem", color: "var(--text-muted-color, #a1a1aa)" }}>{subtitle}</span>
         </div>
         
-        <div style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}>
-          <Link href={seeAllLink} style={{ color: "#2563eb", textDecoration: "none", fontSize: "0.82rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
-            See All <span style={{ fontSize: "0.7rem" }}>❯</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <Link href={seeAllLink} style={{ color: "#2563eb", textDecoration: "none", fontSize: "0.875rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+            See All <ChevronRight className="w-4 h-4" />
           </Link>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button onClick={onPrev} style={{ width: "30px", height: "30px", borderRadius: "50%", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-color)", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "0.75rem" }}>
-              ←
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button 
+              onClick={onPrev}
+              aria-label="Previous items"
+              style={{ width: "32px", height: "32px", borderRadius: "999px", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-color)", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center" }}
+            >
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={onNext} style={{ width: "30px", height: "30px", borderRadius: "50%", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-color)", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "0.75rem" }}>
-              →
+            <button 
+              onClick={onNext}
+              aria-label="Next items"
+              style={{ width: "32px", height: "32px", borderRadius: "999px", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-color)", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center" }}
+            >
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -85,8 +94,7 @@ export function CarouselSection({
                 aspectRatio: "3/4",
                 borderRadius: "12px",
                 background: imageUrl ? undefined : item.coverBg,
-                border: "1px solid rgba(255, 255, 255, 0.05)",
-                boxShadow: "0 8px 20px rgba(0, 0, 0, 0.4)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",

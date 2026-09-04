@@ -784,4 +784,106 @@ export const adminRouter = router({
         };
       });
     }),
+
+  // ==================== STICKER REVIEW QUEUE ====================
+
+  // Get Sticker Review Queue
+  getStickerReviewQueue: permissionProcedure("comments.moderate")
+    .query(async ({ ctx }) => {
+      const packs = await (ctx.prisma as any).stickerPack.findMany({
+        where: { status: "REVIEW" },
+        include: {
+          stickers: true,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      // Enrich with creator details
+      const creatorIds = packs.map((p: any) => p.creatorId);
+      const creators = await ctx.prisma.creatorProfile.findMany({
+        where: { id: { in: creatorIds } },
+        include: { user: { select: { username: true, email: true, avatarUrl: true } } },
+      });
+      const creatorMap = new Map(creators.map((c: any) => [c.id, c]));
+
+      return packs.map((p: any) => {
+        const creator = creatorMap.get(p.creatorId);
+        return {
+          ...p,
+          creatorPenName: creator?.penName || "Creator",
+          creatorUsername: creator?.user?.username || "creator",
+          creatorAvatar: creator?.user?.avatarUrl || null,
+        };
+      });
+    }),
+
+  // Approve Sticker Pack
+  approveStickerPack: permissionProcedure("comments.moderate")
+    .input(z.object({ packId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const pack = await (ctx.prisma as any).stickerPack.update({
+        where: { id: input.packId },
+        data: { status: "PUBLISHED" },
+      });
+
+      await ctx.prisma.auditLog.create({
+        data: {
+          staffUserId: ctx.session.userId,
+          action: "STICKER_PACK_APPROVED",
+          details: `Approved sticker pack "${pack.title}" (ID: ${pack.id}) for public distribution.`,
+        },
+      });
+
+      return { success: true, pack };
+    }),
+
+  // Reject Sticker Pack
+  rejectStickerPack: permissionProcedure("comments.moderate")
+    .input(
+      z.object({
+        packId: z.string().uuid(),
+        reason: z.string().min(3),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const pack = await (ctx.prisma as any).stickerPack.update({
+        where: { id: input.packId },
+        data: { status: "ARCHIVED" },
+      });
+
+      await ctx.prisma.auditLog.create({
+        data: {
+          staffUserId: ctx.session.userId,
+          action: "STICKER_PACK_REJECTED",
+          details: `Rejected sticker pack "${pack.title}": ${input.reason}`,
+        },
+      });
+
+      return { success: true, pack };
+    }),
+
+  // Request Changes on Sticker Pack
+  requestStickerPackChanges: permissionProcedure("comments.moderate")
+    .input(
+      z.object({
+        packId: z.string().uuid(),
+        notes: z.string().min(3),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const pack = await (ctx.prisma as any).stickerPack.update({
+        where: { id: input.packId },
+        data: { status: "DRAFT" },
+      });
+
+      await ctx.prisma.auditLog.create({
+        data: {
+          staffUserId: ctx.session.userId,
+          action: "STICKER_PACK_CHANGES_REQUESTED",
+          details: `Requested changes on sticker pack "${pack.title}": ${input.notes}`,
+        },
+      });
+
+      return { success: true, pack };
+    }),
 });

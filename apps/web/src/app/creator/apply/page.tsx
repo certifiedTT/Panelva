@@ -349,7 +349,7 @@ export default function CreatorApplyPage() {
             <Sparkles className="w-6 h-6" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-none">
-            Share your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">creations</span> with the world.
+            Share your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">creations</span> with the world.
           </h1>
           <p className="text-zinc-400 text-sm md:text-base leading-relaxed">
             Join the Panelva creative ecosystem. Whether you illustate comics, write novels, publish articles, or lead a studio production, we offer deep integrations and monetization models to support your work.

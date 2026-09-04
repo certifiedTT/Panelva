@@ -6,22 +6,26 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useTheme } from '../../theme/ThemeContext';
 import { trpc } from '../../../lib/trpc';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
+import { Badge } from '@panelva/ui';
+
+// Lucide Line Icons
 import {
-  CloseIcon,
-  UsersIcon,
-  SparklesIcon,
-  BookOpenIcon,
-  CheckIcon,
-  BookmarkIcon,
-  HeartIcon,
-  CommentIcon,
-} from '../common/Icons';
+  X,
+  Sparkles,
+  BookOpen,
+  Check,
+  Bookmark,
+  Heart,
+  MessageSquare,
+} from 'lucide-react-native';
 
 interface PublicCreatorProfileModalProps {
   visible: boolean;
@@ -40,7 +44,6 @@ export function PublicCreatorProfileModal({
   onRequireAuth,
   onSelectSeries,
 }: PublicCreatorProfileModalProps) {
-  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<'series' | 'posts' | 'memberships'>('series');
 
   const isUuid = typeof creatorProfileId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(creatorProfileId);
@@ -99,46 +102,60 @@ export function PublicCreatorProfileModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.container}>
           {/* Header */}
-          <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Creator Profile</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <CloseIcon size={20} color={colors.textMuted} />
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Creator Profile</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close profile modal"
+            >
+              <X size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
           {isLoading ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color={colors.primary} />
+            /* Skeleton Loader instead of ActivityIndicator */
+            <View style={{ padding: spacing.md, gap: spacing.md }}>
+              <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+                <View style={{ width: 56, height: 56, borderRadius: radius.full, backgroundColor: colors.surface }} />
+                <View style={{ gap: spacing.xs, flex: 1 }}>
+                  <View style={{ width: '60%', height: 16, borderRadius: radius.sm, backgroundColor: colors.surface }} />
+                  <View style={{ width: '40%', height: 12, borderRadius: radius.sm, backgroundColor: colors.surface }} />
+                </View>
+              </View>
+              <View style={{ width: '100%', height: 40, borderRadius: radius.md, backgroundColor: colors.surface }} />
+              <View style={{ width: '100%', height: 64, borderRadius: radius.md, backgroundColor: colors.surface }} />
             </View>
           ) : (
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
               {/* Creator Banner / Avatar */}
               <View style={styles.profileHeader}>
-                <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+                <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>
                     {displayProfile.penName?.charAt(0).toUpperCase() || 'C'}
                   </Text>
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[styles.penName, { color: colors.text }]}>{displayProfile.penName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                    <Text style={styles.penName}>{displayProfile.penName}</Text>
                     {displayProfile.isVetted && (
-                      <View style={[styles.vettedBadge, { backgroundColor: colors.primaryMuted }]}>
-                        <Text style={[styles.vettedText, { color: colors.primary }]}>Verified</Text>
-                      </View>
+                      <Badge variant="primary" size="sm">
+                        Verified
+                      </Badge>
                     )}
                   </View>
-                  <Text style={[styles.creatorType, { color: colors.textMuted }]}>
+                  <Text style={styles.creatorType}>
                     {displayProfile.type} Creator
                   </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
-                    <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs }}>
+                    <Text style={styles.statText}>
                       <Text style={{ fontWeight: '700', color: colors.text }}>{displayProfile.followerCount || 0}</Text> Followers
                     </Text>
-                    <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                    <Text style={styles.statText}>
                       <Text style={{ fontWeight: '700', color: colors.text }}>{displayProfile.series?.length || 0}</Text> Series
                     </Text>
                   </View>
@@ -146,43 +163,29 @@ export function PublicCreatorProfileModal({
               </View>
 
               {/* Follow / Unfollow Action Button */}
-              <TouchableOpacity
-                style={[
-                  styles.followBtn,
-                  {
-                    backgroundColor: isFollowing ? colors.surfaceElevated : colors.primary,
-                    borderColor: isFollowing ? colors.border : colors.primaryDark,
-                  },
-                ]}
-                onPress={handleToggleFollow}
-                disabled={followCreatorMutation.isLoading}
-                activeOpacity={0.8}
-              >
-                {isFollowing ? (
-                  <>
-                    <CheckIcon size={16} color={colors.primary} />
-                    <Text style={[styles.followBtnText, { color: colors.text }]}>Following Creator</Text>
-                  </>
-                ) : (
-                  <>
-                    <BookmarkIcon size={16} color="#FFFFFF" />
-                    <Text style={[styles.followBtnText, { color: '#FFFFFF' }]}>Follow Creator</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={{ marginTop: spacing.md }}>
+                <Button
+                  title={isFollowing ? 'Following Creator' : 'Follow Creator'}
+                  variant={isFollowing ? 'secondary' : 'primary'}
+                  onPress={handleToggleFollow}
+                  disabled={followCreatorMutation.isLoading}
+                />
+              </View>
 
               {/* Bio */}
               {displayProfile.bio && (
-                <View style={[styles.bioCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.borderSubtle }]}>
-                  <Text style={[styles.bioText, { color: colors.textSecondary }]}>{displayProfile.bio}</Text>
-                </View>
+                <Card style={{ marginTop: spacing.md }}>
+                  <Text style={styles.bioText}>{displayProfile.bio}</Text>
+                </Card>
               )}
 
               {/* Profile Segment Tabs (Series / Community Posts / Memberships) */}
-              <View style={[styles.tabsRow, { borderBottomColor: colors.borderSubtle }]}>
+              <View style={styles.tabsRow}>
                 <TouchableOpacity
                   style={[styles.tabBtn, activeTab === 'series' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
                   onPress={() => setActiveTab('series')}
+                  accessibilityRole="button"
+                  accessibilityLabel="View series tab"
                 >
                   <Text style={[styles.tabBtnText, { color: activeTab === 'series' ? colors.primary : colors.textMuted, fontWeight: activeTab === 'series' ? '700' : '500' }]}>
                     Series ({displayProfile.series?.length || 0})
@@ -192,6 +195,8 @@ export function PublicCreatorProfileModal({
                 <TouchableOpacity
                   style={[styles.tabBtn, activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
                   onPress={() => setActiveTab('posts')}
+                  accessibilityRole="button"
+                  accessibilityLabel="View posts tab"
                 >
                   <Text style={[styles.tabBtnText, { color: activeTab === 'posts' ? colors.primary : colors.textMuted, fontWeight: activeTab === 'posts' ? '700' : '500' }]}>
                     Posts & Updates
@@ -202,6 +207,8 @@ export function PublicCreatorProfileModal({
                   <TouchableOpacity
                     style={[styles.tabBtn, activeTab === 'memberships' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
                     onPress={() => setActiveTab('memberships')}
+                    accessibilityRole="button"
+                    accessibilityLabel="View memberships tab"
                   >
                     <Text style={[styles.tabBtnText, { color: activeTab === 'memberships' ? colors.primary : colors.textMuted, fontWeight: activeTab === 'memberships' ? '700' : '500' }]}>
                       Memberships
@@ -212,70 +219,78 @@ export function PublicCreatorProfileModal({
 
               {/* TAB 1: PUBLISHED SERIES */}
               {activeTab === 'series' && (
-                <View style={{ marginTop: 14 }}>
+                <View style={{ marginTop: spacing.md }}>
                   {displayProfile.series && displayProfile.series.length > 0 ? (
-                    <View style={{ gap: 10 }}>
+                    <View style={{ gap: spacing.sm }}>
                       {displayProfile.series.map((s: any) => (
                         <TouchableOpacity
                           key={s.id}
-                          style={[styles.seriesRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
                           onPress={() => {
                             onClose();
                             if (onSelectSeries) onSelectSeries(s);
                           }}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Select series ${s.title}`}
                         >
-                          {s.coverUrl ? (
-                            <ExpoImage source={{ uri: s.coverUrl }} style={styles.seriesThumb} />
-                          ) : (
-                            <View style={[styles.seriesThumbPlaceholder, { backgroundColor: colors.primaryMuted }]}>
-                              <BookOpenIcon size={20} color={colors.primary} />
+                          <Card style={styles.seriesRow}>
+                            {s.coverUrl ? (
+                              <ExpoImage source={{ uri: s.coverUrl }} style={styles.seriesThumb} />
+                            ) : (
+                              <View style={styles.seriesThumbPlaceholder}>
+                                <BookOpen size={20} color={colors.primary} />
+                              </View>
+                            )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.seriesTitle}>{s.title}</Text>
+                              <Text style={styles.seriesGenre}>
+                                {s.type} • {s.genre} • {s.status}
+                              </Text>
                             </View>
-                          )}
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.seriesTitle, { color: colors.text }]}>{s.title}</Text>
-                            <Text style={[styles.seriesGenre, { color: colors.textMuted }]}>
-                              {s.type} • {s.genre} • {s.status}
-                            </Text>
-                          </View>
+                          </Card>
                         </TouchableOpacity>
                       ))}
                     </View>
                   ) : (
-                    <View style={styles.emptyCard}>
-                      <BookOpenIcon size={32} color={colors.textMuted} />
-                      <Text style={[styles.emptyText, { color: colors.textMuted }]}>No published series yet.</Text>
-                    </View>
+                    <Card style={styles.emptyCard}>
+                      <BookOpen size={32} color={colors.textMuted} />
+                      <Text style={styles.emptyText}>No published series yet.</Text>
+                    </Card>
                   )}
                 </View>
               )}
 
               {/* TAB 2: COMMUNITY POSTS */}
               {activeTab === 'posts' && (
-                <View style={{ marginTop: 14 }}>
+                <View style={{ marginTop: spacing.md }}>
                   {postsLoading ? (
-                    <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
+                    <View style={{ gap: spacing.sm, paddingVertical: spacing.md }}>
+                      <Card style={{ gap: spacing.sm }}>
+                        <View style={{ width: '50%', height: 16, borderRadius: radius.sm, backgroundColor: colors.surface }} />
+                        <View style={{ width: '100%', height: 40, borderRadius: radius.sm, backgroundColor: colors.surface }} />
+                      </Card>
+                    </View>
                   ) : (
-                    <View style={{ gap: 12 }}>
-                      <View style={[styles.postPreviewCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                          <SparklesIcon size={16} color={colors.primary} />
-                          <Text style={[styles.postCardTitle, { color: colors.text }]}>Creator Update</Text>
+                    <View style={{ gap: spacing.md }}>
+                      <Card style={styles.postPreviewCard}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                          <Sparkles size={16} color={colors.primary} />
+                          <Text style={styles.postCardTitle}>Creator Update</Text>
                         </View>
-                        <Text style={[styles.postCardContent, { color: colors.textSecondary }]}>
+                        <Text style={styles.postCardContent}>
                           "Thank you all for reading! Working on the next chapter storyboard and character design reveals."
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <HeartIcon size={14} color={colors.textMuted} />
-                            <Text style={[styles.postStat, { color: colors.textMuted }]}>128</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                            <Heart size={14} color={colors.textMuted} />
+                            <Text style={styles.postStat}>128</Text>
                           </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <CommentIcon size={14} color={colors.textMuted} />
-                            <Text style={[styles.postStat, { color: colors.textMuted }]}>24</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                            <MessageSquare size={14} color={colors.textMuted} />
+                            <Text style={styles.postStat}>24</Text>
                           </View>
                         </View>
-                      </View>
+                      </Card>
                     </View>
                   )}
                 </View>
@@ -283,30 +298,27 @@ export function PublicCreatorProfileModal({
 
               {/* TAB 3: MEMBERSHIPS */}
               {activeTab === 'memberships' && displayProfile.membershipTiers && (
-                <View style={{ marginTop: 14, gap: 10 }}>
+                <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
                   {displayProfile.membershipTiers.map((tier: any) => (
-                    <View
-                      key={tier.id}
-                      style={[styles.tierCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-                    >
+                    <Card key={tier.id} style={styles.tierCard}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[styles.tierName, { color: colors.text }]}>{tier.name}</Text>
-                        <Text style={[styles.tierPrice, { color: colors.primary }]}>
+                        <Text style={styles.tierName}>{tier.name}</Text>
+                        <Text style={styles.tierPrice}>
                           {tier.priceCoins} Credits / mo
                         </Text>
                       </View>
-                      <Text style={[styles.tierDesc, { color: colors.textMuted }]}>{tier.description}</Text>
+                      <Text style={styles.tierDesc}>{tier.description}</Text>
                       {tier.benefits && tier.benefits.length > 0 && (
-                        <View style={{ gap: 4, marginTop: 8 }}>
+                        <View style={{ gap: spacing.xs, marginTop: spacing.sm }}>
                           {tier.benefits.map((b: string, idx: number) => (
-                            <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <CheckIcon size={14} color={colors.success} />
-                              <Text style={[styles.benefitText, { color: colors.textSecondary }]}>{b}</Text>
+                            <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                              <Check size={14} color={colors.success} />
+                              <Text style={styles.benefitText}>{b}</Text>
                             </View>
                           ))}
                         </View>
                       )}
-                    </View>
+                    </Card>
                   ))}
                 </View>
               )}
@@ -325,171 +337,158 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   closeBtn: {
-    padding: 6,
+    padding: spacing.xs,
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.md,
   },
   avatarCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#FFFFFF',
-    fontSize: 24,
+    color: colors.text,
+    fontSize: typography.h1.fontSize,
     fontWeight: '800',
   },
   penName: {
-    fontSize: 17,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
     fontWeight: '800',
-  },
-  vettedBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  vettedText: {
-    fontSize: 10,
-    fontWeight: '700',
+    color: colors.text,
   },
   creatorType: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs / 2,
   },
   statText: {
-    fontSize: 12,
-  },
-  followBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 8,
-    marginTop: 14,
-  },
-  followBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  bioCard: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 12,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   bioText: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    color: colors.textMuted,
   },
   tabsRow: {
     flexDirection: 'row',
-    marginTop: 18,
+    marginTop: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tabBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginRight: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.sm,
   },
   tabBtnText: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
   },
   seriesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.sm,
   },
   seriesThumb: {
     width: 48,
     height: 64,
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
   seriesThumbPlaceholder: {
     width: 48,
     height: 64,
-    borderRadius: 6,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   seriesTitle: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   seriesGenre: {
-    fontSize: 11,
-    marginTop: 3,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   tierCard: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
+    gap: spacing.xs,
   },
   tierName: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   tierPrice: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.primary,
   },
   tierDesc: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   benefitText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   emptyCard: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 30,
-    gap: 8,
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
   },
   emptyText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   postPreviewCard: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    gap: spacing.xs,
   },
   postCardTitle: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   postCardContent: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    color: colors.textMuted,
   },
   postStat: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
 });

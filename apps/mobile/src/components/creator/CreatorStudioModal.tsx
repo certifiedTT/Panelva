@@ -9,24 +9,23 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { useTheme } from '../../theme/ThemeContext';
 import {
-  SparklesIcon,
-  PaletteIcon,
-  UsersIcon,
-  CreditsIcon,
-  CheckIcon,
-  PlusIcon,
-  BookOpenIcon,
-  TrendingUpIcon,
-  CloseIcon,
-  HistoryIcon,
-  SettingsIcon,
-  HelpCircleIcon,
-  NovelsIcon,
-  EyeIcon,
-  ShieldIcon,
-} from '../common/Icons';
+  Sparkles,
+  Palette,
+  Users,
+  Coins,
+  Check,
+  Plus,
+  BookOpen,
+  TrendingUp,
+  X,
+  History,
+  Settings,
+  Eye,
+  BookText,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card, Button, Badge, AnalyticsCard } from '@panelva/ui';
 import {
   MOCK_AUDIENCE_INSIGHTS,
   MOCK_REVENUE_BREAKDOWN,
@@ -56,7 +55,6 @@ type StudioTab =
   | 'settings';
 
 export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioModalProps) {
-  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<StudioTab>('overview');
 
   // Series management state
@@ -95,22 +93,52 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
 
   // Drafts state
   const [drafts, setDrafts] = useState([
-    { id: 'd-1', title: 'Chapter 15: Neon Whispers', series: 'Shadow City: Neon Blade', wordCount: 3400, lastModified: '2 hours ago' },
-    { id: 'd-2', title: 'Chapter 16: The Undercurrent', series: 'Shadow City: Neon Blade', wordCount: 1850, lastModified: 'Yesterday' },
+    {
+      id: 'd-1',
+      title: 'Chapter 15: Neon Whispers',
+      series: 'Shadow City: Neon Blade',
+      wordCount: 3400,
+      lastModified: '2 hours ago',
+    },
+    {
+      id: 'd-2',
+      title: 'Chapter 16: The Undercurrent',
+      series: 'Shadow City: Neon Blade',
+      wordCount: 1850,
+      lastModified: 'Yesterday',
+    },
   ]);
 
   // Memberships & Tiers state
   const [tiers, setTiers] = useState([
-    { id: 't-1', name: 'Apprentice Supporter', price: '$2.99/mo', subscribers: 142, perks: ['Early access to 2 chapters', 'Supporter badge'] },
-    { id: 't-2', name: 'Vanguard Patron', price: '$7.99/mo', subscribers: 88, perks: ['Early access to 5 chapters', 'Exclusive discord role', 'Hi-res illustration downloads'] },
-    { id: 't-3', name: 'Archon VIP', price: '$19.99/mo', subscribers: 29, perks: ['All Vanguard perks', 'Behind-the-scenes sketches', 'Name credited in end credits'] },
+    {
+      id: 't-1',
+      name: 'Apprentice Supporter',
+      price: '$2.99/mo',
+      subscribers: 142,
+      perks: ['Early access to 2 chapters', 'Supporter badge'],
+    },
+    {
+      id: 't-2',
+      name: 'Vanguard Patron',
+      price: '$7.99/mo',
+      subscribers: 88,
+      perks: ['Early access to 5 chapters', 'Exclusive discord role', 'Hi-res illustration downloads'],
+    },
+    {
+      id: 't-3',
+      name: 'Archon VIP',
+      price: '$19.99/mo',
+      subscribers: 29,
+      perks: ['All Vanguard perks', 'Behind-the-scenes sketches', 'Name credited in end credits'],
+    },
   ]);
   const [newTierName, setNewTierName] = useState('');
   const [newTierPrice, setNewTierPrice] = useState('');
   const [newTierPerks, setNewTierPerks] = useState('');
 
-  // Collabs state
-  const [collabs, setCollabs] = useState(MOCK_COLLABORATION_INVITATIONS);
+  // Collabs state aligned with MOCK_COLLABORATION_INVITATIONS shape
+  const [collabs, setCollabs] = useState<any[]>(MOCK_COLLABORATION_INVITATIONS);
   const [newCollabCreator, setNewCollabCreator] = useState('');
   const [newCollabRole, setNewCollabRole] = useState('COLORIST');
   const [newCollabSplit, setNewCollabSplit] = useState('20');
@@ -184,11 +212,11 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
     setCollabs([
       {
         id: `collab-${Date.now()}`,
-        seriesTitle: currentSeries?.title || 'Shadow City',
-        senderName: dbUser?.username || 'You',
-        receiverName: newCollabCreator.trim(),
+        series: { id: currentSeries?.id || 'series-001', title: currentSeries?.title || 'Shadow City' },
         role: newCollabRole,
         shareRatio: Number(newCollabSplit) || 20,
+        message: 'Collaboration invitation sent',
+        inviter: { username: newCollabCreator.trim(), avatarUrl: '' },
         status: 'PENDING',
         createdAt: 'Just now',
       },
@@ -199,7 +227,10 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
   };
 
   const handleRequestPayout = () => {
-    Alert.alert('Payout Requested', `Payout request for $${payoutAmount} via ${payoutMethod} submitted for platform clearance.`);
+    Alert.alert(
+      'Payout Requested',
+      `Payout request for $${payoutAmount} via ${payoutMethod} submitted for platform clearance.`
+    );
   };
 
   const mobileCreatorGroups: MobileWorkspaceNavGroup[] = [
@@ -207,28 +238,28 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
       id: 'workspace',
       label: 'Workspace',
       items: [
-        { id: 'overview', label: 'Overview', icon: ({ size, color }) => <TrendingUpIcon size={size} color={color} /> },
-        { id: 'series', label: 'Series Management', icon: ({ size, color }) => <BookOpenIcon size={size} color={color} />, badge: seriesList.length },
-        { id: 'upload', label: 'Upload Chapter', icon: ({ size, color }) => <PlusIcon size={size} color={color} /> },
-        { id: 'drafts', label: 'Drafts Vault', icon: ({ size, color }) => <PaletteIcon size={size} color={color} />, badge: drafts.length },
+        { id: 'overview', label: 'Overview', icon: ({ size, color }) => <TrendingUp size={size} color={color} /> },
+        { id: 'series', label: 'Series Management', icon: ({ size, color }) => <BookOpen size={size} color={color} />, badge: seriesList.length },
+        { id: 'upload', label: 'Upload Chapter', icon: ({ size, color }) => <Plus size={size} color={color} /> },
+        { id: 'drafts', label: 'Drafts Vault', icon: ({ size, color }) => <Palette size={size} color={color} />, badge: drafts.length },
       ],
     },
     {
       id: 'business',
       label: 'Business',
       items: [
-        { id: 'analytics', label: 'Analytics', icon: ({ size, color }) => <EyeIcon size={size} color={color} /> },
-        { id: 'revenue', label: 'Memberships & Revenue', icon: ({ size, color }) => <CreditsIcon size={size} color={color} /> },
-        { id: 'audience', label: 'Audience & Fans', icon: ({ size, color }) => <UsersIcon size={size} color={color} /> },
+        { id: 'analytics', label: 'Analytics', icon: ({ size, color }) => <Eye size={size} color={color} /> },
+        { id: 'revenue', label: 'Memberships & Revenue', icon: ({ size, color }) => <Coins size={size} color={color} /> },
+        { id: 'audience', label: 'Audience & Fans', icon: ({ size, color }) => <Users size={size} color={color} /> },
       ],
     },
     {
       id: 'community_settings',
       label: 'Community & Settings',
       items: [
-        { id: 'collabs', label: 'Collaborations', icon: ({ size, color }) => <UsersIcon size={size} color={color} />, badge: collabs.length },
-        { id: 'linked', label: 'Linked Works', icon: ({ size, color }) => <NovelsIcon size={size} color={color} /> },
-        { id: 'settings', label: 'Studio Settings', icon: ({ size, color }) => <SettingsIcon size={size} color={color} /> },
+        { id: 'collabs', label: 'Collaborations', icon: ({ size, color }) => <Users size={size} color={color} />, badge: collabs.length },
+        { id: 'linked', label: 'Linked Works', icon: ({ size, color }) => <BookText size={size} color={color} /> },
+        { id: 'settings', label: 'Studio Settings', icon: ({ size, color }) => <Settings size={size} color={color} /> },
       ],
     },
   ];
@@ -251,89 +282,95 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
         onClose={onClose}
       >
         {/* Tab Contents */}
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xxl }}
+          showsVerticalScrollIndicator={false}
+        >
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.kpiCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Workspace Telemetry</Text>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Workspace Telemetry</Text>
                 <View style={styles.kpiGrid}>
-                  <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+                  <View style={styles.kpiBox}>
                     <Text style={[styles.kpiVal, { color: colors.primary }]}>384.2K</Text>
-                    <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Total Views</Text>
+                    <Text style={styles.kpiLabel}>Total Views</Text>
                   </View>
-                  <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+                  <View style={styles.kpiBox}>
                     <Text style={[styles.kpiVal, { color: colors.success }]}>$1,845.50</Text>
-                    <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Net Revenue</Text>
+                    <Text style={styles.kpiLabel}>Net Revenue</Text>
                   </View>
-                  <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.kpiVal, { color: colors.text }]}>12.4K</Text>
-                    <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Followers</Text>
+                  <View style={styles.kpiBox}>
+                    <Text style={styles.kpiVal}>12.4K</Text>
+                    <Text style={styles.kpiLabel}>Followers</Text>
                   </View>
-                  <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.kpiVal, { color: colors.accentGold || '#F59E0B' }]}>259</Text>
-                    <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Subscribers</Text>
+                  <View style={styles.kpiBox}>
+                    <Text style={[styles.kpiVal, { color: colors.warning }]}>259</Text>
+                    <Text style={styles.kpiLabel}>Subscribers</Text>
                   </View>
                 </View>
-              </View>
+              </Card>
 
               {/* Quick Actions */}
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                  <TouchableOpacity
-                    style={[styles.quickBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => setActiveTab('upload')}
-                  >
-                    <PlusIcon size={16} color="#FFFFFF" />
-                    <Text style={styles.quickBtnText}>New Chapter</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.quickBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
-                    onPress={() => setLinkedModalVisible(true)}
-                  >
-                    <BookOpenIcon size={16} color={colors.text} />
-                    <Text style={[styles.quickBtnText, { color: colors.text }]}>Link Novel/Comic</Text>
-                  </TouchableOpacity>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Quick Actions</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      title="New Chapter"
+                      variant="primary"
+                      onPress={() => setActiveTab('upload')}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      title="Link Novel/Comic"
+                      variant="secondary"
+                      onPress={() => setLinkedModalVisible(true)}
+                    />
+                  </View>
                 </View>
-              </View>
+              </Card>
 
               {/* Active Series Snapshot */}
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Primary Serialized Title</Text>
-                <View style={{ flexDirection: 'row', gap: 14, marginTop: 12 }}>
-                  <View style={[styles.seriesCoverMock, { backgroundColor: colors.primaryMuted }]}>
-                    <BookOpenIcon size={24} color={colors.primary} />
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Primary Serialized Title</Text>
+                <View style={styles.seriesSnapshotRow}>
+                  <View style={styles.seriesCoverMock}>
+                    <BookOpen size={24} color={colors.primary} />
                   </View>
-                  <View style={{ flex: 1, justifyContent: 'center' }}>
-                    <Text style={[styles.seriesHeading, { color: colors.text }]}>{currentSeries?.title || 'Shadow City'}</Text>
-                    <Text style={[styles.seriesSub, { color: colors.textMuted }]}>
+                  <View style={{ flex: 1, gap: spacing.xs / 2 }}>
+                    <Text style={styles.seriesHeading}>
+                      {currentSeries?.title || 'Shadow City'}
+                    </Text>
+                    <Text style={styles.seriesSub}>
                       {currentSeries?.type || 'COMIC'} • {currentSeries?.genre || 'Cyberpunk'} • Status: {managedStatus}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                      <View style={[styles.miniBadge, { backgroundColor: colors.primaryMuted }]}>
-                        <Text style={[styles.miniBadgeText, { color: colors.primary }]}>13 Published Chapters</Text>
-                      </View>
-                      <View style={[styles.miniBadge, { backgroundColor: colors.success + '25' }]}>
-                        <Text style={[styles.miniBadgeText, { color: colors.success }]}>Monetized</Text>
-                      </View>
+                    <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs }}>
+                      <Badge variant="primary" size="sm">
+                        13 Chapters
+                      </Badge>
+                      <Badge variant="success" size="sm">
+                        Monetized
+                      </Badge>
                     </View>
                   </View>
                 </View>
-              </View>
+              </Card>
             </View>
           )}
 
           {/* SERIES MANAGEMENT TAB */}
           {activeTab === 'series' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Series Schedule & State Control</Text>
-                <Text style={[styles.helperText, { color: colors.textMuted }]}>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Series Schedule & State Control</Text>
+                <Text style={styles.helperText}>
                   Broadcast production status, hiatus notices, and season transitions to your reader base.
                 </Text>
 
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
                   {(['ONGOING', 'COMING_SOON', 'SEASON_ENDED', 'HIATUS'] as const).map((st) => (
                     <TouchableOpacity
                       key={st}
@@ -345,51 +382,58 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
                         },
                       ]}
                       onPress={() => setManagedStatus(st)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set series status to ${st}`}
                     >
-                      <Text style={{ color: managedStatus === st ? '#FFFFFF' : colors.text, fontWeight: '700', fontSize: 11 }}>
+                      <Text
+                        style={{
+                          color: managedStatus === st ? colors.text : colors.textMuted,
+                          fontWeight: '700',
+                          fontSize: typography.caption.fontSize,
+                        }}
+                      >
                         {st.replace(/_/g, ' ')}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 14 }]}>Status Bulletin / Reader Note:</Text>
+                <Text style={styles.inputLabel}>Status Bulletin / Reader Note:</Text>
                 <TextInput
-                  style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  style={styles.inputField}
                   placeholder="e.g. Season 1 finale complete! Returning with Season 2 in October."
                   placeholderTextColor={colors.textMuted}
                   value={statusNote}
                   onChangeText={setStatusNote}
                 />
 
-                <TouchableOpacity
-                  style={[styles.actionPrimaryBtn, { backgroundColor: colors.primary, marginTop: 12 }]}
+                <Button
+                  title="Update Series Status"
+                  variant="primary"
                   onPress={() => Alert.alert('Saved', 'Series status broadcast updated successfully!')}
-                >
-                  <Text style={styles.actionPrimaryBtnText}>Update Series Status</Text>
-                </TouchableOpacity>
-              </View>
+                />
+              </Card>
             </View>
           )}
 
           {/* UPLOAD CHAPTER TAB */}
           {activeTab === 'upload' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Upload & Schedule Chapter</Text>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.sm }}>
+                <Text style={styles.sectionTitle}>Upload & Schedule Chapter</Text>
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Chapter Number *:</Text>
+                <Text style={styles.inputLabel}>Chapter Number *:</Text>
                 <TextInput
-                  style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  style={styles.inputField}
                   placeholder="e.g. 14, 0.5, 3.1.5, Prologue, Special 1"
                   placeholderTextColor={colors.textMuted}
                   value={chapterNumber}
                   onChangeText={setChapterNumber}
                 />
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 10 }]}>Chapter Title (Subtitle, Optional):</Text>
+                <Text style={styles.inputLabel}>Chapter Title (Subtitle, Optional):</Text>
                 <TextInput
-                  style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  style={styles.inputField}
                   placeholder="e.g. Echoes of Steel, Side Story"
                   placeholderTextColor={colors.textMuted}
                   value={chapterSubtitle}
@@ -397,17 +441,19 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
                 />
 
                 {/* Formatted Preview Banner */}
-                <View style={{ backgroundColor: colors.primaryMuted, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, padding: 10, marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '800', textTransform: 'uppercase' }}>Preview:</Text>
-                  <Text style={{ fontSize: 12, color: colors.text, fontWeight: '800' }}>{getFormattedPreview(chapterNumber, chapterSubtitle)}</Text>
+                <View style={styles.previewBanner}>
+                  <Text style={styles.previewTag}>Preview:</Text>
+                  <Text style={styles.previewText}>
+                    {getFormattedPreview(chapterNumber, chapterSubtitle)}
+                  </Text>
                 </View>
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 10 }]}>Access & Monetization Tier:</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                <Text style={styles.inputLabel}>Access & Monetization Tier:</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   {[
-                    { id: 'FREE', label: 'Free Access' },
+                    { id: 'FREE', label: 'Free' },
                     { id: 'AD_SUPPORTED', label: 'Ad-Supported' },
-                    { id: 'PREMIUM', label: 'Early Access (Coins/Sub)' },
+                    { id: 'PREMIUM', label: 'Early Access' },
                   ].map((tier) => (
                     <TouchableOpacity
                       key={tier.id}
@@ -419,26 +465,34 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
                         },
                       ]}
                       onPress={() => setChapterTier(tier.id as any)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set chapter tier to ${tier.label}`}
                     >
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: chapterTier === tier.id ? '#FFFFFF' : colors.text }}>
+                      <Text
+                        style={{
+                          fontSize: typography.caption.fontSize,
+                          fontWeight: '700',
+                          color: chapterTier === tier.id ? colors.text : colors.textMuted,
+                        }}
+                      >
                         {tier.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 10 }]}>Scheduled Release (Optional):</Text>
+                <Text style={styles.inputLabel}>Scheduled Release (Optional):</Text>
                 <TextInput
-                  style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  style={styles.inputField}
                   placeholder="YYYY-MM-DD (leave empty for instant publish)"
                   placeholderTextColor={colors.textMuted}
                   value={chapterScheduledDate}
                   onChangeText={setChapterScheduledDate}
                 />
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 10 }]}>Manuscript / Image URLs (Markdown / Text):</Text>
+                <Text style={styles.inputLabel}>Manuscript / Image URLs (Markdown / Text):</Text>
                 <TextInput
-                  style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, height: 100 }]}
+                  style={[styles.inputField, { height: 100 }]}
                   placeholder="Paste episode manuscript text or image panel asset URLs..."
                   placeholderTextColor={colors.textMuted}
                   multiline
@@ -446,73 +500,96 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
                   onChangeText={setChapterContent}
                 />
 
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-                  <TouchableOpacity
-                    style={[styles.actionPrimaryBtn, { backgroundColor: colors.primary, flex: 1 }]}
-                    onPress={handlePublishChapter}
-                  >
-                    <Text style={styles.actionPrimaryBtnText}>Publish Chapter</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionSecondaryBtn, { borderColor: colors.border, backgroundColor: colors.surface, flex: 1 }]}
-                    onPress={handleSaveDraft}
-                  >
-                    <Text style={[styles.actionSecondaryBtnText, { color: colors.text }]}>Save Draft</Text>
-                  </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      title="Publish Chapter"
+                      variant="primary"
+                      onPress={handlePublishChapter}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      title="Save Draft"
+                      variant="secondary"
+                      onPress={handleSaveDraft}
+                    />
+                  </View>
                 </View>
-              </View>
+              </Card>
             </View>
           )}
 
           {/* DRAFTS TAB */}
           {activeTab === 'drafts' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Saved Manuscript Drafts ({drafts.length})</Text>
-                <View style={{ gap: 10, marginTop: 12 }}>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Saved Manuscript Drafts ({drafts.length})</Text>
+                <View style={{ gap: spacing.sm }}>
                   {drafts.map((d) => (
-                    <View key={d.id} style={[styles.draftRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.draftTitle, { color: colors.text }]}>{d.title}</Text>
-                        <Text style={[styles.draftMeta, { color: colors.textMuted }]}>
+                    <Card key={d.id} style={styles.itemCard}>
+                      <View style={{ flex: 1, gap: spacing.xs / 2 }}>
+                        <Text style={styles.itemTitle}>{d.title}</Text>
+                        <Text style={styles.itemSubtitle}>
                           {d.series} • ~{d.wordCount} words • Saved {d.lastModified}
                         </Text>
                       </View>
-                      <TouchableOpacity
-                        style={[styles.miniActionBtn, { backgroundColor: colors.primaryMuted }]}
+                      <Button
+                        title="Edit"
+                        variant="secondary"
                         onPress={() => Alert.alert('Loaded', `Draft "${d.title}" loaded into upload editor.`)}
-                      >
-                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>Edit</Text>
-                      </TouchableOpacity>
-                    </View>
+                      />
+                    </Card>
                   ))}
                 </View>
-              </View>
+              </Card>
             </View>
           )}
 
           {/* ANALYTICS TAB */}
           {activeTab === 'analytics' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Reader Retention & Completion</Text>
-                <View style={{ gap: 12, marginTop: 12 }}>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>Chapter 1 Completion Rate</Text>
-                    <Text style={[styles.metricValue, { color: colors.success }]}>94.2%</Text>
-                  </View>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>Average Read Duration</Text>
-                    <Text style={[styles.metricValue, { color: colors.primary }]}>6m 48s</Text>
-                  </View>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>Subscriber Conversion Rate</Text>
-                    <Text style={[styles.metricValue, { color: colors.accentGold || '#F59E0B' }]}>8.7%</Text>
-                  </View>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>Top Performing Chapter</Text>
-                    <Text style={[styles.metricValue, { color: colors.text }]}>Ch. 12 (Climax)</Text>
-                  </View>
+            <View style={{ gap: spacing.md }}>
+              <Text style={styles.sectionTitle}>Reader Retention & Key Metrics</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <AnalyticsCard
+                    title="Ch 1 Completion"
+                    value="94.2%"
+                    growth={3.5}
+                    isPositive={true}
+                    icon={<TrendingUp size={16} color={colors.success} />}
+                    subtitle="vs last month"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AnalyticsCard
+                    title="Avg Duration"
+                    value="6m 48s"
+                    growth={1.2}
+                    isPositive={true}
+                    icon={<Eye size={16} color={colors.primary} />}
+                    subtitle="per reader"
+                  />
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <AnalyticsCard
+                    title="Conversion"
+                    value="8.7%"
+                    growth={0.8}
+                    isPositive={true}
+                    icon={<Users size={16} color={colors.warning} />}
+                    subtitle="subscribers"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AnalyticsCard
+                    title="Top Chapter"
+                    value="Ch. 12"
+                    icon={<BookOpen size={16} color={colors.primary} />}
+                    subtitle="4.8k reads"
+                  />
                 </View>
               </View>
             </View>
@@ -520,202 +597,190 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
 
           {/* REVENUE & MEMBERSHIPS TAB */}
           {activeTab === 'revenue' && (
-            <View style={{ gap: 16 }}>
+            <View style={{ gap: spacing.md }}>
               {/* Financial Balance */}
-              <View style={[styles.kpiCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Earnings & Disbursement</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Earnings & Disbursement</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View>
                     <Text style={[styles.kpiVal, { color: colors.success }]}>$1,845.50</Text>
-                    <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Available Payout Balance</Text>
+                    <Text style={styles.kpiLabel}>Available Payout Balance</Text>
                   </View>
-                  <TouchableOpacity
-                    style={[styles.actionPrimaryBtn, { backgroundColor: colors.success, paddingHorizontal: 16 }]}
+                  <Button
+                    title="Request Payout"
+                    variant="primary"
                     onPress={handleRequestPayout}
-                  >
-                    <Text style={styles.actionPrimaryBtnText}>Request Payout</Text>
-                  </TouchableOpacity>
+                  />
                 </View>
-              </View>
+              </Card>
 
               {/* Tiers List */}
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Membership Tiers ({tiers.length})</Text>
-                <View style={{ gap: 10, marginTop: 12 }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Membership Tiers ({tiers.length})</Text>
+                <View style={{ gap: spacing.sm }}>
                   {tiers.map((tier) => (
-                    <View key={tier.id} style={[styles.tierCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+                    <Card key={tier.id} style={{ gap: spacing.xs }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[styles.tierTitle, { color: colors.text }]}>{tier.name}</Text>
-                        <Text style={[styles.tierPrice, { color: colors.primary }]}>{tier.price}</Text>
+                        <Text style={styles.itemTitle}>{tier.name}</Text>
+                        <Text style={[styles.itemTitle, { color: colors.primary }]}>{tier.price}</Text>
                       </View>
-                      <Text style={[styles.tierSubscribers, { color: colors.textMuted }]}>
-                        {tier.subscribers} active supporters
-                      </Text>
-                      <View style={{ marginTop: 6 }}>
+                      <Text style={styles.itemSubtitle}>{tier.subscribers} active supporters</Text>
+                      <View style={{ marginTop: spacing.xs }}>
                         {tier.perks.map((p, idx) => (
-                          <Text key={idx} style={[styles.perkBullet, { color: colors.textSecondary }]}>
+                          <Text key={idx} style={styles.perkText}>
                             • {p}
                           </Text>
                         ))}
                       </View>
-                    </View>
+                    </Card>
                   ))}
                 </View>
 
                 {/* Add Tier Form */}
-                <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
-                  <Text style={[styles.subHeading, { color: colors.text }]}>Create New Tier</Text>
+                <View style={styles.formDivider}>
+                  <Text style={styles.sectionTitle}>Create New Tier</Text>
                   <TextInput
-                    style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, marginTop: 8 }]}
+                    style={styles.inputField}
                     placeholder="Tier Name (e.g. Master Illuminator)"
                     placeholderTextColor={colors.textMuted}
                     value={newTierName}
                     onChangeText={setNewTierName}
                   />
                   <TextInput
-                    style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, marginTop: 8 }]}
+                    style={styles.inputField}
                     placeholder="Monthly Price (e.g. $4.99/mo)"
                     placeholderTextColor={colors.textMuted}
                     value={newTierPrice}
                     onChangeText={setNewTierPrice}
                   />
                   <TextInput
-                    style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, marginTop: 8 }]}
+                    style={styles.inputField}
                     placeholder="Perks (comma separated)"
                     placeholderTextColor={colors.textMuted}
                     value={newTierPerks}
                     onChangeText={setNewTierPerks}
                   />
-                  <TouchableOpacity
-                    style={[styles.actionPrimaryBtn, { backgroundColor: colors.primary, marginTop: 10 }]}
-                    onPress={handleAddTier}
-                  >
-                    <Text style={styles.actionPrimaryBtnText}>Create Tier</Text>
-                  </TouchableOpacity>
+                  <Button title="Create Tier" variant="primary" onPress={handleAddTier} />
                 </View>
-              </View>
+              </Card>
             </View>
           )}
 
           {/* COLLABORATIONS TAB */}
           {activeTab === 'collabs' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Revenue Sharing & Team Members</Text>
-                <View style={{ gap: 10, marginTop: 12 }}>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Revenue Sharing & Team Members</Text>
+                <View style={{ gap: spacing.sm }}>
                   {collabs.map((c) => (
-                    <View key={c.id} style={[styles.collabRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.collabTitle, { color: colors.text }]}>
-                          @{c.receiverName || c.senderName} ({c.role})
+                    <Card key={c.id} style={styles.itemCard}>
+                      <View style={{ flex: 1, gap: spacing.xs / 2 }}>
+                        <Text style={styles.itemTitle}>
+                          @{c.inviter?.username || 'Collaborator'} ({c.role})
                         </Text>
-                        <Text style={[styles.collabSub, { color: colors.textMuted }]}>
-                          {c.seriesTitle} • {c.shareRatio}% Revenue Allocation
-                        </Text>
-                      </View>
-                      <View style={[styles.miniBadge, { backgroundColor: c.status === 'ACCEPTED' ? colors.success + '25' : colors.primaryMuted }]}>
-                        <Text style={[styles.miniBadgeText, { color: c.status === 'ACCEPTED' ? colors.success : colors.primary }]}>
-                          {c.status}
+                        <Text style={styles.itemSubtitle}>
+                          {c.series?.title || 'Series'} • {c.shareRatio}% Revenue Allocation
                         </Text>
                       </View>
-                    </View>
+                      <Badge variant={c.status === 'ACCEPTED' ? 'success' : 'primary'} size="sm">
+                        {c.status}
+                      </Badge>
+                    </Card>
                   ))}
                 </View>
 
                 {/* Send Collab Invite */}
-                <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
-                  <Text style={[styles.subHeading, { color: colors.text }]}>Invite Collaborator</Text>
+                <View style={styles.formDivider}>
+                  <Text style={styles.sectionTitle}>Invite Collaborator</Text>
                   <TextInput
-                    style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, marginTop: 8 }]}
+                    style={styles.inputField}
                     placeholder="Creator Username (@penname)"
                     placeholderTextColor={colors.textMuted}
                     value={newCollabCreator}
                     onChangeText={setNewCollabCreator}
                   />
                   <TextInput
-                    style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, marginTop: 8 }]}
+                    style={styles.inputField}
                     placeholder="Revenue Share % (e.g. 20)"
                     keyboardType="numeric"
                     placeholderTextColor={colors.textMuted}
                     value={newCollabSplit}
                     onChangeText={setNewCollabSplit}
                   />
-                  <TouchableOpacity
-                    style={[styles.actionPrimaryBtn, { backgroundColor: colors.primary, marginTop: 10 }]}
+                  <Button
+                    title="Send Collaboration Invite"
+                    variant="primary"
                     onPress={handleSendCollab}
-                  >
-                    <Text style={styles.actionPrimaryBtnText}>Send Collaboration Invite</Text>
-                  </TouchableOpacity>
+                  />
                 </View>
-              </View>
+              </Card>
             </View>
           )}
 
           {/* AUDIENCE TAB */}
           {activeTab === 'audience' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Audience Demographics & Geo Distribution</Text>
-                <View style={{ gap: 10, marginTop: 12 }}>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>North America (US & CA)</Text>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Audience Demographics & Geo Distribution</Text>
+                <View style={{ gap: spacing.sm }}>
+                  <Card style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>North America (US & CA)</Text>
                     <Text style={[styles.metricValue, { color: colors.primary }]}>48% (5.9K readers)</Text>
-                  </View>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>Europe (UK, DE, FR)</Text>
+                  </Card>
+                  <Card style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Europe (UK, DE, FR)</Text>
                     <Text style={[styles.metricValue, { color: colors.primary }]}>26% (3.2K readers)</Text>
-                  </View>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>Asia Pacific (KR, JP, ID)</Text>
+                  </Card>
+                  <Card style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Asia Pacific (KR, JP, ID)</Text>
                     <Text style={[styles.metricValue, { color: colors.primary }]}>18% (2.2K readers)</Text>
-                  </View>
-                  <View style={[styles.metricRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.metricLabel, { color: colors.text }]}>Latin America</Text>
+                  </Card>
+                  <Card style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>Latin America</Text>
                     <Text style={[styles.metricValue, { color: colors.primary }]}>8% (1.1K readers)</Text>
-                  </View>
+                  </Card>
                 </View>
-              </View>
+              </Card>
             </View>
           )}
 
           {/* LINKED COMIC/NOVEL TAB */}
           {activeTab === 'linked' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Format Synchronizer</Text>
-                <Text style={[styles.helperText, { color: colors.textMuted }]}>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Format Synchronizer</Text>
+                <Text style={styles.helperText}>
                   Connect your serialized web novel to its comic adaptation with chapter-by-chapter mapping.
                 </Text>
-                <TouchableOpacity
-                  style={[styles.actionPrimaryBtn, { backgroundColor: colors.primary, marginTop: 14 }]}
+                <Button
+                  title="Open Format Synchronizer Modal"
+                  variant="primary"
                   onPress={() => setLinkedModalVisible(true)}
-                >
-                  <Text style={styles.actionPrimaryBtnText}>Open Format Synchronizer Modal</Text>
-                </TouchableOpacity>
-              </View>
+                />
+              </Card>
             </View>
           )}
 
           {/* SETTINGS TAB */}
           {activeTab === 'settings' && (
-            <View style={{ gap: 16 }}>
-              <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Creator Profile & Payout Preferences</Text>
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 8 }]}>Pen Name:</Text>
+            <View style={{ gap: spacing.md }}>
+              <Card style={{ gap: spacing.md }}>
+                <Text style={styles.sectionTitle}>Creator Profile & Payout Preferences</Text>
+                <Text style={styles.inputLabel}>Pen Name:</Text>
                 <TextInput
-                  style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  style={styles.inputField}
                   defaultValue={dbUser?.username || 'Studio Spectre'}
                 />
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 10 }]}>Creator Bio:</Text>
+                <Text style={styles.inputLabel}>Creator Bio:</Text>
                 <TextInput
-                  style={[styles.inputField, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, height: 70 }]}
+                  style={[styles.inputField, { height: 72 }]}
                   multiline
                   defaultValue="Author & story architect crafting cyberpunk web series."
                 />
 
-                <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 10 }]}>Payout Settlement Method:</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                <Text style={styles.inputLabel}>Payout Settlement Method:</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   {(['STRIPE', 'PAYPAL', 'BANK'] as const).map((m) => (
                     <TouchableOpacity
                       key={m}
@@ -727,21 +792,28 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
                         },
                       ]}
                       onPress={() => setPayoutMethod(m)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select payout method ${m}`}
                     >
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: payoutMethod === m ? '#FFFFFF' : colors.text }}>
+                      <Text
+                        style={{
+                          fontSize: typography.caption.fontSize,
+                          fontWeight: '700',
+                          color: payoutMethod === m ? colors.text : colors.textMuted,
+                        }}
+                      >
                         {m}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                <TouchableOpacity
-                  style={[styles.actionPrimaryBtn, { backgroundColor: colors.primary, marginTop: 14 }]}
+                <Button
+                  title="Save Settings"
+                  variant="primary"
                   onPress={() => Alert.alert('Saved', 'Creator preferences saved successfully.')}
-                >
-                  <Text style={styles.actionPrimaryBtnText}>Save Settings</Text>
-                </TouchableOpacity>
-              </View>
+                />
+              </Card>
             </View>
           )}
         </ScrollView>
@@ -750,8 +822,7 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
         <LinkedContentModal
           visible={linkedModalVisible}
           onClose={() => setLinkedModalVisible(false)}
-          sourceSeriesId={currentSeries?.id}
-          sourceType={(currentSeries?.type as any) || 'COMIC'}
+          series={currentSeries}
         />
       </MobileWorkspaceLayout>
     </Modal>
@@ -759,251 +830,157 @@ export function CreatorStudioModal({ visible, onClose, dbUser }: CreatorStudioMo
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  badgeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  headerSub: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  closeBtn: {
-    padding: 6,
-  },
-  tabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  tabPillText: {
-    fontSize: 12,
-  },
-  card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
-  },
-  kpiCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
-  },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  subHeading: {
-    fontSize: 13,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
     fontWeight: '700',
+    color: colors.text,
   },
   helperText: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.sm,
   },
   kpiBox: {
     flex: 1,
     minWidth: '45%',
-    padding: 12,
-    borderRadius: 10,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: spacing.xs / 2,
   },
   kpiVal: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
+    fontWeight: '800',
+    color: colors.text,
   },
   kpiLabel: {
-    fontSize: 10,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginTop: 2,
+    color: colors.textMuted,
     textTransform: 'uppercase',
   },
-  quickBtn: {
-    flex: 1,
+  seriesSnapshotRow: {
     flexDirection: 'row',
+    gap: spacing.md,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  quickBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
   seriesCoverMock: {
-    width: 60,
+    width: 64,
     height: 80,
-    borderRadius: 8,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(37, 99, 235, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   seriesHeading: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: typography.body.fontSize,
+    fontWeight: '700',
+    color: colors.text,
   },
   seriesSub: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  miniBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  miniBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   statusBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
   },
   inputLabel: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginBottom: 4,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   inputField: {
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 12,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.caption.fontSize,
+    color: colors.text,
+  },
+  previewBanner: {
+    backgroundColor: 'rgba(37, 99, 235, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  previewTag: {
+    fontSize: typography.caption.fontSize,
+    color: colors.primary,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  previewText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.text,
+    fontWeight: '700',
   },
   tierPill: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionPrimaryBtn: {
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionPrimaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  actionSecondaryBtn: {
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionSecondaryBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  draftRow: {
+  itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 10,
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
-  draftTitle: {
-    fontSize: 13,
+  itemTitle: {
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
-  draftMeta: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  miniActionBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+  itemSubtitle: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
   },
   metricLabel: {
-    fontSize: 12,
+    fontSize: typography.small.fontSize,
     fontWeight: '600',
+    color: colors.text,
   },
   metricValue: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
     fontWeight: '800',
+    color: colors.text,
   },
-  tierCard: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
+  perkText: {
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
-  tierTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  tierPrice: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  tierSubscribers: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  perkBullet: {
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  collabRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  collabTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  collabSub: {
-    fontSize: 10,
-    marginTop: 2,
+  formDivider: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
   },
 });

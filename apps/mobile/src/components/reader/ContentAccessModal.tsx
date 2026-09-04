@@ -5,20 +5,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { useTheme } from '../../theme/ThemeContext';
 import {
-  CloseIcon,
-  CrownIcon,
-  CreditsIcon,
-  SparklesIcon,
-  CheckIcon,
-  LockIcon,
-  BookOpenIcon,
-  ChevronRightIcon,
-} from '../common/Icons';
+  X,
+  Crown,
+  Coins,
+  Sparkles,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
+import { Badge } from '@panelva/ui';
 import { EarlyAccessSchedule } from '../../types';
 
 interface ContentAccessModalProps {
@@ -54,7 +52,6 @@ export function ContentAccessModal({
   onSubscribe,
   isAuthenticated = false,
 }: ContentAccessModalProps) {
-  const { colors } = useTheme();
   const [isAdPlaying, setIsAdPlaying] = useState(false);
   const [adCountdown, setAdCountdown] = useState(3);
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -113,18 +110,23 @@ export function ContentAccessModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: '#1A1A2E', borderColor: '#28283C' }]}>
+        <View style={styles.container}>
           {/* Header */}
-          <View style={[styles.header, { borderBottomColor: '#28283C' }]}>
-            <Text style={[styles.headerTitle, { color: '#FFFFFF' }]}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>
               {accessType === 'EARLY_ACCESS'
                 ? 'Early Access Release'
                 : accessType === 'PREMIUM'
                 ? 'Premium Chapter Access'
                 : 'Ad-Supported Chapter'}
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close">
-              <CloseIcon size={20} color="#94A3B8" />
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close access modal"
+            >
+              <X size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -137,28 +139,29 @@ export function ContentAccessModal({
                   {
                     backgroundColor:
                       accessType === 'EARLY_ACCESS'
-                        ? 'rgba(37, 99, 235, 0.2)'
+                        ? 'rgba(37, 99, 235, 0.15)'
                         : accessType === 'PREMIUM'
-                        ? 'rgba(251, 191, 36, 0.15)'
-                        : 'rgba(59, 130, 246, 0.15)',
+                        ? 'rgba(245, 158, 11, 0.15)'
+                        : 'rgba(37, 99, 235, 0.15)',
                   },
                 ]}
               >
                 {accessType === 'EARLY_ACCESS' ? (
-                  <SparklesIcon size={26} color="#3B82F6" />
+                  <Sparkles size={24} color={colors.primary} />
                 ) : accessType === 'PREMIUM' ? (
-                  <CrownIcon size={26} color="#FBBF24" />
+                  <Crown size={24} color={colors.warning} />
                 ) : (
-                  <SparklesIcon size={26} color="#3B82F6" />
+                  <Sparkles size={24} color={colors.primary} />
                 )}
               </View>
 
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, gap: spacing.xs / 2 }}>
                 <Text style={styles.seriesName} numberOfLines={1}>
                   {seriesTitle || 'Panelva Series'}
                 </Text>
                 <Text style={styles.chapterHeading}>
-                  Chapter {chapterIndex}{chapterTitle ? `: ${chapterTitle}` : ''}
+                  Chapter {chapterIndex}
+                  {chapterTitle ? `: ${chapterTitle}` : ''}
                 </Text>
               </View>
             </View>
@@ -166,66 +169,70 @@ export function ContentAccessModal({
             {/* 1. EARLY ACCESS FLOW */}
             {accessType === 'EARLY_ACCESS' ? (
               <View style={styles.bodySection}>
-                <View style={styles.earlyAccessNoticeBox}>
+                <Card style={{ gap: spacing.xs }}>
                   <Text style={styles.earlyAccessHeading}>Early Access Schedule</Text>
                   <Text style={styles.earlyAccessSubheading}>
                     This newly published chapter is currently available exclusively to subscribers during its early access window.
                   </Text>
-                </View>
+                </Card>
 
                 {/* Subscription Upgrade Tiers */}
                 <View style={styles.tierOptionList}>
                   {/* Premium Option */}
                   <TouchableOpacity
-                    style={[styles.tierOptionCard, styles.premiumOptionCard]}
                     onPress={() => handleSelectTier('PREMIUM')}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Subscribe to Premium for instant access"
                   >
-                    <View style={styles.tierCardHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <CrownIcon size={18} color="#FBBF24" />
-                        <Text style={styles.tierCardTitle}>Premium</Text>
+                    <Card style={[styles.tierOptionCard, { borderColor: colors.warning }]}>
+                      <View style={styles.tierCardHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                          <Crown size={18} color={colors.warning} />
+                          <Text style={styles.tierCardTitle}>Premium</Text>
+                        </View>
+                        <Badge variant="primary" size="sm">
+                          Instant Access
+                        </Badge>
                       </View>
-                      <View style={styles.instantTag}>
-                        <Text style={styles.instantTagText}>Instant Access</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.tierCardDesc}>
-                      Get instant access to all new series and chapters the second they are published.
-                    </Text>
+                      <Text style={styles.tierCardDesc}>
+                        Get instant access to all new series and chapters the second they are published.
+                      </Text>
+                    </Card>
                   </TouchableOpacity>
 
                   {/* Plus Option */}
                   <TouchableOpacity
-                    style={[styles.tierOptionCard, styles.plusOptionCard]}
                     onPress={() => handleSelectTier('PLUS')}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Subscribe to Plus for early access"
                   >
-                    <View style={styles.tierCardHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <SparklesIcon size={18} color="#3B82F6" />
-                        <Text style={styles.tierCardTitle}>Plus</Text>
-                      </View>
-                      <View style={styles.plusTag}>
-                        <Text style={styles.plusTagText}>
+                    <Card style={[styles.tierOptionCard, { borderColor: colors.primary }]}>
+                      <View style={styles.tierCardHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                          <Sparkles size={18} color={colors.primary} />
+                          <Text style={styles.tierCardTitle}>Plus</Text>
+                        </View>
+                        <Badge variant="primary" size="sm">
                           {earlyAccessSchedule?.isPlusAvailable
                             ? 'Available Now'
                             : `In ${earlyAccessSchedule?.plusWaitFormatted || '2h'}`}
-                        </Text>
+                        </Badge>
                       </View>
-                    </View>
-                    <Text style={styles.tierCardDesc}>
-                      Get early access 2 hours after Premium subscribers.
-                    </Text>
+                      <Text style={styles.tierCardDesc}>
+                        Get early access 2 hours after Premium subscribers.
+                      </Text>
+                    </Card>
                   </TouchableOpacity>
                 </View>
 
                 {/* Continue Waiting (Free Reader) */}
-                <View style={styles.continueWaitingBox}>
+                <Card style={styles.continueWaitingBox}>
                   <Text style={styles.waitingTitle}>Continue Waiting for Free</Text>
                   <Text style={styles.waitingTimeText}>
                     Available to free readers in{' '}
-                    <Text style={{ color: '#60A5FA', fontWeight: '700' }}>
+                    <Text style={{ color: colors.primary, fontWeight: '700' }}>
                       {earlyAccessSchedule?.freeWaitFormatted || '4h'}
                     </Text>
                     {earlyAccessSchedule?.freeAccessTimeFormatted
@@ -233,14 +240,10 @@ export function ContentAccessModal({
                       : ''}
                     .
                   </Text>
-                  <TouchableOpacity
-                    style={styles.closeWaitingBtn}
-                    onPress={onClose}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.closeWaitingBtnText}>I'll Wait</Text>
-                  </TouchableOpacity>
-                </View>
+                  <View style={{ width: '100%', maxWidth: 160, marginTop: spacing.xs }}>
+                    <Button title="I'll Wait" variant="secondary" onPress={onClose} />
+                  </View>
+                </Card>
               </View>
             ) : accessType === 'AD_SUPPORTED' ? (
               /* 2. AD SUPPORTED FLOW */
@@ -250,21 +253,17 @@ export function ContentAccessModal({
                 </Text>
 
                 {isAdPlaying ? (
-                  <View style={styles.adContainer}>
-                    <ActivityIndicator size="small" color="#2563EB" />
+                  <Card style={styles.adContainer}>
                     <Text style={styles.adCountdownText}>
                       Sponsor message playing... {adCountdown}s
                     </Text>
-                  </View>
+                  </Card>
                 ) : (
-                  <TouchableOpacity
-                    style={[styles.primaryActionBtn, { backgroundColor: '#2563EB' }]}
+                  <Button
+                    title="Watch Ad to Unlock"
+                    variant="primary"
                     onPress={handleStartWatchAd}
-                    activeOpacity={0.85}
-                  >
-                    <SparklesIcon size={18} color="#FFFFFF" />
-                    <Text style={styles.primaryActionBtnText}>Watch Ad to Unlock</Text>
-                  </TouchableOpacity>
+                  />
                 )}
               </View>
             ) : (
@@ -275,64 +274,42 @@ export function ContentAccessModal({
                 </Text>
 
                 {/* Credit balance box */}
-                <View style={styles.balanceCard}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <CreditsIcon size={20} color="#3B82F6" />
+                <Card style={styles.balanceCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Coins size={20} color={colors.primary} />
                     <Text style={styles.balanceLabel}>Your Credit Balance:</Text>
                   </View>
                   <Text style={styles.balanceValue}>
                     {creditBalance.toLocaleString()} Credits
                   </Text>
-                </View>
+                </Card>
 
                 {/* Unlock Button */}
-                <TouchableOpacity
-                  style={[
-                    styles.primaryActionBtn,
-                    {
-                      backgroundColor: hasEnoughCredits || !isAuthenticated ? '#2563EB' : '#12121E',
-                      borderColor: '#28283C',
-                      borderWidth: hasEnoughCredits || !isAuthenticated ? 0 : 1,
-                    },
-                  ]}
-                  onPress={handleCreditUnlock}
+                <Button
+                  title={
+                    isUnlocking
+                      ? 'Unlocking...'
+                      : !isAuthenticated
+                      ? 'Sign in to Unlock'
+                      : hasEnoughCredits
+                      ? `Unlock for ${unlockCost} Credits`
+                      : 'Recharge Credits to Unlock'
+                  }
+                  variant="primary"
                   disabled={isUnlocking}
-                  activeOpacity={0.85}
-                >
-                  {isUnlocking ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <CreditsIcon size={18} color={hasEnoughCredits || !isAuthenticated ? '#FFFFFF' : '#3B82F6'} />
-                      <Text
-                        style={[
-                          styles.primaryActionBtnText,
-                          { color: hasEnoughCredits || !isAuthenticated ? '#FFFFFF' : '#E2E8F0' },
-                        ]}
-                      >
-                        {!isAuthenticated
-                          ? 'Sign in to Unlock'
-                          : hasEnoughCredits
-                          ? `Unlock for ${unlockCost} Credits`
-                          : 'Recharge Credits to Unlock'}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                  onPress={handleCreditUnlock}
+                />
 
                 {/* Secondary wallet recharge link if low balance */}
                 {isAuthenticated && !hasEnoughCredits && (
-                  <TouchableOpacity
-                    style={styles.secondaryActionBtn}
+                  <Button
+                    title="+ Buy Credits in Wallet"
+                    variant="secondary"
                     onPress={() => {
                       onClose();
                       if (onOpenWallet) onOpenWallet();
                     }}
-                  >
-                    <Text style={styles.secondaryActionBtnText}>
-                      + Buy Credits in Wallet
-                    </Text>
-                  </TouchableOpacity>
+                  />
                 )}
               </View>
             )}
@@ -346,231 +323,142 @@ export function ContentAccessModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 5, 10, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     maxHeight: '85%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
     fontWeight: '700',
+    color: colors.text,
   },
   closeBtn: {
-    padding: 6,
+    padding: spacing.xs,
+    borderRadius: radius.sm,
   },
   content: {
-    padding: 18,
-    paddingBottom: 36,
-    gap: 16,
+    padding: spacing.md,
+    paddingBottom: spacing.xxl,
+    gap: spacing.md,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.md,
   },
   iconBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   seriesName: {
-    color: '#94A3B8',
-    fontSize: 12,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   chapterHeading: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: colors.text,
+    fontSize: typography.body.fontSize,
     fontWeight: '800',
-    marginTop: 2,
   },
   bodySection: {
-    gap: 14,
+    gap: spacing.md,
   },
   bodyDescription: {
-    color: '#94A3B8',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  earlyAccessNoticeBox: {
-    backgroundColor: '#0F0F1A',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#28283C',
+    color: colors.textMuted,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
   },
   earlyAccessHeading: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.text,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
-    marginBottom: 4,
   },
   earlyAccessSubheading: {
-    color: '#94A3B8',
-    fontSize: 12,
-    lineHeight: 17,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
   },
   tierOptionList: {
-    gap: 10,
+    gap: spacing.sm,
   },
   tierOptionCard: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    backgroundColor: '#12121E',
-  },
-  premiumOptionCard: {
-    borderColor: 'rgba(251, 191, 36, 0.4)',
-    backgroundColor: 'rgba(251, 191, 36, 0.05)',
-  },
-  plusOptionCard: {
-    borderColor: 'rgba(37, 99, 235, 0.4)',
-    backgroundColor: 'rgba(37, 99, 235, 0.05)',
+    gap: spacing.xs,
   },
   tierCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
   },
   tierCardTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  instantTag: {
-    backgroundColor: '#FBBF24',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  instantTagText: {
-    color: '#000000',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  plusTag: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  plusTagText: {
-    color: '#FFFFFF',
-    fontSize: 11,
+    color: colors.text,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
   },
   tierCardDesc: {
-    color: '#94A3B8',
-    fontSize: 12,
-    lineHeight: 16,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
   },
   continueWaitingBox: {
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#0F0F1A',
-    borderWidth: 1,
-    borderColor: '#28283C',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
   },
   waitingTitle: {
-    color: '#FFFFFF',
-    fontSize: 13,
+    color: colors.text,
+    fontSize: typography.small.fontSize,
     fontWeight: '600',
   },
   waitingTimeText: {
-    color: '#94A3B8',
-    fontSize: 12,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
     textAlign: 'center',
   },
-  closeWaitingBtn: {
-    marginTop: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#24243E',
-  },
-  closeWaitingBtnText: {
-    color: '#E2E8F0',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   adContainer: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#28283C',
-    backgroundColor: '#12121E',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    padding: spacing.md,
   },
   adCountdownText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.text,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
   },
   balanceCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#28283C',
-    backgroundColor: '#12121E',
   },
   balanceLabel: {
-    color: '#94A3B8',
-    fontSize: 13,
+    color: colors.textMuted,
+    fontSize: typography.small.fontSize,
     fontWeight: '600',
   },
   balanceValue: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.text,
+    fontSize: typography.small.fontSize,
     fontWeight: '800',
-  },
-  primaryActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 13,
-    borderRadius: 10,
-    gap: 8,
-  },
-  primaryActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  secondaryActionBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: 'rgba(37, 99, 235, 0.15)',
-  },
-  secondaryActionBtnText: {
-    color: '#3B82F6',
-    fontSize: 13,
-    fontWeight: '700',
   },
 });

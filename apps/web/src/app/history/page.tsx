@@ -20,7 +20,7 @@ export default function HistoryPage() {
     <div style={{ minHeight: "100vh", backgroundColor: "var(--dark-bg, #08090c)", color: "var(--text-dark, #ffffff)", padding: "4rem 2rem", fontFamily: "var(--font-sans, sans-serif)" }}>
       <div style={{ maxWidth: "900px", margin: "0 auto" }}>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: "3rem", fontWeight: 800, marginBottom: "0.5rem" }}>
-          Reading <span style={{ color: "var(--secondary, #8b5cf6)" }}>History</span>
+          Reading <span style={{ color: "var(--primary, #2563eb)" }}>History</span>
         </h1>
         <p style={{ color: "var(--text-dark-muted, #8a8d98)", fontSize: "1.1rem", marginBottom: "3rem" }}>
           Track and continue reading your recently opened titles.
@@ -51,7 +51,7 @@ export default function HistoryPage() {
                 
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "0.65rem", background: "rgba(139, 92, 246, 0.15)", color: "#a78bfa", padding: "2px 6px", borderRadius: "6px", fontWeight: 800, textTransform: "uppercase" }}>
+                    <span style={{ fontSize: "0.65rem", background: "rgba(37, 99, 235, 0.15)", color: "#60a5fa", padding: "2px 6px", borderRadius: "6px", fontWeight: 800, textTransform: "uppercase" }}>
                       {item.chapter.series.type}
                     </span>
                     <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>
@@ -67,7 +67,7 @@ export default function HistoryPage() {
                   {/* Progress Bar */}
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "4px" }}>
                     <div style={{ width: "120px", height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                      <div style={{ width: `${item.progressPct}%`, height: "100%", background: "#8b5cf6" }} />
+                      <div style={{ width: `${item.progressPct}%`, height: "100%", background: "#2563eb" }} />
                     </div>
                     <span style={{ fontSize: "0.7rem", color: "#9ca3af", fontWeight: 700 }}>
                       {item.progressPct}% read
@@ -80,7 +80,7 @@ export default function HistoryPage() {
                 <Link href={`/read/${item.chapter.series.id}`}>
                   <button 
                     style={{ 
-                      background: "linear-gradient(135deg, #7c3aed, #4f46e5)", 
+                      background: "linear-gradient(135deg, #2563eb, #1d4ed8)", 
                       border: "none", 
                       color: "#fff", 
                       padding: "8px 20px", 
@@ -102,7 +102,7 @@ export default function HistoryPage() {
           {history.length === 0 && (
             <div style={{ textAlign: "center", padding: "4rem 2rem", border: "1px dashed #1c1e24", borderRadius: "16px", color: "var(--text-dark-muted, #8a8d98)" }}>
               <p style={{ margin: "0 0 1rem 0" }}>You haven't read any episodes yet.</p>
-              <Link href="/comics" style={{ color: "var(--secondary, #8b5cf6)", fontWeight: "bold", textDecoration: "underline" }}>
+              <Link href="/comics" style={{ color: "var(--primary, #2563eb)", fontWeight: "bold", textDecoration: "underline" }}>
                 Explore Comics & Novels
               </Link>
             </div>

@@ -401,25 +401,124 @@ export const postRouter = router({
       }
     }),
 
-  // 12. Add a Comment
+  // 12. Add a Comment (with Sticker, GIF & Gift support)
   addComment: protectedProcedure
     .input(z.object({
       postId: z.string().uuid(),
-      content: z.string().min(1),
+      content: z.string().max(1000).default(""),
       parentId: z.string().uuid().nullable().optional(),
+      stickerId: z.string().optional().nullable(),
+      gifId: z.string().optional().nullable(),
+      gifUrl: z.string().optional().nullable(),
+      giftId: z.string().optional().nullable(),
+      giftCredits: z.number().int().min(0).optional().nullable(),
     }))
     .mutation(async ({ ctx, input }) => {
-      return await ctx.prisma.creatorPostComment.create({
+      const hasContent = input.content && input.content.trim().length > 0;
+      const hasAttachment = Boolean(input.stickerId || input.gifId);
+      if (!hasContent && !hasAttachment) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Comment cannot be empty." });
+      }
+
+      // Enforce single attachment rule
+      if (input.stickerId && input.gifId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "A comment can have at most one attachment (either sticker or GIF).",
+        });
+      }
+
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.session.userId }
+      });
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User profile not active" });
+      }
+
+      // Check sticker entitlement
+      if (input.stickerId) {
+        const { canUseSticker } = await import("../services/stickerEntitlementService");
+        const access = await canUseSticker(ctx.prisma, user.id, input.stickerId);
+        if (!access.allowed) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You do not have access to this sticker pack.",
+          });
+        }
+      }
+
+      // Handle gift deduction if user sent a gift with comment
+      const giftCredits = input.giftCredits || 0;
+      let giftTier: 0 | 1 | 2 | 3 = 0;
+
+      if (giftCredits > 0) {
+        if (user.wCoinBalance < giftCredits) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Insufficient credits. You need ${giftCredits} Credits to send this gift.`,
+          });
+        }
+
+        if (giftCredits >= 10000) giftTier = 3;
+        else if (giftCredits >= 5000) giftTier = 2;
+        else if (giftCredits >= 2000) giftTier = 1;
+
+        const post = await ctx.prisma.creatorPost.findUnique({
+          where: { id: input.postId },
+          include: { creatorProfile: true }
+        });
+
+        if (post) {
+          const { createLedgerEntry } = await import("../ledger");
+          await createLedgerEntry(
+            ctx.prisma,
+            user.id,
+            post.creatorProfile.userId,
+            giftCredits,
+            "CHAPTER_UNLOCK",
+            `Gift sent: ${input.giftId || "Gift"} (${giftCredits} Credits) to creator post ${post.title}`,
+          );
+        }
+      }
+
+      // Prevent duplicate comment spam
+      const finalContent = input.content ? input.content.trim() : (input.stickerId ? "[Sticker]" : "[GIF]");
+      const duplicateComment = await ctx.prisma.creatorPostComment.findFirst({
+        where: {
+          postId: input.postId,
+          userId: ctx.session.userId,
+          content: finalContent,
+        }
+      });
+      if (duplicateComment) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Duplicate comment detected on this post.",
+        });
+      }
+
+      const created = await ctx.prisma.creatorPostComment.create({
         data: {
           postId: input.postId,
           userId: ctx.session.userId,
-          content: input.content,
-          parentId: input.parentId || null
+          content: finalContent,
+          parentId: input.parentId || null,
+          stickerId: input.stickerId || null,
+          gifId: input.gifId || null,
+          gifUrl: input.gifUrl || null,
+          giftId: input.giftId || null,
+          giftCredits: giftCredits,
+          giftTier: giftTier,
         },
         include: {
           user: true
         }
       });
+
+      return {
+        ...created,
+        reputationAwarded: 5,
+      };
     }),
 
   // 13. Delete a Comment (User owns it or Creator owns post)
@@ -446,9 +545,15 @@ export const postRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Unauthorized deletion." });
       }
 
-      return await ctx.prisma.creatorPostComment.delete({
+      await ctx.prisma.creatorPostComment.delete({
         where: { id: input.commentId }
       });
+
+      return {
+        success: true,
+        reputationRevoked: 5,
+        message: "Comment removed and reputation revoked.",
+      };
     }),
 
   // 14. Creator Pin Comment

@@ -244,7 +244,7 @@ export function InteractivePlatformGuide({
               onPress={handleNext}
               activeOpacity={0.85}
             >
-              <Text style={styles.nextBtnText}>{isLastStep ? 'Get Started 🎉' : 'Next'}</Text>
+              <Text style={styles.nextBtnText}>{isLastStep ? 'Get Started' : 'Next'}</Text>
               {!isLastStep && <ChevronRightIcon size={18} color="#FFFFFF" />}
             </TouchableOpacity>
           </View>

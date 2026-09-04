@@ -546,7 +546,7 @@ export default function PostCard({ post, currentUserId, onRefresh, onSubscribe }
           {currentUserId && !isCreatorOwner && (
             <button 
               onClick={() => setShowGiftModal(true)}
-              className="bg-purple-950/30 hover:bg-purple-900/30 border border-purple-500/20 text-purple-400 px-3 py-1.5 rounded-xl transition flex items-center gap-1"
+              className="bg-blue-950/30 hover:bg-blue-900/30 border border-blue-500/20 text-blue-400 px-3 py-1.5 rounded-xl transition flex items-center gap-1"
             >
               <Gift className="w-3.5 h-3.5" /> Gift
             </button>
@@ -576,7 +576,7 @@ export default function PostCard({ post, currentUserId, onRefresh, onSubscribe }
             >
               <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
                 <span className="font-extrabold text-sm text-white flex items-center gap-2">
-                  <Gift className="w-4 h-4 text-purple-400" /> Send Custom Gift
+                  <Gift className="w-4 h-4 text-blue-400" /> Send Custom Gift
                 </span>
                 <button onClick={() => setShowGiftModal(false)} className="text-gray-500 hover:text-white">
                   <X className="w-4 h-4" />
@@ -595,7 +595,7 @@ export default function PostCard({ post, currentUserId, onRefresh, onSubscribe }
                     onClick={() => handleSendGift(gift.name, gift.cost)}
                     className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-xl border border-zinc-800 hover:border-zinc-700 text-center flex flex-col items-center transition"
                   >
-                    <Gift className="w-6 h-6 mb-1 text-purple-400" />
+                    <Gift className="w-6 h-6 mb-1 text-blue-400" />
                     <span className="text-[10px] font-black text-white uppercase">{gift.name}</span>
                     <span className="text-xs text-amber-400 font-extrabold mt-1">{gift.cost} Credits</span>
                   </button>

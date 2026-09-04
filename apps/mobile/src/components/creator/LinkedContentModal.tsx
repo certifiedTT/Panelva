@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
@@ -6,19 +6,22 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useTheme } from '../../theme/ThemeContext';
+import { colors, spacing, radius, typography } from '@panelva/theme';
 import { trpc } from '../../../lib/trpc';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
+
+// Lucide Line Icons
 import {
-  XIcon,
-  BookOpenIcon,
-  NovelsIcon,
-  TrashIcon,
-  SparklesIcon,
-} from '../common/Icons';
+  X,
+  BookOpen,
+  BookText,
+  Trash2,
+  Sparkles,
+} from 'lucide-react-native';
 
 export interface LinkedContentModalProps {
   visible: boolean;
@@ -26,6 +29,22 @@ export interface LinkedContentModalProps {
   series: any;
   sessionToken?: string | null;
   onSuccessUpdate?: () => void;
+}
+
+function LinkedCandidateSkeleton() {
+  return (
+    <View style={{ gap: spacing.sm }}>
+      {[1, 2].map((i) => (
+        <Card key={i} style={styles.skeletonCard}>
+          <View style={styles.skeletonThumb} />
+          <View style={{ flex: 1, gap: spacing.xs }}>
+            <View style={styles.skeletonLine} />
+            <View style={[styles.skeletonLine, { width: '40%' }]} />
+          </View>
+        </Card>
+      ))}
+    </View>
+  );
 }
 
 /**
@@ -37,12 +56,10 @@ export function LinkedContentModal({
   series,
   onSuccessUpdate,
 }: LinkedContentModalProps) {
-  const { colors } = useTheme();
-
   const isUuid = typeof series?.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(series?.id);
 
   // Query linkable candidate series
-  const { data: linkableCandidates, isLoading: isLoadingCandidates, refetch: refetchCandidates } = (trpc.creator as any).getLinkableSeries.useQuery(
+  const { data: linkableCandidates, isLoading: isLoadingCandidates } = (trpc.creator as any).getLinkableSeries.useQuery(
     { seriesId: series?.id || '' },
     { enabled: visible && !!series?.id && isUuid, retry: false }
   );
@@ -50,7 +67,7 @@ export function LinkedContentModal({
   // Link mutation
   const linkMutation = (trpc.creator as any).linkSeries.useMutation({
     onSuccess: () => {
-      Alert.alert('Linked! 🎉', 'Series versions are now successfully linked. Readers can choose formats from the Series Information page.');
+      Alert.alert('Linked', 'Series versions are now successfully linked. Readers can choose formats from the Series Information page.');
       if (onSuccessUpdate) onSuccessUpdate();
       onClose();
     },
@@ -86,123 +103,115 @@ export function LinkedContentModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.modalCard}>
           {/* Modal Header */}
-          <View style={[styles.headerRow, { borderBottomColor: colors.borderSubtle }]}>
-            <View>
-              <Text style={[styles.title, { color: colors.text }]}>Linked Versions</Text>
-              <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>Linked Versions</Text>
+              <Text style={styles.subtitle} numberOfLines={1}>
                 {series?.title || 'Series'}
               </Text>
             </View>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-              <XIcon size={20} color={colors.textMuted} />
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close Linked Versions Modal"
+            >
+              <X size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
             {/* Info Card */}
-            <View style={[styles.infoBox, { backgroundColor: 'rgba(37, 99, 235, 0.1)', borderColor: colors.primary }]}>
-              <SparklesIcon size={18} color={colors.primary} />
-              <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+            <Card style={styles.infoBox}>
+              <Sparkles size={18} color={colors.primary} />
+              <Text style={styles.infoText}>
                 Link your Comic/Manhwa and Novel versions of this story. Readers will be able to choose their preferred reading format directly from the Series Information page.
               </Text>
-            </View>
+            </Card>
 
             {/* Currently Linked Section */}
             {hasExistingLink ? (
               <View style={styles.section}>
-                <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
+                <Text style={styles.sectionHeading}>
                   CURRENTLY LINKED {alternateTypeLabel.toUpperCase()} VERSION
                 </Text>
 
-                <View style={[styles.linkedCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.primary }]}>
+                <Card style={styles.linkedCard}>
                   <View style={styles.linkedContentRow}>
-                    <View style={[styles.iconThumb, { backgroundColor: colors.primaryMuted }]}>
+                    <View style={styles.iconThumb}>
                       {currentType === 'NOVEL' ? (
-                        <BookOpenIcon size={22} color={colors.primary} />
+                        <BookOpen size={24} color={colors.primary} />
                       ) : (
-                        <NovelsIcon size={22} color={colors.primary} />
+                        <BookText size={24} color={colors.primary} />
                       )}
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.linkedTitle, { color: colors.text }]}>
+                    <View style={{ flex: 1, gap: spacing.xs / 2 }}>
+                      <Text style={styles.linkedTitle} numberOfLines={1}>
                         {series?.linkedSeries?.title || `Linked ${alternateTypeLabel} Version`}
                       </Text>
-                      <Text style={[styles.linkedStatus, { color: colors.primary }]}>
+                      <Text style={styles.linkedStatus}>
                         Active & Connected
                       </Text>
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    style={[styles.unlinkBtn, { borderColor: '#EF4444' }]}
-                    onPress={handleUnlink}
+                  <Button
+                    title={unlinkMutation.isLoading ? 'Unlinking...' : 'Remove Link'}
+                    variant="secondary"
                     disabled={unlinkMutation.isLoading}
-                    activeOpacity={0.8}
-                  >
-                    <TrashIcon size={14} color="#EF4444" />
-                    <Text style={styles.unlinkBtnText}>
-                      {unlinkMutation.isLoading ? 'Unlinking...' : 'Remove Link'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                    onPress={handleUnlink}
+                  />
+                </Card>
               </View>
             ) : (
               <View style={styles.section}>
-                <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
+                <Text style={styles.sectionHeading}>
                   CHOOSE {alternateTypeLabel.toUpperCase()} TO LINK
                 </Text>
 
                 {isLoadingCandidates ? (
-                  <View style={styles.loadingBox}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-                      Fetching your owned series...
-                    </Text>
-                  </View>
+                  <LinkedCandidateSkeleton />
                 ) : (linkableCandidates || []).length === 0 ? (
-                  <View style={[styles.emptyBox, { backgroundColor: colors.surfaceElevated, borderColor: colors.borderSubtle }]}>
-                    <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  <Card style={styles.emptyBox}>
+                    <BookOpen size={36} color={colors.textMuted} />
+                    <Text style={styles.emptyTitle}>
                       No Eligible {alternateTypeLabel} Series Found
                     </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+                    <Text style={styles.emptySubtitle}>
                       You haven't created a {alternateTypeLabel} series yet. Create one in Creator Studio to link them together.
                     </Text>
-                  </View>
+                  </Card>
                 ) : (
-                  <View style={{ gap: 10 }}>
+                  <View style={{ gap: spacing.sm }}>
                     {(linkableCandidates || []).map((candidate: any) => (
-                      <View
+                      <Card
                         key={candidate.id}
-                        style={[styles.candidateCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+                        style={styles.candidateCard}
                       >
                         {candidate.coverUrl ? (
                           <ExpoImage source={{ uri: candidate.coverUrl }} style={styles.candidateCover} />
                         ) : (
-                          <View style={[styles.candidatePlaceholder, { backgroundColor: colors.surfaceSecondary }]}>
-                            <BookOpenIcon size={20} color={colors.textMuted} />
+                          <View style={styles.candidatePlaceholder}>
+                            <BookOpen size={20} color={colors.textMuted} />
                           </View>
                         )}
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.candidateTitle, { color: colors.text }]} numberOfLines={1}>
+                        <View style={{ flex: 1, gap: spacing.xs / 2 }}>
+                          <Text style={styles.candidateTitle} numberOfLines={1}>
                             {candidate.title}
                           </Text>
-                          <Text style={[styles.candidateType, { color: colors.textMuted }]}>
+                          <Text style={styles.candidateType}>
                             {candidate.type}
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          style={[styles.linkBtn, { backgroundColor: colors.primary }]}
-                          onPress={() => handleLinkTarget(candidate.id)}
+                        <Button
+                          title={linkMutation.isLoading ? 'Linking...' : 'Link'}
+                          variant="primary"
                           disabled={linkMutation.isLoading}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.linkBtnText}>
-                            {linkMutation.isLoading ? 'Linking...' : 'Link'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
+                          onPress={() => handleLinkTarget(candidate.id)}
+                        />
+                      </Card>
                     ))}
                   </View>
                 )}
@@ -222,157 +231,155 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     maxHeight: '80%',
-    paddingBottom: 24,
+    paddingBottom: spacing.lg,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs / 2,
   },
   closeBtn: {
-    padding: 6,
+    padding: spacing.xs,
   },
   body: {
-    padding: 20,
-    gap: 16,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 10,
+    gap: spacing.sm,
   },
   infoText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   section: {
-    gap: 10,
+    gap: spacing.sm,
   },
   sectionHeading: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
     letterSpacing: 0.5,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
   },
   linkedCard: {
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    gap: 14,
+    gap: spacing.md,
   },
   linkedContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   iconThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   linkedTitle: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   linkedStatus: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
-    marginTop: 2,
-  },
-  unlinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  unlinkBtnText: {
-    color: '#EF4444',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  loadingBox: {
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 13,
+    color: colors.primary,
   },
   emptyBox: {
-    padding: 24,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: spacing.xs,
   },
   emptyTitle: {
-    fontSize: 14,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.xs,
   },
   emptySubtitle: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
     textAlign: 'center',
+    color: colors.textMuted,
   },
   candidateCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
+    gap: spacing.md,
   },
   candidateCover: {
-    width: 40,
-    height: 52,
-    borderRadius: 6,
+    width: 48,
+    height: 64,
+    borderRadius: radius.sm,
+    backgroundColor: colors.background,
   },
   candidatePlaceholder: {
-    width: 40,
-    height: 52,
-    borderRadius: 6,
+    width: 48,
+    height: 64,
+    borderRadius: radius.sm,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   candidateTitle: {
-    fontSize: 14,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   candidateType: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
-  linkBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  skeletonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  linkBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+  skeletonThumb: {
+    width: 48,
+    height: 64,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  skeletonLine: {
+    height: 14,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    width: '70%',
   },
 });

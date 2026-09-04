@@ -10,20 +10,21 @@ import {
   Alert,
   Modal,
   Dimensions,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import { FlashList } from '@shopify/flash-list';
-const FlashListAny: any = FlashList;
 import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { QueryClient } from '@tanstack/query-core';
 import { httpBatchLink } from '@trpc/client';
 import { trpc } from './lib/trpc';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from './src/components/common/Card';
+import { Button } from './src/components/common/Button';
+
 import { useOnboarding } from './src/hooks/useOnboarding';
 import { useAuthSession } from './src/hooks/useAuthSession';
 import { OnboardingCarousel } from './src/components/onboarding/OnboardingCarousel';
@@ -38,9 +39,11 @@ import { SeriesScreen } from './src/screens/SeriesScreen';
 import { CreatorHubScreen } from './src/screens/CreatorHubScreen';
 import { AlertsScreen } from './src/screens/AlertsScreen';
 import { MoreScreen } from './src/screens/MoreScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
+import { DevToolsScreen } from './src/screens/DevToolsScreen';
 import { SeriesDetailsScreen } from './src/screens/SeriesDetailsScreen';
 import { ReaderScreen } from './src/screens/ReaderScreen';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { InteractivePlatformGuide, PLATFORM_TOUR_STORAGE_KEY } from './src/components/onboarding/InteractivePlatformGuide';
 import { GlobalSearchModal } from './src/components/search/GlobalSearchModal';
 import { MOCK_PLATFORM_SERIES } from './src/data/mockData';
@@ -54,30 +57,17 @@ import { CreatePostModal } from './src/components/creator/CreatePostModal';
 import { AdminHubModal } from './src/components/admin/AdminHubModal';
 import { AuthBottomSheet } from './src/components/auth/AuthBottomSheet';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
-import { DevFloatingRolePill, DevRoleSwitcherModal } from './src/components/dev/DevRoleSwitcherModal';
-import { MOCK_ACCOUNTS_MAP, MockRoleKey } from './src/data/mockRoles';
+import { DevRoleSwitcherModal } from './src/components/dev/DevRoleSwitcherModal';
+import { FloatingDevOrb } from './src/components/dev/FloatingDevOrb';
 
-
-// Icons
+// Lucide Line Icons
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CloseIcon,
-  StarIcon,
-  HeartIcon,
-  BookmarkIcon,
-  CommentIcon,
-  ShareIcon,
-  LockIcon,
-  CrownIcon,
-  SparklesIcon,
-  BookOpenIcon,
-  HistoryIcon,
-  CreditsIcon,
-  DownloadIcon,
-  HelpCircleIcon,
-  CheckIcon,
-} from './src/components/common/Icons';
+  X,
+  ChevronRight,
+  Lock,
+  Bookmark,
+  History,
+} from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -183,20 +173,23 @@ const MOCK_SERIES = [
 ];
 
 function MobileApp() {
-  const { colors, isDark } = useTheme();
+  const { isDark, setThemeMode } = useTheme();
+  const handleToggleTheme = () => {
+    setThemeMode(isDark ? 'light' : 'dark');
+  };
   const { hasCompletedOnboarding, completeOnboarding, hasSeenReaderTutorial, markReaderTutorialSeen } = useOnboarding();
-  const { sessionToken, sessionUser, activeMockRole, isMockMode, switchMockRole, saveSession, clearSession } = useAuthSession();
+  const { sessionToken, sessionUser, activeMockRole, switchMockRole, saveSession, clearSession } = useAuthSession();
 
   // Keep global token synchronized
   globalSessionToken = sessionToken;
 
-  // Active Destination: 5 tabs + series_details + reader mode
-  const [activeTab, setActiveTab] = useState<TabId | 'series_details' | 'reader'>('home');
+  // Active Destination: 5 tabs + series_details + reader mode + profile + dev_tools
+  const [activeTab, setActiveTab] = useState<TabId | 'series_details' | 'reader' | 'profile' | 'dev_tools'>('home');
+
   const [previousTab, setPreviousTab] = useState<TabId>('home');
   const [initialSeriesGenre, setInitialSeriesGenre] = useState<string>('All');
   const [showPlatformTour, setShowPlatformTour] = useState(false);
   const [devRoleSwitcherVisible, setDevRoleSwitcherVisible] = useState(false);
-
 
   useEffect(() => {
     async function checkPlatformTour() {
@@ -225,12 +218,20 @@ function MobileApp() {
   const [adminHubVisible, setAdminHubVisible] = useState(false);
   const [showReplayOnboarding, setShowReplayOnboarding] = useState(false);
 
-  // Content Access Modal state
-  const [accessModalVisible, setAccessModalVisible] = useState(false);
-  const [accessType, setAccessType] = useState<'AD_SUPPORTED' | 'PREMIUM'>('AD_SUPPORTED');
-  const [accessChapterIndex, setAccessChapterIndex] = useState<number>(1);
+  // Unread Alerts count
+  const [unreadAlertsCount] = useState(2);
 
   // Backend queries
+  const { data: dbTrending } = trpc.series.getTrending.useQuery({ limit: 12 });
+
+  const { data: dbReadingHistory } = (trpc.user.getReadingHistory as any).useQuery(undefined, {
+    enabled: !!sessionToken,
+  });
+
+  const { data: dbBookmarks } = (trpc.user.getBookmarks as any).useQuery(undefined, {
+    enabled: !!sessionToken,
+  });
+
   const { data: dbUser, refetch: refetchUser } = (trpc.user.getMe as any).useQuery(undefined, {
     enabled: !!sessionToken,
     retry: false,
@@ -246,49 +247,6 @@ function MobileApp() {
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(1);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [readerFormat, setReaderFormat] = useState<'comic' | 'novel'>('comic');
-  const [commentInputText, setCommentInputText] = useState('');
-
-  // Unread Alerts state
-  const [unreadAlertsCount, setUnreadAlertsCount] = useState(2);
-
-  const { data: dbTrending } = trpc.series.getTrending.useQuery({ limit: 12 });
-
-  const { data: dbReadingHistory, refetch: refetchReadingHistory } = (trpc.user.getReadingHistory as any).useQuery(undefined, {
-    enabled: !!sessionToken,
-  });
-
-  const { data: dbBookmarks, refetch: refetchBookmarks } = (trpc.user.getBookmarks as any).useQuery(undefined, {
-    enabled: !!sessionToken,
-  });
-
-  const { data: dbSeriesDetails } = (trpc.series.getById as any).useQuery(
-    { id: selectedSeries?.id },
-    { enabled: !!selectedSeries?.id }
-  );
-
-  const { data: dbChapter, refetch: refetchChapter } = (trpc.chapter.getChapter as any).useQuery(
-    { chapterId: selectedChapterId! },
-    { enabled: !!selectedChapterId, retry: false }
-  );
-
-  const { data: dbComments, refetch: refetchComments } = (trpc.chapter.getComments as any).useQuery(
-    { chapterId: selectedChapterId!, limit: 50 },
-    { enabled: !!selectedChapterId }
-  );
-
-  // Mutations
-  const updateProgressMutation = trpc.chapter.updateReadingProgress.useMutation({
-    onSuccess: () => refetchReadingHistory(),
-  });
-
-  const postCommentMutation = trpc.chapter.postComment.useMutation({
-    onSuccess: () => {
-      refetchComments();
-      setCommentInputText('');
-      Alert.alert('Comment Posted', 'Your reaction was posted.');
-    },
-    onError: (err) => Alert.alert('Error', err.message),
-  });
 
   // Calculate Responsive Card Widths
   const { cardWidth, gap: gridGap } = calculateGridDimensions(SCREEN_WIDTH, 16, 10);
@@ -339,34 +297,8 @@ function MobileApp() {
     setActiveTab('reader');
   };
 
-  // Switch Chapter inside reader
-  const handleSelectChapter = (ch: any) => {
-    if (!ch) return;
-    setCurrentChapterIndex(ch.chapterIndex || 1);
-    setSelectedChapterId(ch.id || null);
-
-    // Check tier
-    if (ch.tier === 'PREMIUM' && dbUser?.subscription !== 'PREMIUM') {
-      setAccessType('PREMIUM');
-      setAccessChapterIndex(ch.chapterIndex || 1);
-      setAccessModalVisible(true);
-    } else if (ch.tier === 'AD_SUPPORTED' && !dbUser?.subscription) {
-      setAccessType('AD_SUPPORTED');
-      setAccessChapterIndex(ch.chapterIndex || 1);
-      setAccessModalVisible(true);
-    }
-
-    const isChapterUuid = typeof ch.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ch.id);
-    if (sessionToken && isChapterUuid) {
-      updateProgressMutation.mutate({
-        chapterId: ch.id,
-        scrollProgress: 10,
-      });
-    }
-  };
-
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
       {/* Main Active Screen Content - Preserve Scroll State across Main Tabs */}
@@ -426,6 +358,8 @@ function MobileApp() {
               clearSession();
               Alert.alert('Signed Out', 'You have been signed out.');
             }}
+            onOpenProfile={() => setActiveTab('profile')}
+            onOpenEditProfile={() => setActiveTab('profile')}
             onOpenWallet={() => setWalletModalVisible(true)}
             onOpenBecomeCreator={() => setBecomeCreatorModalVisible(true)}
             onOpenCreatorStudio={() => setCreatorStudioVisible(true)}
@@ -435,10 +369,32 @@ function MobileApp() {
             onOpenDRMManager={() => setDrmModalVisible(true)}
             onOpenAdminHub={() => setAdminHubVisible(true)}
             onReplayPlatformTour={() => setShowPlatformTour(true)}
-            onOpenDevRoleSwitcher={() => setDevRoleSwitcherVisible(true)}
+            onOpenDevTools={() => setActiveTab('dev_tools')}
             activeMockRole={activeMockRole}
           />
         </View>
+
+        {/* Dedicated Profile Screen */}
+        {activeTab === 'profile' && (
+          <ProfileScreen
+            sessionToken={sessionToken}
+            sessionUser={sessionUser}
+            dbUser={effectiveUser}
+            onBack={() => setActiveTab('more')}
+            onEditProfile={() => Alert.alert('Edit Profile', 'Profile editing saved.')}
+            onSelectSeries={handleOpenSeriesDetails}
+          />
+        )}
+
+        {/* Hidden Developer Tools Screen (Master Admin in __DEV__) */}
+        {activeTab === 'dev_tools' && (
+          <DevToolsScreen
+            activeRole={activeMockRole}
+            onSelectRole={(role) => switchMockRole(role)}
+            onResetTour={() => setShowPlatformTour(true)}
+            onBack={() => setActiveTab('more')}
+          />
+        )}
 
         {/* Series Details Screen */}
         {activeTab === 'series_details' && (
@@ -475,17 +431,20 @@ function MobileApp() {
             onOpenWallet={() => setWalletModalVisible(true)}
           />
         )}
-
       </View>
 
       {/* 5-Destination Bottom Navigation Bar */}
-      {activeTab !== 'reader' && activeTab !== 'series_details' && (
-        <BottomNavBar
-          activeTab={activeTab as TabId}
-          onTabChange={(tab) => setActiveTab(tab)}
-          unreadAlertsCount={unreadAlertsCount}
-        />
-      )}
+      {activeTab !== 'reader' &&
+        activeTab !== 'series_details' &&
+        activeTab !== 'profile' &&
+        activeTab !== 'dev_tools' && (
+          <BottomNavBar
+            activeTab={activeTab as TabId}
+            onTabChange={(tab) => setActiveTab(tab)}
+            unreadAlertsCount={unreadAlertsCount}
+          />
+        )}
+
 
       {/* MODALS */}
       <CreditWalletModal
@@ -531,7 +490,6 @@ function MobileApp() {
         dbUser={effectiveUser}
       />
 
-
       {/* Global Interactive Search Modal */}
       <GlobalSearchModal
         visible={searchModalVisible}
@@ -553,35 +511,57 @@ function MobileApp() {
       />
 
       {/* Bookmarks Modal */}
-      <Modal visible={bookmarksModalVisible} transparent animationType="slide" onRequestClose={() => setBookmarksModalVisible(false)}>
+      <Modal
+        visible={bookmarksModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setBookmarksModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.borderSubtle }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Library & Bookmarks</Text>
-              <TouchableOpacity onPress={() => setBookmarksModalVisible(false)}>
-                <CloseIcon size={20} color={colors.textMuted} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Library & Bookmarks</Text>
+              <TouchableOpacity
+                onPress={() => setBookmarksModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close Bookmarks"
+              >
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={{ padding: spacing.md }} showsVerticalScrollIndicator={false}>
               {dbBookmarks && dbBookmarks.length > 0 ? (
-                dbBookmarks.map((b: any) => (
-                  <TouchableOpacity
-                    key={b.id}
-                    style={[styles.libraryRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-                    onPress={() => {
-                      setBookmarksModalVisible(false);
-                      handleOpenSeriesDetails(b.series);
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.libraryTitle, { color: colors.text }]}>{b.series?.title}</Text>
-                      <Text style={[styles.librarySub, { color: colors.textMuted }]}>{b.series?.type} • {b.series?.genre}</Text>
-                    </View>
-                    <ChevronRightIcon size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
-                ))
+                <View style={{ gap: spacing.sm }}>
+                  {dbBookmarks.map((b: any) => (
+                    <TouchableOpacity
+                      key={b.id}
+                      onPress={() => {
+                        setBookmarksModalVisible(false);
+                        handleOpenSeriesDetails(b.series);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${b.series?.title}`}
+                    >
+                      <Card style={styles.libraryRow}>
+                        <View style={{ flex: 1, gap: spacing.xs / 2 }}>
+                          <Text style={styles.libraryTitle}>{b.series?.title}</Text>
+                          <Text style={styles.librarySub}>
+                            {b.series?.type} • {b.series?.genre}
+                          </Text>
+                        </View>
+                        <ChevronRight size={18} color={colors.textMuted} />
+                      </Card>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               ) : (
-                <Text style={[styles.emptyModalText, { color: colors.textMuted }]}>No bookmarked series yet.</Text>
+                <Card style={styles.emptyCard}>
+                  <Bookmark size={36} color={colors.textMuted} />
+                  <Text style={styles.emptyTitle}>No Bookmarked Series</Text>
+                  <Text style={styles.emptySub}>
+                    Bookmark comics and novels to easily access them here.
+                  </Text>
+                </Card>
               )}
             </ScrollView>
           </View>
@@ -589,37 +569,57 @@ function MobileApp() {
       </Modal>
 
       {/* Reading History Modal */}
-      <Modal visible={readingHistoryModalVisible} transparent animationType="slide" onRequestClose={() => setReadingHistoryModalVisible(false)}>
+      <Modal
+        visible={readingHistoryModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReadingHistoryModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.borderSubtle }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Reading History</Text>
-              <TouchableOpacity onPress={() => setReadingHistoryModalVisible(false)}>
-                <CloseIcon size={20} color={colors.textMuted} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reading History</Text>
+              <TouchableOpacity
+                onPress={() => setReadingHistoryModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close Reading History"
+              >
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={{ padding: spacing.md }} showsVerticalScrollIndicator={false}>
               {dbReadingHistory && dbReadingHistory.length > 0 ? (
-                dbReadingHistory.map((item: any) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[styles.libraryRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-                    onPress={() => {
-                      setReadingHistoryModalVisible(false);
-                      handleOpenSeriesDetails(item.chapter?.series);
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.libraryTitle, { color: colors.text }]}>{item.chapter?.series?.title}</Text>
-                      <Text style={[styles.librarySub, { color: colors.textMuted }]}>
-                        Ch. {item.chapter?.chapterIndex} • {item.progressPct}% completed
-                      </Text>
-                    </View>
-                    <ChevronRightIcon size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
-                ))
+                <View style={{ gap: spacing.sm }}>
+                  {dbReadingHistory.map((item: any) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      onPress={() => {
+                        setReadingHistoryModalVisible(false);
+                        handleOpenSeriesDetails(item.chapter?.series);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${item.chapter?.series?.title}`}
+                    >
+                      <Card style={styles.libraryRow}>
+                        <View style={{ flex: 1, gap: spacing.xs / 2 }}>
+                          <Text style={styles.libraryTitle}>{item.chapter?.series?.title}</Text>
+                          <Text style={styles.librarySub}>
+                            Ch. {item.chapter?.chapterIndex} • {item.progressPct}% completed
+                          </Text>
+                        </View>
+                        <ChevronRight size={18} color={colors.textMuted} />
+                      </Card>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               ) : (
-                <Text style={[styles.emptyModalText, { color: colors.textMuted }]}>No reading history recorded yet.</Text>
+                <Card style={styles.emptyCard}>
+                  <History size={36} color={colors.textMuted} />
+                  <Text style={styles.emptyTitle}>No Reading History</Text>
+                  <Text style={styles.emptySub}>
+                    Chapters you read will automatically appear here.
+                  </Text>
+                </Card>
               )}
             </ScrollView>
           </View>
@@ -627,54 +627,71 @@ function MobileApp() {
       </Modal>
 
       {/* Support & Issue Ticket Modal */}
-      <Modal visible={issueModalVisible} transparent animationType="slide" onRequestClose={() => setIssueModalVisible(false)}>
+      <Modal
+        visible={issueModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIssueModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.borderSubtle }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Support & Bug Report</Text>
-              <TouchableOpacity onPress={() => setIssueModalVisible(false)}>
-                <CloseIcon size={20} color={colors.textMuted} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Support & Bug Report</Text>
+              <TouchableOpacity
+                onPress={() => setIssueModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close Support Modal"
+              >
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <View style={{ padding: 16, gap: 12 }}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Describe the Issue</Text>
+            <View style={{ padding: spacing.md, gap: spacing.md }}>
+              <Text style={styles.fieldLabel}>Describe the Issue</Text>
               <TextInput
-                style={[styles.textArea, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
+                style={styles.textArea}
                 placeholder="Let us know what went wrong or how we can improve..."
                 placeholderTextColor={colors.textMuted}
                 multiline
                 numberOfLines={4}
               />
-              <TouchableOpacity
-                style={[styles.modalActionBtn, { backgroundColor: colors.primary }]}
+              <Button
+                title="Submit Ticket"
+                variant="primary"
                 onPress={() => {
                   Alert.alert('Report Submitted', 'Thank you! Our engineering team has received your ticket.');
                   setIssueModalVisible(false);
                 }}
-              >
-                <Text style={styles.modalActionBtnText}>Submit Ticket</Text>
-              </TouchableOpacity>
+              />
             </View>
           </View>
         </View>
       </Modal>
 
       {/* DRM Offline Storage Modal */}
-      <Modal visible={drmModalVisible} transparent animationType="slide" onRequestClose={() => setDrmModalVisible(false)}>
+      <Modal
+        visible={drmModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDrmModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.borderSubtle }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Offline Encrypted Downloads</Text>
-              <TouchableOpacity onPress={() => setDrmModalVisible(false)}>
-                <CloseIcon size={20} color={colors.textMuted} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Offline Encrypted Downloads</Text>
+              <TouchableOpacity
+                onPress={() => setDrmModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close Offline Downloads"
+              >
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <View style={{ padding: 16, gap: 12 }}>
-              <View style={[styles.drmBadgeBox, { backgroundColor: colors.primaryMuted }]}>
-                <LockIcon size={20} color={colors.primary} />
-                <Text style={[styles.drmBadgeText, { color: colors.primary }]}>AES-256 Secure Enclave Storage Active</Text>
-              </View>
-              <Text style={[styles.drmDescText, { color: colors.textMuted }]}>
+            <View style={{ padding: spacing.md, gap: spacing.md }}>
+              <Card style={styles.drmBadgeBox}>
+                <Lock size={20} color={colors.primary} />
+                <Text style={styles.drmBadgeText}>AES-256 Secure Enclave Storage Active</Text>
+              </Card>
+              <Text style={styles.drmDescText}>
                 Downloaded episodes are securely encrypted at rest and accessible when offline.
               </Text>
             </View>
@@ -715,17 +732,21 @@ function MobileApp() {
         }}
       />
 
-      {/* Dev Floating Role Pill & Switcher Modal (__DEV__ Mode only) */}
+      {/* AssistiveTouch-Style Developer Orb (__DEV__ Mode or MASTER_ADMIN only) */}
       {activeTab !== 'reader' && (
-        <DevFloatingRolePill
-          activeRoleKey={activeMockRole}
-          onPress={() => setDevRoleSwitcherVisible(true)}
+        <FloatingDevOrb
+          userRole={effectiveUser?.role || sessionUser?.role}
+          activeMockRole={activeMockRole}
+          onOpenRoleSwitcher={() => setDevRoleSwitcherVisible(true)}
+          onOpenProfile={() => setActiveTab('profile')}
+          onToggleTheme={handleToggleTheme}
+          isDarkTheme={isDark}
         />
       )}
 
       <DevRoleSwitcherModal
         visible={devRoleSwitcherVisible}
-        activeRoleKey={activeMockRole}
+        activeRole={activeMockRole}
         onClose={() => setDevRoleSwitcherVisible(false)}
         onSelectRole={(roleKey) => switchMockRole(roleKey)}
       />
@@ -733,261 +754,125 @@ function MobileApp() {
   );
 }
 
-
-
-
 // Export Root App Component with Theme and Query Providers
 export default function App() {
   return (
-    <ErrorBoundary>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <MobileApp />
-          </ThemeProvider>
-        </QueryClientProvider>
-      </trpc.Provider>
-    </ErrorBoundary>
+    <View style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <MobileApp />
+            </ThemeProvider>
+          </QueryClientProvider>
+        </trpc.Provider>
+      </ErrorBoundary>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   mainContainer: {
     flex: 1,
   },
-  // Reader styling
-  readerContainer: {
-    flex: 1,
-  },
-  readerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  readerBackBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  readerBackText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  readerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: 8,
-  },
-  formatToggle: {
-    flexDirection: 'row',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  formatToggleBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  formatToggleText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  chapterBar: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  chapterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  chapterPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  pageImageWrapper: {
-    width: SCREEN_WIDTH,
-    height: 520,
-  },
-  pageImage: {
-    width: '100%',
-    height: '100%',
-  },
-  novelChapterHeading: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  novelContentBody: {
-    fontSize: 15,
-    lineHeight: 24,
-  },
-  readerCommentsSection: {
-    padding: 16,
-    borderTopWidth: 1,
-    marginTop: 20,
-    paddingBottom: 40,
-  },
-  commentsHeading: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  readerCommentInput: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 13,
-  },
-  readerCommentSendBtn: {
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  readerCommentSendText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  commentCard: {
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  commentUser: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  commentMsg: {
-    fontSize: 12,
-    marginTop: 2,
-  },
   // Modal standard styling
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 5, 10, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
     fontWeight: '700',
-  },
-  fieldGroup: {
-    marginBottom: 12,
+    color: colors.text,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginBottom: 4,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  input: {
-    height: 42,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 13,
-  },
   textArea: {
-    height: 80,
-    borderRadius: 8,
+    height: 88,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.small.fontSize,
+    color: colors.text,
     textAlignVertical: 'top',
-  },
-  modalActionBtn: {
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  modalActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 12,
-    marginBottom: 10,
-  },
-  toggleAuthText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   libraryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
+    justifyContent: 'space-between',
   },
   libraryTitle: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   librarySub: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
-  emptyModalText: {
+  emptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  emptyTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.xs,
+  },
+  emptySub: {
+    fontSize: typography.caption.fontSize,
     textAlign: 'center',
-    paddingVertical: 30,
-    fontSize: 13,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   drmBadgeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
+    gap: spacing.sm,
   },
   drmBadgeText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
+    color: colors.primary,
   },
   drmDescText: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  demoLoginPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  demoLoginPillText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
 });

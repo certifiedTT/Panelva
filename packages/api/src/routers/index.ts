@@ -6,6 +6,7 @@ import { collaborationRouter } from "./collaborationRouter";
 import { adminRouter } from "./adminRouter";
 import { userRouter } from "./userRouter";
 import { postRouter } from "./postRouter";
+import { stickerRouter } from "./stickerRouter";
 
 export const appRouter = router({
   chapter: chapterRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   admin: adminRouter,
   user: userRouter,
   post: postRouter,
+  sticker: stickerRouter,
 });
 
 export type AppRouter = typeof appRouter;

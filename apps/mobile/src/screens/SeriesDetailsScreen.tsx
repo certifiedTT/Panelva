@@ -7,37 +7,35 @@ import {
   FlatList,
   TouchableOpacity,
   Share,
-  Dimensions,
-  ActivityIndicator,
   Alert,
   SafeAreaView,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../theme/ThemeContext';
 import { trpc } from '../../lib/trpc';
 import { useSeriesDetail } from '../hooks/useSeriesDetail';
-import { Series, Chapter, Creator } from '../types';
+import { Series, Chapter } from '../types';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ShareIcon,
-  StarIcon,
-  BookmarkIcon,
-  BookOpenIcon,
-  SparklesIcon,
-  CrownIcon,
-  LockIcon,
-  CheckIcon,
-  UsersIcon,
-  EyeIcon,
-  AlertTriangleIcon,
-  NovelsIcon,
-} from '../components/common/Icons';
+  ChevronLeft,
+  ChevronRight,
+  Share2,
+  Star,
+  Bookmark,
+  BookOpen,
+  Sparkles,
+  Lock,
+  Check,
+  Eye,
+  AlertTriangle,
+  Megaphone,
+  BookText,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../components/common/Card';
+import { Button } from '../components/common/Button';
+import { Badge } from '@panelva/ui';
 import { ContentAccessModal } from '../components/reader/ContentAccessModal';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface SeriesDetailsScreenProps {
   series: Series | any;
@@ -54,6 +52,37 @@ interface SeriesDetailsScreenProps {
   onOpenWallet: () => void;
 }
 
+function SeriesDetailsSkeleton() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={{ width: 60, height: 20, backgroundColor: colors.surface, borderRadius: radius.sm }} />
+        <View style={{ width: 140, height: 20, backgroundColor: colors.surface, borderRadius: radius.sm }} />
+        <View style={{ width: 24, height: 24, backgroundColor: colors.surface, borderRadius: radius.full }} />
+      </View>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md }} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroLayout}>
+          <View style={[styles.coverContainer, { backgroundColor: colors.surface }]} />
+          <View style={{ flex: 1, gap: spacing.sm, justifyContent: 'space-between' }}>
+            <View style={{ width: '40%', height: 20, backgroundColor: colors.surface, borderRadius: radius.full }} />
+            <View style={{ width: '90%', height: 24, backgroundColor: colors.surface, borderRadius: radius.sm }} />
+            <View style={{ width: '60%', height: 16, backgroundColor: colors.surface, borderRadius: radius.sm }} />
+            <View style={{ width: '100%', height: 40, backgroundColor: colors.surface, borderRadius: radius.md }} />
+          </View>
+        </View>
+        <Card style={{ height: 64, backgroundColor: colors.surface }} />
+        <Card style={{ height: 96, backgroundColor: colors.surface }} />
+        <View style={{ width: '100%', height: 48, backgroundColor: colors.surface, borderRadius: radius.md }} />
+        <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+          {[1, 2, 3, 4].map((i) => (
+            <View key={i} style={{ height: 56, backgroundColor: colors.surface, borderRadius: radius.md }} />
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 function SeriesDetailsScreenInner({
   series: initialSeries,
   seriesId: propSeriesId,
@@ -68,8 +97,6 @@ function SeriesDetailsScreenInner({
   onRequireAuth,
   onOpenWallet,
 }: SeriesDetailsScreenProps) {
-  const { colors } = useTheme();
-
   const effectiveSeriesId = propSeriesId || route?.params?.seriesId || initialSeries?.id;
 
   // 1. Fetch & Normalize Series Data via useSeriesDetail
@@ -99,7 +126,9 @@ function SeriesDetailsScreenInner({
   const [pendingChapter, setPendingChapter] = useState<Chapter | null>(null);
   const [accessType, setAccessType] = useState<'EARLY_ACCESS' | 'AD_SUPPORTED' | 'PREMIUM'>('AD_SUPPORTED');
 
-  const isUuid = typeof effectiveSeriesId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveSeriesId);
+  const isUuid =
+    typeof effectiveSeriesId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveSeriesId);
 
   // 2. Fetch live follow status
   const { data: followData, refetch: refetchFollow } = (trpc.series.isFollowingSeries as any).useQuery(
@@ -121,25 +150,28 @@ function SeriesDetailsScreenInner({
     } catch {}
   };
 
-  const getStatusBadgeConfig = (status?: string | null) => {
+  const getStatusBadgeConfig = (
+    status?: string | null
+  ): { label: string; variant: 'success' | 'primary' | 'warning' | 'default' } => {
     switch (status?.toUpperCase()) {
       case 'ONGOING':
-        return { label: 'Ongoing', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)' };
+        return { label: 'Ongoing', variant: 'success' };
       case 'COMING_SOON':
-        return { label: 'Coming Soon', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.3)' };
+        return { label: 'Coming Soon', variant: 'primary' };
       case 'HIATUS':
-        return { label: 'Hiatus', color: '#f97316', bg: 'rgba(249, 115, 22, 0.15)', border: 'rgba(249, 115, 22, 0.3)' };
+        return { label: 'Hiatus', variant: 'warning' };
       case 'SEASON_ENDED':
-        return { label: 'Season Ended', color: '#9ca3af', bg: 'rgba(156, 163, 175, 0.15)', border: 'rgba(156, 163, 175, 0.3)' };
+        return { label: 'Season Ended', variant: 'default' };
       case 'NEW_SEASON_COMING':
-        return { label: 'New Season Coming', color: '#c084fc', bg: 'rgba(192, 132, 252, 0.15)', border: 'rgba(192, 132, 252, 0.3)' };
+        return { label: 'New Season Coming', variant: 'primary' };
       default:
-        return { label: status || 'Ongoing', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)' };
+        return { label: status || 'Ongoing', variant: 'success' };
     }
   };
 
   const creatorId = activeSeries?.creatorId || activeSeries?.creator?.id || fetchedCreator?.id;
-  const creatorPenName = activeSeries?.creator?.penName || activeSeries?.author || fetchedCreator?.penName || 'Creator';
+  const creatorPenName =
+    activeSeries?.creator?.penName || activeSeries?.author || fetchedCreator?.penName || 'Creator';
   const creatorAvatarUrl = activeSeries?.creator?.user?.avatarUrl || fetchedCreator?.avatarUrl;
   const isVetted = activeSeries?.creator?.isVetted || fetchedCreator?.isVetted;
 
@@ -155,9 +187,10 @@ function SeriesDetailsScreenInner({
   const hasLinkedFormat = !!(activeSeries?.linkedSeries || activeSeries?.linkedSeriesId);
   const comicSeries = activeSeries?.type === 'NOVEL' ? activeSeries?.linkedSeries : activeSeries;
   const novelSeries = activeSeries?.type === 'NOVEL' ? activeSeries : activeSeries?.linkedSeries;
-  const currentDisplayedSeries = (hasLinkedFormat && selectedFormatType === 'NOVEL')
-    ? (novelSeries || activeSeries)
-    : (comicSeries || activeSeries);
+  const currentDisplayedSeries =
+    hasLinkedFormat && selectedFormatType === 'NOVEL'
+      ? novelSeries || activeSeries
+      : comicSeries || activeSeries;
   const currentRawChapters = currentDisplayedSeries?.chapters || rawChapters;
 
   // Normalized Chapters list sorted using natural hierarchical sorting
@@ -218,50 +251,53 @@ function SeriesDetailsScreenInner({
   };
 
   // Handle Chapter Row Press
-  const handleChapterPress = useCallback((chapter: Chapter) => {
-    triggerHaptic();
-    const isPremium = dbUser?.subscription === 'PREMIUM';
-    const isPlus = dbUser?.subscription === 'PLUS';
+  const handleChapterPress = useCallback(
+    (chapter: Chapter) => {
+      triggerHaptic();
+      const isPremium = dbUser?.subscription === 'PREMIUM';
+      const isPlus = dbUser?.subscription === 'PLUS';
 
-    // 1. Check Early Access System first
-    if (chapter.isEarlyAccess) {
-      if (isPremium) {
-        // Instant access
-      } else if (isPlus && chapter.earlyAccess?.isPlusAvailable) {
-        // Plus access (+2h)
-      } else {
-        // Blocked by Early Access -> Show Upgrade Modal
+      // 1. Check Early Access System first
+      if (chapter.isEarlyAccess) {
+        if (isPremium) {
+          // Instant access
+        } else if (isPlus && chapter.earlyAccess?.isPlusAvailable) {
+          // Plus access (+2h)
+        } else {
+          // Blocked by Early Access -> Show Upgrade Modal
+          setPendingChapter(chapter);
+          setAccessType('EARLY_ACCESS');
+          setAccessModalVisible(true);
+          return;
+        }
+      }
+
+      // 2. Check Content Access Tier
+      const tier = chapter.tier || 'FREE';
+
+      if (tier === 'FREE' || isSubscribed) {
+        onSelectChapter(chapter, currentDisplayedSeries || activeSeries);
+        return;
+      }
+
+      if (tier === 'AD_SUPPORTED') {
         setPendingChapter(chapter);
-        setAccessType('EARLY_ACCESS');
+        setAccessType('AD_SUPPORTED');
         setAccessModalVisible(true);
         return;
       }
-    }
 
-    // 2. Check Content Access Tier
-    const tier = chapter.tier || 'FREE';
+      if (tier === 'PREMIUM') {
+        setPendingChapter(chapter);
+        setAccessType('PREMIUM');
+        setAccessModalVisible(true);
+        return;
+      }
 
-    if (tier === 'FREE' || isSubscribed) {
       onSelectChapter(chapter, currentDisplayedSeries || activeSeries);
-      return;
-    }
-
-    if (tier === 'AD_SUPPORTED') {
-      setPendingChapter(chapter);
-      setAccessType('AD_SUPPORTED');
-      setAccessModalVisible(true);
-      return;
-    }
-
-    if (tier === 'PREMIUM') {
-      setPendingChapter(chapter);
-      setAccessType('PREMIUM');
-      setAccessModalVisible(true);
-      return;
-    }
-
-    onSelectChapter(chapter, currentDisplayedSeries || activeSeries);
-  }, [isSubscribed, dbUser, onSelectChapter, currentDisplayedSeries, activeSeries]);
+    },
+    [isSubscribed, dbUser, onSelectChapter, currentDisplayedSeries, activeSeries]
+  );
 
   // Primary Action Button (Start Reading vs Continue Reading)
   const handlePrimaryActionPress = () => {
@@ -272,11 +308,14 @@ function SeriesDetailsScreenInner({
     }
 
     if (savedProgress) {
-      const ch = sortedChapters.find((c) => c.id === savedProgress.chapterId || c.chapterIndex === savedProgress.chapterIndex) || sortedChapters[0];
+      const ch =
+        sortedChapters.find(
+          (c) => c.id === savedProgress.chapterId || c.chapterIndex === savedProgress.chapterIndex
+        ) || sortedChapters[0];
       handleChapterPress(ch);
     } else {
-      // Find first readable free chapter
-      const firstCh = sortedChapters.find((c) => c.tier === 'FREE' || c.chapterIndex === 1) || sortedChapters[0];
+      const firstCh =
+        sortedChapters.find((c) => c.tier === 'FREE' || c.chapterIndex === 1) || sortedChapters[0];
       handleChapterPress(firstCh);
     }
   };
@@ -300,29 +339,20 @@ function SeriesDetailsScreenInner({
       ? 'Manhwa'
       : 'Comic';
 
-  // Loading state
+  // Skeleton Loader (replaces ActivityIndicator spinner)
   if (isLoading && !activeSeries?.title) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-        <View style={styles.loadingCenterBox}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading series details...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <SeriesDetailsSkeleton />;
   }
 
   // Error state
   if (error && !activeSeries?.title) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-        <View style={styles.loadingCenterBox}>
-          <AlertTriangleIcon size={36} color="#EF4444" />
-          <Text style={[styles.errorTitle, { color: colors.text }]}>Failed to load series</Text>
-          <Text style={[styles.errorSubtitle, { color: colors.textMuted }]}>{error.message}</Text>
-          <TouchableOpacity style={[styles.primaryActionBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}>
-            <Text style={styles.primaryActionBtnText}>Retry</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorCenterBox}>
+          <AlertTriangle size={36} color={colors.danger} />
+          <Text style={styles.errorTitle}>Failed to load series</Text>
+          <Text style={styles.errorSubtitle}>{error.message}</Text>
+          <Button title="Retry" variant="primary" onPress={() => refetch()} />
         </View>
       </SafeAreaView>
     );
@@ -337,7 +367,9 @@ function SeriesDetailsScreenInner({
     let dateString = 'Recent';
     if (ch.createdAt) {
       const dt = new Date(ch.createdAt);
-      dateString = isNaN(dt.getTime()) ? 'Recent' : dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      dateString = isNaN(dt.getTime())
+        ? 'Recent'
+        : dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
 
     return (
@@ -345,7 +377,7 @@ function SeriesDetailsScreenInner({
         style={[
           styles.chapterRow,
           {
-            backgroundColor: isCurrent ? colors.primaryMuted : colors.surfaceElevated,
+            backgroundColor: isCurrent ? colors.surface : colors.card,
             borderColor: isCurrent ? colors.primary : colors.border,
           },
         ]}
@@ -354,94 +386,92 @@ function SeriesDetailsScreenInner({
         accessibilityRole="button"
         accessibilityLabel={`Chapter ${ch.chapterIndex}: ${ch.title}`}
       >
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={[styles.chapterNumberText, { color: isCurrent ? colors.primary : colors.text }]}>
+        <View style={{ flex: 1, gap: spacing.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text
+              style={[
+                styles.chapterNumberText,
+                { color: isCurrent ? colors.primary : colors.text },
+              ]}
+            >
               Chapter {ch.chapterIndex}
             </Text>
             {isRead && (
-              <View style={[styles.readIndicator, { backgroundColor: colors.successMuted }]}>
-                <CheckIcon size={10} color={colors.success} />
-                <Text style={[styles.readIndicatorText, { color: colors.success }]}>Read</Text>
+              <View style={styles.readIndicator}>
+                <Check size={12} color={colors.success} />
+                <Text style={styles.readIndicatorText}>Read</Text>
               </View>
             )}
           </View>
-          <Text style={[styles.chapterTitleText, { color: colors.textSecondary }]} numberOfLines={1}>
+          <Text style={styles.chapterTitleText} numberOfLines={1}>
             {ch.title || `Episode ${ch.chapterIndex}`}
           </Text>
-          <Text style={[styles.chapterDateText, { color: colors.textMuted }]}>
-            {dateString}
-          </Text>
+          <Text style={styles.chapterDateText}>{dateString}</Text>
         </View>
 
         {/* Tier badge */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={styles.tierBadgeRow}>
           {ch.isEarlyAccess ? (
-            <View style={[styles.tierBadge, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-              <SparklesIcon size={12} color="#3B82F6" />
-              <Text style={[styles.tierBadgeText, { color: '#3B82F6' }]}>
-                {ch.earlyAccess?.isPlusAvailable
-                  ? `Plus (Free in ${ch.earlyAccess.freeWaitFormatted})`
-                  : `Early Access (${ch.earlyAccess?.plusWaitFormatted || '2h'})`}
-              </Text>
-            </View>
+            <Badge variant="primary" size="sm">
+              {ch.earlyAccess?.isPlusAvailable
+                ? `Plus (${ch.earlyAccess.freeWaitFormatted})`
+                : `Early (${ch.earlyAccess?.plusWaitFormatted || '2h'})`}
+            </Badge>
           ) : tier === 'FREE' ? (
-            <View style={[styles.tierBadge, { backgroundColor: colors.successMuted }]}>
-              <Text style={[styles.tierBadgeText, { color: colors.success }]}>Free</Text>
-            </View>
+            <Badge variant="success" size="sm">
+              Free
+            </Badge>
           ) : tier === 'AD_SUPPORTED' ? (
-            <View style={[styles.tierBadge, { backgroundColor: colors.warningMuted }]}>
-              <SparklesIcon size={12} color={colors.warning} />
-              <Text style={[styles.tierBadgeText, { color: colors.warning }]}>Ad</Text>
-            </View>
+            <Badge variant="warning" size="sm">
+              Ad
+            </Badge>
           ) : (
-            <View style={[styles.tierBadge, { backgroundColor: colors.errorMuted }]}>
-              <LockIcon size={12} color={colors.error} />
-              <Text style={[styles.tierBadgeText, { color: colors.error }]}>Locked</Text>
-            </View>
+            <Badge variant="danger" size="sm">
+              Locked
+            </Badge>
           )}
-          <ChevronRightIcon size={16} color={colors.textMuted} />
+          <ChevronRight size={16} color={colors.textMuted} />
         </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+    <SafeAreaView style={styles.container}>
       {/* 1. Header (Back & Share) */}
-      <View style={[styles.header, { backgroundColor: colors.header, borderBottomColor: colors.borderSubtle }]}>
+      <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerBtn}
           onPress={onBack}
           activeOpacity={0.7}
+          accessibilityRole="button"
           accessibilityLabel="Back to previous screen"
         >
-          <ChevronLeftIcon size={22} color={colors.text} />
-          <Text style={[styles.headerBackLabel, { color: colors.text }]}>Back</Text>
+          <ChevronLeft size={22} color={colors.text} />
+          <Text style={styles.headerBackLabel}>Back</Text>
         </TouchableOpacity>
 
-        <Text style={[styles.headerCenterTitle, { color: colors.text }]} numberOfLines={1}>
+        <Text style={styles.headerCenterTitle} numberOfLines={1}>
           {activeSeries?.title}
         </Text>
+
         <TouchableOpacity
           style={styles.headerBtn}
           onPress={handleShare}
           activeOpacity={0.7}
+          accessibilityRole="button"
           accessibilityLabel="Share series"
         >
-          <ShareIcon size={20} color={colors.text} />
+          <Share2 size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false}>
         {/* 2. Hero Section */}
-        <View style={[styles.heroContainer, { borderBottomColor: colors.borderSubtle }]}>
+        <View style={styles.heroContainer}>
           <View style={styles.heroLayout}>
             {/* Series Cover Artwork */}
-            <View style={[styles.coverContainer, { backgroundColor: activeSeries?.coverBg || '#1A1A2E', borderColor: colors.border }]}>
+            <View style={styles.coverContainer}>
               {activeSeries?.coverUrl ? (
                 <ExpoImage
                   source={{ uri: activeSeries.coverUrl }}
@@ -451,7 +481,7 @@ function SeriesDetailsScreenInner({
                 />
               ) : (
                 <View style={styles.coverPlaceholder}>
-                  <BookOpenIcon size={36} color={colors.primary} />
+                  <BookOpen size={36} color={colors.primary} />
                 </View>
               )}
             </View>
@@ -460,94 +490,81 @@ function SeriesDetailsScreenInner({
             <View style={styles.heroMeta}>
               {/* Type Badge & Status */}
               <View style={styles.badgeRow}>
-                <View style={[styles.typeBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.typeBadgeText}>{contentTypeLabel}</Text>
-                </View>
+                <Badge variant="primary" size="sm">
+                  {contentTypeLabel}
+                </Badge>
                 {(() => {
                   const stConfig = getStatusBadgeConfig(activeSeries?.status);
                   return (
-                    <View style={[styles.statusBadgePill, { backgroundColor: stConfig.bg, borderColor: stConfig.border }]}>
-                      <View style={[styles.statusDot, { backgroundColor: stConfig.color }]} />
-                      <Text style={[styles.statusPillText, { color: stConfig.color }]}>
-                        {stConfig.label}
-                      </Text>
-                    </View>
+                    <Badge variant={stConfig.variant} size="sm">
+                      {stConfig.label}
+                    </Badge>
                   );
                 })()}
               </View>
 
               {/* Title */}
-              <Text style={[styles.titleText, { color: colors.text }]} numberOfLines={2}>
+              <Text style={styles.titleText} numberOfLines={2}>
                 {activeSeries?.title}
               </Text>
 
               {/* Metrics Row */}
               <View style={styles.metricsRow}>
                 <View style={styles.metricItem}>
-                  <StarIcon size={14} color={colors.accentGold} />
-                  <Text style={[styles.metricValue, { color: colors.text }]}>
-                    {activeSeries?.rating || '9.8'}
-                  </Text>
+                  <Star size={14} color={colors.warning} />
+                  <Text style={styles.metricValue}>{activeSeries?.rating || '9.8'}</Text>
                 </View>
 
                 <View style={styles.metricItem}>
-                  <EyeIcon size={14} color={colors.textMuted} />
+                  <Eye size={14} color={colors.textMuted} />
                   <Text style={[styles.metricValue, { color: colors.textMuted }]}>
                     {activeSeries?.views || '120k'}
                   </Text>
                 </View>
 
                 <View style={styles.metricItem}>
-                  <Text style={[styles.genreText, { color: colors.primary }]}>
-                    {activeSeries?.genre || 'Action'}
-                  </Text>
+                  <Text style={styles.genreText}>{activeSeries?.genre || 'Action'}</Text>
                 </View>
               </View>
 
-              {/* Follow Button */}
-              <TouchableOpacity
-                style={[
-                  styles.followBtn,
-                  {
-                    backgroundColor: isFollowing ? colors.surfaceElevated : colors.primary,
-                    borderColor: isFollowing ? colors.primary : colors.primaryDark,
-                  },
-                ]}
+              {/* Follow Button using standard Button component */}
+              <Button
+                title={isFollowing ? 'Bookmarked' : 'Add to Library'}
+                variant={isFollowing ? 'secondary' : 'primary'}
                 onPress={handleToggleFollow}
-                activeOpacity={0.8}
-              >
-                <BookmarkIcon size={14} color={isFollowing ? colors.primary : '#FFFFFF'} />
-                <Text style={[styles.followBtnText, { color: isFollowing ? colors.primary : '#FFFFFF' }]}>
-                  {isFollowing ? 'Bookmarked' : 'Add to Library'}
-                </Text>
-              </TouchableOpacity>
+              />
             </View>
           </View>
         </View>
 
-        {/* Creator Status Announcement Banner (if set) */}
+        {/* Creator Status Announcement Banner (Megaphone icon, no emojis) */}
         {activeSeries?.statusMessage ? (
-          <View style={[styles.statusAnnouncementCard, { backgroundColor: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
-            <Text style={styles.announcementEmoji}>📢</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.announcementHeader, { color: colors.accentGold || '#fbbf24' }]}>
-                Creator Status Notice
-              </Text>
-              <Text style={[styles.announcementBody, { color: colors.text }]}>
-                "{activeSeries.statusMessage}"
-              </Text>
+          <Card
+            style={{
+              marginHorizontal: spacing.md,
+              marginTop: spacing.md,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: spacing.sm,
+            }}
+          >
+            <Megaphone size={18} color={colors.warning} />
+            <View style={{ flex: 1, gap: spacing.xs }}>
+              <Text style={styles.announcementHeader}>Creator Status Notice</Text>
+              <Text style={styles.announcementBody}>"{activeSeries.statusMessage}"</Text>
               {activeSeries.statusUpdatedAt ? (
-                <Text style={[styles.announcementDate, { color: colors.textMuted }]}>
+                <Text style={styles.announcementDate}>
                   Updated {new Date(activeSeries.statusUpdatedAt).toLocaleDateString()}
                 </Text>
               ) : null}
             </View>
-          </View>
+          </Card>
         ) : null}
 
-        {/* 3. Creator Card */}
+        {/* 3. Creator Card using universal Card */}
         <TouchableOpacity
-          style={[styles.creatorCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
           onPress={() => {
             triggerHaptic();
             if (creatorId && onViewCreatorProfile) {
@@ -557,65 +574,70 @@ function SeriesDetailsScreenInner({
           activeOpacity={0.8}
           accessibilityRole="button"
           accessibilityLabel={`View ${creatorPenName}'s profile`}
+          style={{ marginHorizontal: spacing.md, marginTop: spacing.md }}
         >
-          <View style={[styles.creatorAvatar, { backgroundColor: colors.primaryMuted }]}>
-            {creatorAvatarUrl ? (
-              <ExpoImage source={{ uri: creatorAvatarUrl }} style={styles.creatorAvatarImg} />
-            ) : (
-              <Text style={[styles.creatorAvatarInitial, { color: colors.primary }]}>
-                {creatorPenName[0]?.toUpperCase()}
-              </Text>
-            )}
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.creatorName, { color: colors.text }]}>{creatorPenName}</Text>
-              {isVetted && (
-                <View style={[styles.vettedBadge, { backgroundColor: colors.primary }]}>
-                  <CheckIcon size={10} color="#FFFFFF" />
-                </View>
+          <Card style={styles.creatorCardContent}>
+            <View style={styles.creatorAvatar}>
+              {creatorAvatarUrl ? (
+                <ExpoImage source={{ uri: creatorAvatarUrl }} style={styles.creatorAvatarImg} />
+              ) : (
+                <Text style={styles.creatorAvatarInitial}>
+                  {creatorPenName[0]?.toUpperCase()}
+                </Text>
               )}
             </View>
-            <Text style={[styles.creatorSubtitle, { color: colors.textMuted }]}>Original Creator • Tap for profile</Text>
-          </View>
 
-          <ChevronRightIcon size={18} color={colors.textMuted} />
+            <View style={{ flex: 1, gap: spacing.xs }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                <Text style={styles.creatorName}>{creatorPenName}</Text>
+                {isVetted && (
+                  <View style={styles.vettedBadge}>
+                    <Check size={10} color={colors.text} />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.creatorSubtitle}>Original Creator • Tap for profile</Text>
+            </View>
+
+            <ChevronRight size={18} color={colors.textMuted} />
+          </Card>
         </TouchableOpacity>
 
-        {/* 4. Synopsis / Description */}
-        <View style={[styles.synopsisCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-          <Text style={[styles.synopsisHeaderTitle, { color: colors.text }]}>Synopsis</Text>
-          <Text style={[styles.synopsisBodyText, { color: colors.textSecondary }]}>
-            {displayedDescription}
-          </Text>
-          {shouldTruncateDesc && (
-            <TouchableOpacity
-              onPress={() => {
-                triggerHaptic();
-                setIsDescriptionExpanded(!isDescriptionExpanded);
-              }}
-              style={{ marginTop: 6 }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.readMoreText, { color: colors.primary }]}>
-                {isDescriptionExpanded ? 'Read Less ▲' : 'Read More ▼'}
-              </Text>
-            </TouchableOpacity>
-          )}
+        {/* 4. Synopsis / Description using universal Card */}
+        <View style={{ marginHorizontal: spacing.md, marginTop: spacing.md }}>
+          <Card style={{ gap: spacing.sm }}>
+            <Text style={styles.synopsisHeaderTitle}>Synopsis</Text>
+            <Text style={styles.synopsisBodyText}>{displayedDescription}</Text>
+            {shouldTruncateDesc && (
+              <TouchableOpacity
+                onPress={() => {
+                  triggerHaptic();
+                  setIsDescriptionExpanded(!isDescriptionExpanded);
+                }}
+                style={{ alignSelf: 'flex-start', paddingTop: spacing.xs }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={isDescriptionExpanded ? 'Read less synopsis' : 'Read more synopsis'}
+              >
+                <Text style={styles.readMoreText}>
+                  {isDescriptionExpanded ? 'Read Less ▲' : 'Read More ▼'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Card>
         </View>
 
         {/* 4.5 Available Formats (Shown ONLY if linked series exists) */}
         {hasLinkedFormat && (
           <View style={styles.formatSection}>
-            <Text style={[styles.formatSectionTitle, { color: colors.text }]}>Available Formats</Text>
+            <Text style={styles.formatSectionTitle}>Available Formats</Text>
             <View style={styles.formatCardsRow}>
               {/* Comic / Manhwa Card */}
               <TouchableOpacity
                 style={[
                   styles.formatCard,
                   {
-                    backgroundColor: selectedFormatType === 'COMIC' ? 'rgba(37, 99, 235, 0.12)' : colors.surfaceElevated,
+                    backgroundColor: selectedFormatType === 'COMIC' ? colors.surface : colors.card,
                     borderColor: selectedFormatType === 'COMIC' ? colors.primary : colors.border,
                   },
                 ]}
@@ -624,16 +646,25 @@ function SeriesDetailsScreenInner({
                   setSelectedFormatType('COMIC');
                 }}
                 activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: selectedFormatType === 'COMIC' }}
+                accessibilityLabel="Select comic or manhwa format"
               >
                 <View style={styles.formatCardHeader}>
-                  <BookOpenIcon size={16} color={selectedFormatType === 'COMIC' ? colors.primary : colors.textMuted} />
-                  <Text style={[styles.formatCardTitle, { color: selectedFormatType === 'COMIC' ? colors.primary : colors.text }]}>
+                  <BookOpen
+                    size={16}
+                    color={selectedFormatType === 'COMIC' ? colors.primary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.formatCardTitle,
+                      { color: selectedFormatType === 'COMIC' ? colors.primary : colors.text },
+                    ]}
+                  >
                     Comic / Manhwa
                   </Text>
                 </View>
-                <Text style={[styles.formatCardSubtitle, { color: colors.textMuted }]}>
-                  Visual reading experience
-                </Text>
+                <Text style={styles.formatCardSubtitle}>Visual reading experience</Text>
               </TouchableOpacity>
 
               {/* Novel Card */}
@@ -641,7 +672,7 @@ function SeriesDetailsScreenInner({
                 style={[
                   styles.formatCard,
                   {
-                    backgroundColor: selectedFormatType === 'NOVEL' ? 'rgba(37, 99, 235, 0.12)' : colors.surfaceElevated,
+                    backgroundColor: selectedFormatType === 'NOVEL' ? colors.surface : colors.card,
                     borderColor: selectedFormatType === 'NOVEL' ? colors.primary : colors.border,
                   },
                 ]}
@@ -650,16 +681,25 @@ function SeriesDetailsScreenInner({
                   setSelectedFormatType('NOVEL');
                 }}
                 activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: selectedFormatType === 'NOVEL' }}
+                accessibilityLabel="Select novel text format"
               >
                 <View style={styles.formatCardHeader}>
-                  <NovelsIcon size={16} color={selectedFormatType === 'NOVEL' ? colors.primary : colors.textMuted} />
-                  <Text style={[styles.formatCardTitle, { color: selectedFormatType === 'NOVEL' ? colors.primary : colors.text }]}>
+                  <BookText
+                    size={16}
+                    color={selectedFormatType === 'NOVEL' ? colors.primary : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.formatCardTitle,
+                      { color: selectedFormatType === 'NOVEL' ? colors.primary : colors.text },
+                    ]}
+                  >
                     Novel
                   </Text>
                 </View>
-                <Text style={[styles.formatCardSubtitle, { color: colors.textMuted }]}>
-                  Text reading experience
-                </Text>
+                <Text style={styles.formatCardSubtitle}>Text reading experience</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -668,14 +708,14 @@ function SeriesDetailsScreenInner({
         {/* 5. Primary Reading Action Banner */}
         <View style={styles.primaryActionSection}>
           <TouchableOpacity
-            style={[styles.primaryReadingBtn, { backgroundColor: colors.primary }]}
+            style={styles.primaryReadingBtn}
             onPress={handlePrimaryActionPress}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={savedProgress ? 'Continue Reading' : 'Start Reading'}
           >
-            <BookOpenIcon size={20} color="#FFFFFF" />
-            <View style={{ alignItems: 'center' }}>
+            <BookOpen size={20} color={colors.text} />
+            <View style={{ alignItems: 'center', gap: spacing.xs }}>
               <Text style={styles.primaryReadingBtnTitle}>
                 {savedProgress ? 'Continue Reading' : 'Start Reading'}
               </Text>
@@ -693,33 +733,33 @@ function SeriesDetailsScreenInner({
         {/* 6. Chapter List Section with FlatList */}
         <View style={styles.chaptersSection}>
           <View style={styles.chaptersHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={[styles.chaptersSectionTitle, { color: colors.text }]}>Chapters</Text>
-              <View style={[styles.chapterCountBadge, { backgroundColor: colors.surfaceElevated }]}>
-                <Text style={[styles.chapterCountText, { color: colors.textSecondary }]}>
-                  {sortedChapters.length}
-                </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Text style={styles.chaptersSectionTitle}>Chapters</Text>
+              <View style={styles.chapterCountBadge}>
+                <Text style={styles.chapterCountText}>{sortedChapters.length}</Text>
               </View>
             </View>
 
             {/* Sort Toggle (1 → N vs N → 1) */}
             <TouchableOpacity
-              style={[styles.sortOrderBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+              style={styles.sortOrderBtn}
               onPress={() => {
                 triggerHaptic();
                 setSortAscending(!sortAscending);
               }}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Sort chapters ${sortAscending ? 'ascending' : 'descending'}`}
             >
-              <Text style={[styles.sortOrderText, { color: colors.primary }]}>
-                {sortAscending ? '1 → ' + sortedChapters.length : sortedChapters.length + ' → 1'}
+              <Text style={styles.sortOrderText}>
+                {sortAscending ? `1 → ${sortedChapters.length}` : `${sortedChapters.length} → 1`}
               </Text>
             </TouchableOpacity>
           </View>
 
           {/* Chapter FlatList */}
           {sortedChapters.length > 0 ? (
-            <View style={{ gap: 8, marginTop: 12, paddingHorizontal: 16 }}>
+            <View style={styles.chaptersListContainer}>
               <FlatList
                 data={sortedChapters}
                 renderItem={renderChapterItem}
@@ -732,12 +772,17 @@ function SeriesDetailsScreenInner({
               />
             </View>
           ) : (
-            <View style={[styles.emptyChaptersBox, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-              <BookOpenIcon size={32} color={colors.textMuted} />
-              <Text style={[styles.emptyChaptersTitle, { color: colors.text }]}>No Published Chapters</Text>
-              <Text style={[styles.emptyChaptersSubtitle, { color: colors.textMuted }]}>
-                This series does not have any public chapters available right now.
-              </Text>
+            <View style={{ marginHorizontal: spacing.md, marginTop: spacing.md }}>
+              <Card style={styles.emptyChaptersCard}>
+                <BookOpen size={32} color={colors.textMuted} />
+                <Text style={styles.emptyChaptersTitle}>No Published Chapters</Text>
+                <Text style={styles.emptyChaptersSubtitle}>
+                  This series does not have any public chapters available right now.
+                </Text>
+                <View style={{ marginTop: spacing.sm }}>
+                  <Button title="Refresh Chapters" variant="secondary" onPress={() => refetch()} />
+                </View>
+              </Card>
             </View>
           )}
         </View>
@@ -784,46 +829,55 @@ export function SeriesDetailsScreen(props: SeriesDetailsScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 6,
-    gap: 4,
+    padding: spacing.xs,
+    gap: spacing.xs,
+    minHeight: 44,
   },
   headerBackLabel: {
-    fontSize: 15,
+    fontSize: typography.small.fontSize,
     fontWeight: '600',
+    color: colors.text,
   },
   headerCenterTitle: {
     flex: 1,
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
     textAlign: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
+    color: colors.text,
   },
   heroContainer: {
-    padding: 16,
+    padding: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   heroLayout: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing.md,
   },
   coverContainer: {
-    width: 110,
-    height: 155,
-    borderRadius: 12,
+    width: 112,
+    height: 160,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   coverImage: {
     width: '100%',
@@ -837,34 +891,33 @@ const styles = StyleSheet.create({
   heroMeta: {
     flex: 1,
     justifyContent: 'space-between',
+    gap: spacing.xs,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   typeBadge: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary,
   },
   typeBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
+    color: colors.text,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
     textTransform: 'uppercase',
-  },
-  statusBadgeText: {
-    fontSize: 12,
   },
   statusBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    gap: 5,
+    gap: spacing.xs,
   },
   statusDot: {
     width: 6,
@@ -872,91 +925,63 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   statusPillText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-  },
-  statusAnnouncementCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 10,
-  },
-  announcementEmoji: {
-    fontSize: 18,
   },
   announcementHeader: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    color: colors.warning,
   },
   announcementBody: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontStyle: 'italic',
-    lineHeight: 16,
-    marginTop: 2,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.text,
   },
   announcementDate: {
-    fontSize: 10,
-    marginTop: 4,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   titleText: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    marginVertical: 4,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: typography.h3.fontWeight,
+    color: colors.text,
   },
   metricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   metricItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   metricValue: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.text,
   },
   genreText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.primary,
   },
-  followBtn: {
+  creatorCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 6,
-    marginTop: 6,
-  },
-  followBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  creatorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 14,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
+    gap: spacing.md,
   },
   creatorAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -966,229 +991,234 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   creatorAvatarInitial: {
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
+    color: colors.primary,
   },
   creatorName: {
-    fontSize: 14,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   creatorSubtitle: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   vettedBadge: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 16,
+    height: 16,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  synopsisCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    backgroundColor: colors.primary,
   },
   synopsisHeaderTitle: {
-    fontSize: 14,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
-    marginBottom: 6,
+    color: colors.text,
   },
   synopsisBodyText: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   readMoreText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.primary,
   },
   primaryActionSection: {
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
   },
   primaryReadingBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 10,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+    gap: spacing.sm,
   },
   primaryReadingBtnTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: colors.text,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
   },
   primaryReadingBtnSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: typography.caption.fontSize,
   },
   chaptersSection: {
-    marginTop: 20,
+    marginTop: spacing.lg,
   },
   chaptersHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
   },
   chaptersSectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: typography.h3.fontWeight,
+    color: colors.text,
   },
   chapterCountBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 10,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
   },
   chapterCountText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.textMuted,
   },
   sortOrderBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   sortOrderText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.primary,
+  },
+  chaptersListContainer: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   chapterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 12,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   chapterNumberText: {
-    fontSize: 14,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
   },
   readIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 1,
-    paddingHorizontal: 6,
-    borderRadius: 4,
-    gap: 3,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.xs,
   },
   readIndicatorText: {
-    fontSize: 10,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.success,
   },
   chapterTitleText: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   chapterDateText: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+  },
+  tierBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   tierBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    gap: 4,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    gap: spacing.xs,
   },
   tierBadgeText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
-  emptyChaptersBox: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 24,
-    borderRadius: 12,
-    borderWidth: 1,
+  emptyChaptersCard: {
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: spacing.xs,
   },
   emptyChaptersTitle: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
-    marginTop: 6,
+    marginTop: spacing.xs,
+    color: colors.text,
   },
   emptyChaptersSubtitle: {
-    fontSize: 13,
+    fontSize: typography.caption.fontSize,
     textAlign: 'center',
+    color: colors.textMuted,
   },
-  loadingCenterBox: {
+  errorCenterBox: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
+    padding: spacing.lg,
+    gap: spacing.sm,
   },
   errorTitle: {
-    fontSize: 18,
+    fontSize: typography.h3.fontSize,
     fontWeight: '700',
-    marginTop: 8,
+    color: colors.text,
   },
   errorSubtitle: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
     textAlign: 'center',
-  },
-  primaryActionBtn: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-  },
-  primaryActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    color: colors.textMuted,
   },
   formatSection: {
-    marginHorizontal: 16,
-    marginTop: 14,
-    gap: 8,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    gap: spacing.sm,
   },
   formatSectionTitle: {
-    fontSize: 14,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    color: colors.text,
   },
   formatCardsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
   },
   formatCard: {
     flex: 1,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    gap: 4,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
   },
   formatCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
   },
   formatCardTitle: {
-    fontSize: 13,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   formatCardSubtitle: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
 });

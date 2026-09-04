@@ -152,15 +152,15 @@ export function MobileWorkspaceLayout({
               style={[
                 styles.roleBadgePill,
                 {
-                  backgroundColor: isCreator ? 'rgba(59, 130, 246, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                  borderColor: isCreator ? 'rgba(59, 130, 246, 0.3)' : 'rgba(168, 85, 247, 0.3)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  borderColor: 'rgba(59, 130, 246, 0.3)',
                 },
               ]}
             >
               <Text
                 style={[
                   styles.roleBadgeText,
-                  { color: isCreator ? '#3B82F6' : '#A855F7' },
+                  { color: '#3B82F6' },
                 ]}
               >
                 {roleBadge}

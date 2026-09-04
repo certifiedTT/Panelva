@@ -7,12 +7,18 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { useTheme } from '../../theme/ThemeContext';
+import {
+  Palette,
+  X,
+  Sparkles,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Button } from '../common/Button';
 import { trpc } from '../../../lib/trpc';
-import { CloseIcon, PaletteIcon } from '../common/Icons';
 
 interface BecomeCreatorModalProps {
   visible: boolean;
@@ -35,7 +41,6 @@ export function BecomeCreatorModal({
   onRequireAuth,
   onSuccessSubmit,
 }: BecomeCreatorModalProps) {
-  const { colors } = useTheme();
   const [penName, setPenName] = useState('');
   const [bio, setBio] = useState('');
   const [selectedType, setSelectedType] = useState('ILLUSTRATOR');
@@ -44,7 +49,7 @@ export function BecomeCreatorModal({
   const submitApplication = trpc.creator.submitApplication.useMutation({
     onSuccess: () => {
       Alert.alert(
-        'Application Submitted! 🎉',
+        'Application Submitted',
         'Your creator application has been submitted for review. You will receive an alert once approved.'
       );
       setPenName('');
@@ -85,111 +90,145 @@ export function BecomeCreatorModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {/* Header */}
-          <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={[styles.iconCircle, { backgroundColor: colors.primaryMuted }]}>
-                <PaletteIcon size={20} color={colors.primary} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoid}
+        >
+          <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <View style={styles.iconCircle}>
+                  <Palette size={20} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.title}>Become a Panelva Creator</Text>
+                  <Text style={styles.subtitle}>Publish series, grow your audience & earn</Text>
+                </View>
               </View>
-              <View>
-                <Text style={[styles.title, { color: colors.text }]}>Become a Panelva Creator</Text>
-                <Text style={[styles.subtitle, { color: colors.textMuted }]}>Publish series, grow your audience & earn</Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <CloseIcon size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
-            {/* Pen Name */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Pen Name / Public Creator Name *</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                placeholder="e.g. LunaDraws, AlexMage"
-                placeholderTextColor={colors.textMuted}
-                value={penName}
-                onChangeText={setPenName}
-              />
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Close modal"
+                onPress={onClose}
+                style={styles.closeBtn}
+              >
+                <X size={20} color={colors.textMuted} />
+              </TouchableOpacity>
             </View>
 
-            {/* Creator Type */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Creator Primary Discipline *</Text>
-              <View style={{ gap: 8 }}>
-                {CREATOR_TYPES.map((t) => {
-                  const isSelected = selectedType === t.id;
-                  return (
-                    <TouchableOpacity
-                      key={t.id}
-                      style={[
-                        styles.typeCard,
-                        {
-                          backgroundColor: isSelected ? colors.primaryMuted : colors.surfaceElevated,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                        },
-                      ]}
-                      onPress={() => setSelectedType(t.id)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.typeRadio, { borderColor: isSelected ? colors.primary : colors.textSubtle }]}>
-                        {isSelected && <View style={[styles.typeRadioInner, { backgroundColor: colors.primary }]} />}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.typeTitle, { color: colors.text }]}>{t.label}</Text>
-                        <Text style={[styles.typeDesc, { color: colors.textMuted }]}>{t.desc}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Portfolio URL */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Portfolio / Sample URL *</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                placeholder="https://artstation.com/... or Google Drive link"
-                placeholderTextColor={colors.textMuted}
-                value={portfolioUrl}
-                onChangeText={setPortfolioUrl}
-                keyboardType="url"
-                autoCapitalize="none"
-              />
-            </View>
-
-            {/* Bio */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Short Bio & Pitch</Text>
-              <TextInput
-                style={[styles.textArea, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                placeholder="Tell us about the series or projects you plan to publish..."
-                placeholderTextColor={colors.textMuted}
-                value={bio}
-                onChangeText={setBio}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: colors.primary }]}
-              onPress={handleSubmit}
-              disabled={submitApplication.isLoading}
-              activeOpacity={0.8}
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
             >
-              {submitApplication.isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.submitBtnText}>Submit Creator Application</Text>
+              {/* Guest Warning Banner if unauthenticated */}
+              {!sessionToken && (
+                <View style={styles.guestBanner}>
+                  <Sparkles size={16} color={colors.primary} />
+                  <Text style={styles.guestBannerText}>
+                    You will be prompted to sign in when submitting your application.
+                  </Text>
+                </View>
               )}
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+
+              {/* Pen Name */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>PEN NAME / PUBLIC CREATOR NAME *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. LunaDraws, AlexMage"
+                  placeholderTextColor={colors.textMuted}
+                  value={penName}
+                  onChangeText={setPenName}
+                  editable={!submitApplication.isLoading}
+                />
+              </View>
+
+              {/* Creator Type */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>CREATOR PRIMARY DISCIPLINE *</Text>
+                <View style={{ gap: spacing.sm }}>
+                  {CREATOR_TYPES.map((t) => {
+                    const isSelected = selectedType === t.id;
+                    return (
+                      <TouchableOpacity
+                        key={t.id}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: isSelected }}
+                        accessibilityLabel={t.label}
+                        style={[
+                          styles.typeCard,
+                          {
+                            backgroundColor: isSelected ? colors.card : colors.surface,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                          },
+                        ]}
+                        onPress={() => setSelectedType(t.id)}
+                        disabled={submitApplication.isLoading}
+                      >
+                        <View
+                          style={[
+                            styles.typeRadio,
+                            { borderColor: isSelected ? colors.primary : colors.border },
+                          ]}
+                        >
+                          {isSelected && <View style={styles.typeRadioInner} />}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.typeTitle}>{t.label}</Text>
+                          <Text style={styles.typeDesc}>{t.desc}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Portfolio URL */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>PORTFOLIO / SAMPLE URL *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="https://artstation.com/... or Google Drive link"
+                  placeholderTextColor={colors.textMuted}
+                  value={portfolioUrl}
+                  onChangeText={setPortfolioUrl}
+                  keyboardType="url"
+                  autoCapitalize="none"
+                  editable={!submitApplication.isLoading}
+                />
+              </View>
+
+              {/* Bio */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>SHORT BIO & PITCH</Text>
+                <TextInput
+                  style={styles.textArea}
+                  placeholder="Tell us about the series or projects you plan to publish..."
+                  placeholderTextColor={colors.textMuted}
+                  value={bio}
+                  onChangeText={setBio}
+                  multiline
+                  numberOfLines={3}
+                  editable={!submitApplication.isLoading}
+                />
+              </View>
+
+              {/* Submit Button */}
+              <View style={{ marginTop: spacing.md }}>
+                <Button
+                  title={
+                    submitApplication.isLoading
+                      ? 'Submitting Application...'
+                      : 'Submit Creator Application'
+                  }
+                  variant="primary"
+                  disabled={submitApplication.isLoading}
+                  onPress={handleSubmit}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -198,106 +237,143 @@ export function BecomeCreatorModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 5, 10, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
+  keyboardAvoid: {
+    width: '100%',
+  },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderWidth: 1,
-    maxHeight: '90%',
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    maxHeight: '92%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   iconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 16,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
     fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   closeBtn: {
-    padding: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  guestBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  guestBannerText: {
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    flex: 1,
   },
   fieldGroup: {
-    marginBottom: 16,
+    marginTop: spacing.md,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
   },
   input: {
-    height: 44,
-    borderRadius: 8,
+    minHeight: 48,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 14,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.small.fontSize,
+    color: colors.text,
   },
   textArea: {
-    height: 80,
-    borderRadius: 8,
+    minHeight: 96,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.small.fontSize,
+    color: colors.text,
     textAlignVertical: 'top',
   },
   typeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    gap: 10,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
   },
   typeRadio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: radius.full,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   typeRadioInner: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
+    width: 10,
+    height: 10,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
   typeTitle: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
     fontWeight: '700',
+    color: colors.text,
   },
   typeDesc: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  submitBtn: {
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
 });

@@ -154,20 +154,52 @@ export const chapterRouter = router({
       });
     }),
 
-  // 3. Post comment assigning dynamic priority score index
+  // 3. Post comment assigning dynamic priority score index with sticker & gift support
   postComment: protectedProcedure
     .input(
       z.object({
         chapterId: z.string().uuid(),
-        content: z.string().min(1).max(1000),
+        content: z.string().max(1000).default(""),
+        stickerId: z.string().optional().nullable(),
+        gifId: z.string().optional().nullable(),
+        gifUrl: z.string().optional().nullable(),
+        giftId: z.string().optional().nullable(),
+        giftCredits: z.number().int().min(0).optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Validate content or attachment presence
+      const hasContent = input.content && input.content.trim().length > 0;
+      const hasAttachment = Boolean(input.stickerId || input.gifId);
+      if (!hasContent && !hasAttachment) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Comment cannot be empty." });
+      }
+
+      // Enforce single attachment rule: max one of sticker OR gif
+      if (input.stickerId && input.gifId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "A comment can have at most one attachment (either sticker or GIF).",
+        });
+      }
+
       const user = await ctx.prisma.user.findUnique({
         where: { id: ctx.session.userId }
       });
       if (!user) {
         throw new TRPCError({ code: "NOT_FOUND", message: "User profile not active" });
+      }
+
+      // Check sticker entitlement if sticker is attached
+      if (input.stickerId) {
+        const { canUseSticker } = await import("../services/stickerEntitlementService");
+        const access = await canUseSticker(ctx.prisma, user.id, input.stickerId);
+        if (!access.allowed) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You do not have access to this sticker pack. Please claim or subscribe.",
+          });
+        }
       }
 
       const chapter = await ctx.prisma.chapter.findUnique({
@@ -200,12 +232,63 @@ export const chapterRouter = router({
         priorityScore = 1;
       }
 
-      return await ctx.prisma.comment.create({
+      // Handle gift deduction if user sent a gift with comment
+      const giftCredits = input.giftCredits || 0;
+      let giftTier: 0 | 1 | 2 | 3 = 0;
+
+      if (giftCredits > 0) {
+        if (user.wCoinBalance < giftCredits) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Insufficient credits. You need ${giftCredits} Credits to send this gift.`,
+          });
+        }
+
+        if (giftCredits >= 10000) giftTier = 3;
+        else if (giftCredits >= 5000) giftTier = 2;
+        else if (giftCredits >= 2000) giftTier = 1;
+
+        const { createLedgerEntry } = await import("../ledger");
+        const creatorUserId = chapter.series.creator.userId;
+
+        await createLedgerEntry(
+          ctx.prisma,
+          user.id,
+          creatorUserId,
+          giftCredits,
+          "CHAPTER_UNLOCK",
+          `Gift sent: ${input.giftId || "Gift"} (${giftCredits} Credits) to series ${chapter.series.title}`,
+        );
+      }
+
+      // Prevent duplicate comments and repeated low-quality submissions
+      const finalContent = input.content ? input.content.trim() : (input.stickerId ? "[Sticker]" : "[GIF]");
+      const duplicateComment = await ctx.prisma.comment.findFirst({
+        where: {
+          chapterId: chapter.id,
+          userId: user.id,
+          content: finalContent,
+        }
+      });
+      if (duplicateComment) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Duplicate comment detected. You have already submitted this comment.",
+        });
+      }
+
+      const created = await ctx.prisma.comment.create({
         data: {
           chapterId: chapter.id,
           userId: user.id,
-          content: input.content,
+          content: finalContent,
           priorityScore,
+          stickerId: input.stickerId || null,
+          gifId: input.gifId || null,
+          gifUrl: input.gifUrl || null,
+          giftId: input.giftId || null,
+          giftCredits: giftCredits,
+          giftTier: giftTier,
         },
         include: {
           user: {
@@ -218,6 +301,11 @@ export const chapterRouter = router({
           }
         }
       });
+
+      return {
+        ...created,
+        reputationAwarded: 5,
+      };
     }),
 
   // 4. Fetch sorted priority comments
@@ -249,6 +337,46 @@ export const chapterRouter = router({
       });
 
       return comments;
+    }),
+
+  // Delete comment with reputation revocation
+  deleteComment: protectedProcedure
+    .input(z.object({ commentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.prisma.comment.findUnique({
+        where: { id: input.commentId },
+        include: {
+          chapter: {
+            include: {
+              series: {
+                include: { creator: true }
+              }
+            }
+          }
+        }
+      });
+      if (!comment) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Comment not found." });
+      }
+
+      const isAuthor = comment.userId === ctx.session.userId;
+      const isCreator = comment.chapter.series.creator.userId === ctx.session.userId;
+      const user = await ctx.prisma.user.findUnique({ where: { id: ctx.session.userId } });
+      const isAdmin = user?.role === UserRole.ADMIN || user?.role === UserRole.MASTER_ADMIN;
+
+      if (!isAuthor && !isCreator && !isAdmin) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Unauthorized to delete this comment." });
+      }
+
+      await ctx.prisma.comment.delete({
+        where: { id: input.commentId }
+      });
+
+      return {
+        success: true,
+        reputationRevoked: 5,
+        message: "Comment removed and reputation adjusted.",
+      };
     }),
 
   // 5. Unlock Chapter Transaction

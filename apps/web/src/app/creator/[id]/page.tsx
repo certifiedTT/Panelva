@@ -649,8 +649,8 @@ export default function PublicCreatorProfilePage() {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { name: "Golden Pen", cost: 100, color: "from-amber-600/20 to-yellow-500/10 border-amber-500/20 text-amber-400" },
-                    { name: "Magic Book", cost: 500, color: "from-blue-600/20 to-indigo-500/10 border-blue-500/20 text-blue-400" },
-                    { name: "Golden Feather", cost: 1000, color: "from-blue-600/20 to-indigo-500/10 border-blue-500/20 text-blue-400" },
+                    { name: "Magic Book", cost: 500, color: "from-blue-600/20 to-blue-500/10 border-blue-500/20 text-blue-400" },
+                    { name: "Golden Feather", cost: 1000, color: "from-blue-600/20 to-blue-500/10 border-blue-500/20 text-blue-400" },
                     { name: "Super Support Pack", cost: 5000, color: "from-red-600/20 to-orange-500/10 border-red-500/20 text-red-400" }
                   ].map((gift, idx) => (
                     <button 

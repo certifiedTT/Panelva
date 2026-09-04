@@ -13,8 +13,9 @@ import {
   ArrowLeft, Star, Heart, Bookmark, Eye, Download, ArrowUpDown, 
   Search, MessageSquare, Info, Mail, Send, ThumbsUp, ThumbsDown, 
   ChevronDown, ChevronUp, Lock, Sparkles, Settings, MoreVertical, 
-  BookOpen, User, Maximize2, Minimize2, List, ChevronRight
+  BookOpen, User, Maximize2, Minimize2, List, ChevronRight, Check, Megaphone
 } from "lucide-react";
+import { Card, Button, Badge } from "@panelva/ui";
 
 import { SERIES_DATA, DEFAULT_SERIES, EPISODE_TITLES } from "@/lib/mockData";
 
@@ -723,7 +724,7 @@ export default function ReaderPage() {
                   </p>
                   <button
                     style={{
-                      background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
+                      background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                       color: "#fff",
                       border: "none",
                       padding: "12px 28px",
@@ -732,7 +733,7 @@ export default function ReaderPage() {
                       fontWeight: 700,
                       cursor: "pointer",
                       transition: "transform 0.2s, box-shadow 0.2s",
-                      boxShadow: "0 4px 14px rgba(124, 58, 237, 0.4)"
+                      boxShadow: "0 4px 14px rgba(37, 99, 235, 0.4)"
                     }}
                     onClick={() => setIsAccessModalOpen(true)}
                   >
@@ -808,7 +809,7 @@ export default function ReaderPage() {
                 left: "50%",
                 transform: "translateX(-50%)",
                 backgroundColor: "rgba(13, 14, 18, 0.95)",
-                border: "1px solid #8b5cf6",
+                border: "1px solid #2563eb",
                 padding: "1rem 2rem",
                 borderRadius: "30px",
                 display: "flex",
@@ -818,9 +819,9 @@ export default function ReaderPage() {
                 zIndex: 3000,
                 color: "#fff"
               }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6", display: "inline-block" }} className="animate-ping"></span>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2563eb", display: "inline-block" }} className="animate-ping"></span>
                 <span style={{ fontSize: "0.95rem", fontWeight: 700 }}>
-                  Advancing to Chapter {currentChapter + 1} in <strong style={{ color: "#8b5cf6" }}>{countdownValue}s</strong>...
+                  Advancing to Chapter {currentChapter + 1} in <strong style={{ color: "#3b82f6" }}>{countdownValue}s</strong>...
                 </span>
                 <button 
                   onClick={() => { setCountdownActive(false); setShowCountdown(false); }}
@@ -1295,7 +1296,7 @@ export default function ReaderPage() {
                 <div>
                   <span style={{ fontSize: "0.7rem", color: "var(--text-muted-color)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Type</span>
                   <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#8b5cf6", display: "inline-block" }}></span>
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2563eb", display: "inline-block" }}></span>
                     {series.type}
                   </span>
                 </div>
@@ -1375,7 +1376,7 @@ export default function ReaderPage() {
                 gap: "12px",
                 alignItems: "flex-start",
               }}>
-                <span style={{ fontSize: "1.25rem", lineHeight: 1 }}>📢</span>
+                <Megaphone className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                 <div>
                   <span style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", color: "#fbbf24", letterSpacing: "0.05em", display: "block" }}>
                     Creator Status Notice
@@ -1395,86 +1396,46 @@ export default function ReaderPage() {
             <p style={{ color: "#d1d5db", margin: 0, fontSize: "0.95rem", lineHeight: 1.6 }}>{series.description}</p>
             
             {/* Primary CTA buttons row */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "1rem" }}>
+            <div className="flex flex-wrap items-center gap-3 mt-4">
               {/* Bookmark Toggle */}
-              <button 
+              <Button 
+                variant={isBookmarked ? "primary" : "outline"}
+                size="md"
                 onClick={handleToggleBookmark}
-                style={{
-                  background: isBookmarked ? "rgba(37,99,235,0.1)" : "none",
-                  border: isBookmarked ? "1px solid #2563eb" : "1px solid var(--border-color)",
-                  color: isBookmarked ? "#2563eb" : "#fff",
-                  padding: "12px 24px",
-                  borderRadius: "10px",
-                  fontWeight: 700,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}
+                leftIcon={<Bookmark size={16} className={isBookmarked ? "fill-current" : ""} />}
               >
-                <Bookmark size={16} style={{ fill: isBookmarked ? "#2563eb" : "none" }} />
                 {isBookmarked ? "Bookmarked" : "Bookmark"}
-              </button>
+              </Button>
 
               {/* Follow Series Toggle */}
-              <button 
+              <Button 
+                variant={isFollowing ? "secondary" : "outline"}
+                size="md"
                 onClick={handleToggleFollow}
-                style={{
-                  background: isFollowing ? "rgba(16,185,129,0.1)" : "none",
-                  border: isFollowing ? "1px solid #10b981" : "1px solid var(--border-color)",
-                  color: isFollowing ? "#10b981" : "#fff",
-                  padding: "12px 24px",
-                  borderRadius: "10px",
-                  fontWeight: 700,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}
+                leftIcon={isFollowing ? <Check size={16} className="text-green-400" /> : undefined}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill={isFollowing ? "#10b981" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
                 {isFollowing ? "Following" : "Follow"}
-              </button>
+              </Button>
 
               {/* Start reading button */}
-              <button 
+              <Button 
+                variant="primary"
+                size="md"
                 onClick={() => setIsReading(true)}
-                style={{
-                  background: "linear-gradient(135deg, #2563eb, #7c3aed)",
-                  border: "none",
-                  color: "#fff",
-                  padding: "12px 28px",
-                  borderRadius: "10px",
-                  fontWeight: 700,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  boxShadow: "0 6px 20px rgba(37, 99, 235, 0.25)"
-                }}
+                leftIcon={<BookOpen size={16} />}
               >
                 First Chapter
-              </button>
+              </Button>
 
               {/* Download button */}
-              <button 
+              <Button 
+                variant="outline"
+                size="md"
                 onClick={() => alert("Mock offline download triggered. Check download manager status.")}
-                style={{
-                  background: "none",
-                  border: "1px solid var(--border-color)",
-                  color: "#fff",
-                  padding: "12px 24px",
-                  borderRadius: "10px",
-                  fontWeight: 700,
-                  fontSize: "0.95rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}
+                leftIcon={<Download size={16} />}
               >
-                <Download size={16} /> Download Offline
-              </button>
+                Download Offline
+              </Button>
             </div>
           </div>
 

@@ -5,11 +5,15 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "vengence": "node scripts/vengence-ui.js",
+    "vengence:add": "node scripts/vengence-ui.js add",
+    "vengence:list": "node scripts/vengence-ui.js list"
   },
   "dependencies": {
     "@panelva/api": "*",
     "@panelva/db": "*",
+    "@panelva/theme": "*",
     "@panelva/ui": "*",
     "@radix-ui/react-label": "^2.1.9",
     "@radix-ui/react-slot": "^1.2.5",
@@ -20,6 +24,7 @@
     "@tanstack/react-query": "^4.36.1",
     "@trpc/client": "^10.45.2",
     "@trpc/react-query": "^10.45.2",
+    "@untitled-theme/icons-react": "^0.14.1",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -36,8 +41,11 @@
     "@types/node": "^20.12.12",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@untitledui/cli": "^0.1.3",
     "autoprefixer": "^10.5.4",
     "postcss": "^8.5.26",
+    "prettier": "^3.9.6",
+    "shadcn": "^4.19.0",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.4.5"
   }

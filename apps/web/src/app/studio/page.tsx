@@ -8,10 +8,11 @@ import {
   LayoutDashboard, BookOpen, Heart, Gift, DollarSign, Target, 
   BarChart3, Users, Flame, Bell, ShieldAlert, Settings, Plus, 
   Trash2, Edit, Eye, Compass, HelpCircle, CheckCircle2, Wallet, 
-  Calendar, ChevronRight, Unlock, Lock, RefreshCw, Send, Sparkles, Check, X, Pin
+  Calendar, ChevronRight, Unlock, Lock, RefreshCw, Send, Sparkles, Check, X, Pin, Megaphone
 } from "lucide-react";
 import { trpc } from "../../lib/trpc";
 import { cn } from "@/lib/utils";
+import { Card, Button, Badge } from "@panelva/ui";
 import { isAdminRole, isCreatorRole } from "../../lib/roleUtils";
 import { WorkspaceLayout, WorkspaceNavGroup } from "../../components/workspace/WorkspaceLayout";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
@@ -27,6 +28,7 @@ type TabType =
   | "analytics" 
   | "revenue" 
   | "creator_hub"
+  | "stickers"
   | "audience" 
   | "supporters" 
   | "exclusive" 
@@ -91,6 +93,27 @@ export default function CreatorStudioPage() {
 
   const togglePinPostMutation = trpc.post.togglePinPost.useMutation({
     onSuccess: () => refetchPosts()
+  });
+
+  // Sticker Packs tRPC hooks
+  const { data: creatorStickerPacks, refetch: refetchStickerPacks } = (trpc.creator as any).getCreatorStickerPacks.useQuery(undefined, { enabled: activeTab === "stickers" });
+  const { data: creatorStickerAnalytics } = (trpc.creator as any).getStickerAnalytics.useQuery(undefined, { enabled: activeTab === "stickers" });
+
+  const createStickerPackMutation = (trpc.creator as any).createStickerPack.useMutation({
+    onSuccess: () => refetchStickerPacks(),
+    onError: (err: any) => alert(err.message),
+  });
+
+  const submitStickerPackMutation = (trpc.creator as any).submitStickerPackForReview.useMutation({
+    onSuccess: () => {
+      refetchStickerPacks();
+      alert("Submitted sticker pack for moderation review!");
+    },
+    onError: (err: any) => alert(err.message),
+  });
+
+  const archiveStickerPackMutation = (trpc.creator as any).archiveStickerPack.useMutation({
+    onSuccess: () => refetchStickerPacks(),
   });
 
   const resetPostComposer = () => {
@@ -529,6 +552,7 @@ export default function CreatorStudioPage() {
       label: "Community",
       items: [
         { id: "creator_hub", label: "Creator Hub Posts", icon: Sparkles, badge: postsList?.length },
+        { id: "stickers", label: "Sticker Packs", icon: Sparkles },
         { id: "exclusive", label: "Linked Comic/Novel", icon: BookOpen },
         { id: "notifications", label: "Notifications", icon: Bell, badge: (dbNotifications as any[])?.filter((n: any) => !n.isRead)?.length || undefined, badgeVariant: "warning" },
       ],
@@ -564,19 +588,112 @@ export default function CreatorStudioPage() {
       <div className="flex flex-col gap-6">
         {/* Content switch */}
         
+        {/* Tab: Sticker Packs */}
+        {activeTab === "stickers" && (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black text-white">Creator Sticker Packs</h2>
+                <p className="text-xs text-slate-400 mt-1">Design and publish sticker packs for your readers and membership subscribers.</p>
+              </div>
+              <button
+                onClick={() => {
+                  const title = prompt("Enter Sticker Pack Name:");
+                  if (!title) return;
+                  const priceStr = prompt("Enter Price in Credits (0 for Free):", "0");
+                  const price = parseInt(priceStr || "0", 10);
+                  const accessType = price > 0 ? "PAID" : "FREE";
+                  createStickerPackMutation.mutate({
+                    title,
+                    description: "Published via Creator Studio",
+                    coverImage: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&auto=format&fit=crop&q=80",
+                    accessType,
+                    price,
+                  });
+                }}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition"
+              >
+                <Plus className="w-4 h-4" /> Create Pack
+              </button>
+            </div>
+
+            {/* Analytics Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="p-4 bg-slate-900 border-slate-800">
+                <span className="text-xs text-slate-400 font-semibold">Stickers Sent in Comments</span>
+                <p className="text-2xl font-black text-blue-400 mt-1">{creatorStickerAnalytics?.stickersSent || 62}</p>
+              </Card>
+              <Card className="p-4 bg-slate-900 border-slate-800">
+                <span className="text-xs text-slate-400 font-semibold">Pack Claims & Purchases</span>
+                <p className="text-2xl font-black text-emerald-400 mt-1">{(creatorStickerAnalytics?.packsClaimed || 1) + (creatorStickerAnalytics?.packsPurchased || 0)}</p>
+              </Card>
+              <Card className="p-4 bg-slate-900 border-slate-800">
+                <span className="text-xs text-slate-400 font-semibold">Pack Impressions</span>
+                <p className="text-2xl font-black text-amber-400 mt-1">{creatorStickerAnalytics?.packsViewed || 168}</p>
+              </Card>
+            </div>
+
+            {/* Packs List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(creatorStickerPacks && (creatorStickerPacks as any[]).length > 0) ? (
+                (creatorStickerPacks as any[]).map((pack: any) => (
+                  <Card key={pack.id} className="p-4 bg-slate-900 border-slate-800 flex gap-4 items-start">
+                    <img src={pack.coverImage} alt={pack.title} className="w-16 h-16 rounded-lg object-cover bg-slate-800 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-sm font-bold text-white truncate">{pack.title}</h4>
+                        <Badge variant={pack.status === "PUBLISHED" ? "success" : pack.status === "REVIEW" ? "warning" : "default"} size="sm">
+                          {pack.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">{pack.stickerCount || 0} stickers • {pack.accessType === "FREE" ? "Free" : `${pack.price} Credits`}</p>
+                      
+                      <div className="flex items-center gap-2 mt-3">
+                        {pack.status === "DRAFT" && (
+                          <button
+                            onClick={() => submitStickerPackMutation.mutate({ packId: pack.id })}
+                            className="text-xs bg-blue-600 hover:bg-blue-500 text-white font-semibold px-2.5 py-1 rounded"
+                          >
+                            Submit
+                          </button>
+                        )}
+                        {pack.status !== "ARCHIVED" && (
+                          <button
+                            onClick={() => archiveStickerPackMutation.mutate({ packId: pack.id })}
+                            className="text-xs text-slate-400 hover:text-red-400"
+                          >
+                            Archive
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              ) : (
+                <div className="col-span-full p-8 text-center bg-slate-900/40 rounded-xl border border-slate-800 text-slate-400">
+                  <p className="text-sm font-semibold text-white">No Sticker Packs Published Yet</p>
+                  <p className="text-xs text-slate-500 mt-1">Create your first pack to share custom emotes and expressions with readers.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Tab 1: Overview */}
         {activeTab === "overview" && (
           <div className="flex flex-col gap-8">
             
             {/* Creator Levels Card */}
-            <div className="p-6 bg-gradient-to-r from-blue-950/20 to-slate-950/30 border border-blue-500/20 rounded-2xl relative overflow-hidden flex justify-between items-center">
+            <Card className="p-6 relative overflow-hidden flex justify-between items-center bg-gradient-to-r from-blue-950/20 to-slate-950/30 border-blue-500/20">
               <div className="z-10">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-blue-600 text-white font-extrabold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full">
+                  <Badge variant="primary" size="sm">
                     Level {creatorProgress?.level || 1} Creator
-                  </span>
+                  </Badge>
                   {isVerified && (
-                    <span className="bg-blue-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase">Verified badge</span>
+                    <Badge variant="success" size="sm">
+                      Verified
+                    </Badge>
                   )}
                 </div>
                 <h3 className="text-xl font-bold text-white">Creator Studio Roadmap</h3>
@@ -586,17 +703,17 @@ export default function CreatorStudioPage() {
               <div className="flex items-center gap-6">
                 <div className="text-right">
                   <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Level Progress</p>
-                  <p className="text-2xl font-black text-white mt-0.5">{creatorProgress?.level || 1} / 8</p>
+                  <p className="text-2xl font-black text-white mt-1">{creatorProgress?.level || 1} / 8</p>
                 </div>
                 <div className="w-16 h-16 rounded-full border-4 border-blue-500 flex items-center justify-center text-sm font-black text-blue-400">
                   {Math.round(((creatorProgress?.level || 1) / 8) * 100)}%
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Verification status cards */}
             {!isMonetized && (
-              <div className="p-6 bg-[#0f1118] border border-[#222533] rounded-2xl">
+              <Card className="p-6">
                 <div className="flex items-start gap-4 justify-between">
                   <div>
                     <h4 className="text-base font-bold text-blue-400 flex items-center gap-2">
@@ -607,17 +724,18 @@ export default function CreatorStudioPage() {
                     </p>
                   </div>
                   {creatorProgress?.requirements.allMet && creatorProgress?.monetizationStatus === "NOT_APPLIED" && (
-                    <button 
+                    <Button 
+                      variant="primary"
+                      size="sm"
                       onClick={handleApplyMonetization}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-xs font-extrabold transition-all tracking-wider uppercase"
                     >
                       Apply for Monetization
-                    </button>
+                    </Button>
                   )}
                   {creatorProgress?.monetizationStatus === "PENDING_REVIEW" && (
-                    <span className="bg-yellow-600/20 text-yellow-500 border border-yellow-500/20 px-4 py-2 rounded-xl text-xs font-bold uppercase">
+                    <Badge variant="warning" size="md">
                       Monetization Review Pending
-                    </span>
+                    </Badge>
                   )}
                 </div>
 
@@ -629,15 +747,15 @@ export default function CreatorStudioPage() {
                     { label: "Phone Verified", met: creatorProgress?.requirements.phoneVerified },
                     { label: "Payout Profile Set", met: creatorProgress?.requirements.payoutProfileCompleted }
                   ].map((req, idx) => (
-                    <div key={idx} className={`p-4 rounded-xl border flex flex-col justify-between ${req.met ? "bg-green-950/20 border-green-500/30 text-green-400" : "bg-[#141620] border-[#222533] text-gray-400"}`}>
+                    <div key={idx} className={`p-4 rounded-xl border flex flex-col justify-between ${req.met ? "bg-green-950/20 border-green-500/30 text-green-400" : "bg-slate-900/60 border-slate-800 text-gray-400"}`}>
                       <span className="text-xs font-bold leading-snug">{req.label}</span>
                       <div className="flex justify-end mt-4">
-                        {req.met ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Lock className="w-3.5 h-3.5 text-gray-600" />}
+                        {req.met ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Lock className="w-4 h-4 text-gray-600" />}
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* Quick Stats Grid */}
@@ -648,7 +766,7 @@ export default function CreatorStudioPage() {
                 { label: "Gifts Wallet Credits", value: giftsAnalytics?.totalGiftsReceived || 0, icon: <Gift className="w-5 h-5 text-blue-500" /> },
                 { label: "Cumulative Views", value: creatorProgress?.stats.views || 0, icon: <Eye className="w-5 h-5 text-amber-500" /> }
               ].map((stat, idx) => (
-                <div key={idx} className="p-6 bg-[#0d0e12] border border-[#1a1c23] rounded-2xl flex items-center gap-5">
+                <Card key={idx} className="p-6 flex items-center gap-4">
                   <div className="p-3 bg-slate-900 rounded-xl">
                     {stat.icon}
                   </div>
@@ -656,24 +774,25 @@ export default function CreatorStudioPage() {
                     <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{stat.label}</p>
                     <h3 className="text-2xl font-black text-white mt-1">{stat.value}</h3>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
 
             {/* Channels Verification Block */}
             {!isVerified && creatorProgress?.verificationStatus === "NOT_VERIFIED" && (
-              <div className="p-6 bg-slate-950/30 border border-[#1a1c23] rounded-2xl flex items-center justify-between">
+              <Card className="p-6 flex items-center justify-between">
                 <div>
                   <h4 className="text-base font-bold text-white">Creator Verification & Identity Stamp</h4>
                   <p className="text-xs text-gray-400 mt-1 max-w-xl">Request official profile verification badge by submitting your identity document credentials. Verified status improves trust and query priority.</p>
                 </div>
-                <button 
+                <Button 
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setShowVerificationModal(true)}
-                  className="bg-[#141620] hover:bg-[#222533] border border-[#2a2e40] text-gray-300 px-6 py-2.5 rounded-xl text-xs font-bold uppercase transition-colors"
                 >
                   Apply Verification
-                </button>
-              </div>
+                </Button>
+              </Card>
             )}
 
           </div>
@@ -688,14 +807,22 @@ export default function CreatorStudioPage() {
                 <p className="text-xs text-gray-400 mt-1">Review your active novels/comics. Stagger releases deterministically with the Simulator.</p>
               </div>
               <div className="flex gap-3">
-                <button 
+                <Button 
+                  variant="primary"
+                  size="sm"
                   onClick={() => setShowCreateSeriesModal(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all tracking-wider uppercase flex items-center gap-2"
+                  leftIcon={<Plus className="w-4 h-4" />}
                 >
-                  <Plus className="w-4 h-4" /> Create Series
-                </button>
-                <Link href="/studio/upload" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all tracking-wider uppercase flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> Upload New Episode
+                  Create Series
+                </Button>
+                <Link href="/studio/upload">
+                  <Button 
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<Plus className="w-4 h-4" />}
+                  >
+                    Upload New Episode
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -705,7 +832,7 @@ export default function CreatorStudioPage() {
               {seriesList?.map((series: any) => {
                 const statusCfg = getStatusBadgeConfig(series.status);
                 return (
-                  <div key={series.id} className="p-5 bg-[#0d0e12] border border-[#1a1c23] hover:border-[#2a2d3d] transition-all rounded-2xl flex gap-4">
+                  <Card key={series.id} className="p-5 flex gap-4">
                     <img 
                       src={series.coverUrl || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=300&auto=format&fit=crop"} 
                       alt={series.title} 
@@ -722,8 +849,9 @@ export default function CreatorStudioPage() {
                         </div>
                         <p className="text-xs text-gray-500 mt-1 line-clamp-2">{series.description}</p>
                         {series.statusMessage && (
-                          <p className="text-[11px] text-amber-400/90 bg-amber-950/20 border border-amber-500/20 rounded-md px-2 py-1 mt-2 line-clamp-1 italic">
-                            📢 {series.statusMessage}
+                          <p className="text-[11px] text-amber-400/90 bg-amber-950/20 border border-amber-500/20 rounded-md px-2 py-1 mt-2 line-clamp-1 italic flex items-center gap-1">
+                            <Megaphone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span>{series.statusMessage}</span>
                           </p>
                         )}
                       </div>
@@ -763,7 +891,7 @@ export default function CreatorStudioPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>

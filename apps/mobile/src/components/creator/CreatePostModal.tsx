@@ -7,18 +7,21 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { useTheme } from '../../theme/ThemeContext';
-import { trpc } from '../../../lib/trpc';
 import {
-  CloseIcon,
-  SparklesIcon,
-  PlusIcon,
-  TrashIcon,
-  CheckIcon,
-} from '../common/Icons';
+  Sparkles,
+  X,
+  Plus,
+  Trash2,
+  Check,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
+import { trpc } from '../../../lib/trpc';
 
 interface CreatePostModalProps {
   visible: boolean;
@@ -112,7 +115,6 @@ const POLL_DURATIONS = [
 ];
 
 export function CreatePostModal({ visible, onClose, onSuccessCreated }: CreatePostModalProps) {
-  const { colors } = useTheme();
   const [selectedTypeId, setSelectedTypeId] = useState('TEXT');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -121,14 +123,13 @@ export function CreatePostModal({ visible, onClose, onSuccessCreated }: CreatePo
   // Poll state
   const [pollOptions, setPollOptions] = useState<string[]>(['Option A', 'Option B']);
   const [pollDurationDays, setPollDurationDays] = useState(3);
-  const [isMultipleChoice, setIsMultipleChoice] = useState(false);
 
   const currentTypeConfig =
     CREATOR_POST_TYPES.find((t) => t.id === selectedTypeId) || CREATOR_POST_TYPES[0];
 
   const createPostMutation = trpc.post.createPost.useMutation({
     onSuccess: () => {
-      Alert.alert('Post Published! ✨', 'Your post is now live in the Creator Hub.');
+      Alert.alert('Post Published', 'Your post is now live in the Creator Hub.');
       resetForm();
       onClose();
       if (onSuccessCreated) onSuccessCreated();
@@ -144,7 +145,6 @@ export function CreatePostModal({ visible, onClose, onSuccessCreated }: CreatePo
     setMediaUrlInput('');
     setPollOptions(['Option A', 'Option B']);
     setPollDurationDays(3);
-    setIsMultipleChoice(false);
   };
 
   const handleAddPollOption = () => {
@@ -207,198 +207,231 @@ export function CreatePostModal({ visible, onClose, onSuccessCreated }: CreatePo
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {/* Header */}
-          <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={[styles.iconCircle, { backgroundColor: colors.primaryMuted }]}>
-                <SparklesIcon size={20} color={colors.primary} />
-              </View>
-              <View>
-                <Text style={[styles.title, { color: colors.text }]}>New Creator Post</Text>
-                <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                  {currentTypeConfig.badge} • Publish to Community Feed
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <CloseIcon size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
-            {/* Horizontal Post Format Selector */}
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Post Format</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeSelectorScroll}>
-              {CREATOR_POST_TYPES.map((t) => {
-                const isSelected = selectedTypeId === t.id;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    style={[
-                      styles.typeSelectorBtn,
-                      {
-                        backgroundColor: isSelected ? colors.primary : colors.surfaceElevated,
-                        borderColor: isSelected ? colors.primaryDark : colors.border,
-                      },
-                    ]}
-                    onPress={() => setSelectedTypeId(t.id)}
-                    activeOpacity={0.75}
-                  >
-                    <Text
-                      style={[
-                        styles.typeSelectorText,
-                        { color: isSelected ? '#FFFFFF' : colors.textSecondary, fontWeight: isSelected ? '700' : '500' },
-                      ]}
-                    >
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Title Input */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Title *</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                placeholder={currentTypeConfig.placeholderTitle}
-                placeholderTextColor={colors.textMuted}
-                value={title}
-                onChangeText={setTitle}
-              />
-            </View>
-
-            {/* Content Input */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Message Content *</Text>
-              <TextInput
-                style={[styles.textArea, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                placeholder={currentTypeConfig.placeholderContent}
-                placeholderTextColor={colors.textMuted}
-                value={content}
-                onChangeText={setContent}
-                multiline
-                numberOfLines={4}
-              />
-            </View>
-
-            {/* Media Attachment URL */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                Image / Artwork URL {currentTypeConfig.requiresMedia ? '*' : '(Optional)'}
-              </Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                placeholder="https://images.unsplash.com/..."
-                placeholderTextColor={colors.textMuted}
-                value={mediaUrlInput}
-                onChangeText={setMediaUrlInput}
-              />
-            </View>
-
-            {/* DYNAMIC POLL CONFIGURATOR (If post type is POLL) */}
-            {selectedTypeId === 'POLL' && (
-              <View style={[styles.pollConfigCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={[styles.pollHeading, { color: colors.text }]}>Poll Options ({pollOptions.length}/6)</Text>
-                  <TouchableOpacity style={styles.addOptionBtn} onPress={handleAddPollOption}>
-                    <PlusIcon size={14} color={colors.primary} />
-                    <Text style={[styles.addOptionText, { color: colors.primary }]}>Add Option</Text>
-                  </TouchableOpacity>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoid}
+        >
+          <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <View style={styles.iconCircle}>
+                  <Sparkles size={20} color={colors.primary} />
                 </View>
-
-                {/* Option inputs */}
-                <View style={{ gap: 8, marginTop: 8 }}>
-                  {pollOptions.map((opt, idx) => (
-                    <View key={idx} style={styles.pollOptionRow}>
-                      <View style={[styles.optionIndexBadge, { backgroundColor: colors.surface }]}>
-                        <Text style={[styles.optionIndexText, { color: colors.textSecondary }]}>
-                          {String.fromCharCode(65 + idx)}
-                        </Text>
-                      </View>
-                      <TextInput
-                        style={[
-                          styles.pollOptionInput,
-                          { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
-                        ]}
-                        placeholder={`Option ${String.fromCharCode(65 + idx)}`}
-                        placeholderTextColor={colors.textMuted}
-                        value={opt}
-                        onChangeText={(t) => handleUpdatePollOptionText(idx, t)}
-                      />
-                      {pollOptions.length > 2 && (
-                        <TouchableOpacity
-                          style={styles.deleteOptionBtn}
-                          onPress={() => handleRemovePollOption(idx)}
-                        >
-                          <TrashIcon size={16} color={colors.error} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ))}
-                </View>
-
-                {/* Poll Duration */}
-                <View style={{ marginTop: 12 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginBottom: 6 }]}>
-                    Voting Duration
+                <View>
+                  <Text style={styles.title}>New Creator Post</Text>
+                  <Text style={styles.subtitle}>
+                    {currentTypeConfig.badge} • Publish to Community Feed
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: 6 }}>
-                    {POLL_DURATIONS.map((dur) => {
-                      const isSelected = pollDurationDays === dur.days;
-                      return (
-                        <TouchableOpacity
-                          key={dur.days}
-                          style={[
-                            styles.durPill,
-                            {
-                              backgroundColor: isSelected ? colors.primary : colors.surface,
-                              borderColor: isSelected ? colors.primaryDark : colors.border,
-                            },
-                          ]}
-                          onPress={() => setPollDurationDays(dur.days)}
-                        >
-                          <Text style={[styles.durPillText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
-                            {dur.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
                 </View>
               </View>
-            )}
-
-            {/* Action Buttons */}
-            <View style={styles.actionsRow}>
               <TouchableOpacity
-                style={[styles.cancelActionBtn, { borderColor: colors.border }]}
+                accessibilityRole="button"
+                accessibilityLabel="Close modal"
                 onPress={onClose}
-                activeOpacity={0.7}
+                style={styles.closeBtn}
               >
-                <Text style={[styles.cancelActionText, { color: colors.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.publishBtn, { backgroundColor: colors.primary }]}
-                onPress={handlePublish}
-                disabled={createPostMutation.isLoading}
-                activeOpacity={0.85}
-              >
-                {createPostMutation.isLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <CheckIcon size={16} color="#FFFFFF" />
-                    <Text style={styles.publishBtnText}>Publish Post</Text>
-                  </>
-                )}
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-          </ScrollView>
-        </View>
+
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Horizontal Post Format Selector */}
+              <Text style={styles.sectionLabel}>POST FORMAT</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.typeSelectorScroll}
+              >
+                {CREATOR_POST_TYPES.map((t) => {
+                  const isSelected = selectedTypeId === t.id;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={`Format: ${t.label}`}
+                      style={[
+                        styles.typeSelectorBtn,
+                        {
+                          backgroundColor: isSelected ? colors.primary : colors.surface,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => setSelectedTypeId(t.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.typeSelectorText,
+                          {
+                            color: isSelected ? colors.text : colors.textMuted,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Title Input */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>TITLE *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={currentTypeConfig.placeholderTitle}
+                  placeholderTextColor={colors.textMuted}
+                  value={title}
+                  onChangeText={setTitle}
+                  editable={!createPostMutation.isLoading}
+                />
+              </View>
+
+              {/* Content Input */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>MESSAGE CONTENT *</Text>
+                <TextInput
+                  style={styles.textArea}
+                  placeholder={currentTypeConfig.placeholderContent}
+                  placeholderTextColor={colors.textMuted}
+                  value={content}
+                  onChangeText={setContent}
+                  multiline
+                  numberOfLines={4}
+                  editable={!createPostMutation.isLoading}
+                />
+              </View>
+
+              {/* Media Attachment URL */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>
+                  IMAGE / ARTWORK URL {currentTypeConfig.requiresMedia ? '*' : '(OPTIONAL)'}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="https://images.unsplash.com/..."
+                  placeholderTextColor={colors.textMuted}
+                  value={mediaUrlInput}
+                  onChangeText={setMediaUrlInput}
+                  keyboardType="url"
+                  autoCapitalize="none"
+                  editable={!createPostMutation.isLoading}
+                />
+              </View>
+
+              {/* DYNAMIC POLL CONFIGURATOR (If post type is POLL) */}
+              {selectedTypeId === 'POLL' && (
+                <Card style={styles.pollConfigCard}>
+                  <View style={styles.pollHeaderRow}>
+                    <Text style={styles.pollHeading}>Poll Options ({pollOptions.length}/6)</Text>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Add Poll Option"
+                      style={styles.addOptionBtn}
+                      onPress={handleAddPollOption}
+                      disabled={createPostMutation.isLoading}
+                    >
+                      <Plus size={16} color={colors.primary} />
+                      <Text style={styles.addOptionText}>Add Option</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Option inputs */}
+                  <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                    {pollOptions.map((opt, idx) => (
+                      <View key={idx} style={styles.pollOptionRow}>
+                        <View style={styles.optionIndexBadge}>
+                          <Text style={styles.optionIndexText}>
+                            {String.fromCharCode(65 + idx)}
+                          </Text>
+                        </View>
+                        <TextInput
+                          style={styles.pollOptionInput}
+                          placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                          placeholderTextColor={colors.textMuted}
+                          value={opt}
+                          onChangeText={(t) => handleUpdatePollOptionText(idx, t)}
+                          editable={!createPostMutation.isLoading}
+                        />
+                        {pollOptions.length > 2 && (
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={`Delete option ${String.fromCharCode(65 + idx)}`}
+                            style={styles.deleteOptionBtn}
+                            onPress={() => handleRemovePollOption(idx)}
+                            disabled={createPostMutation.isLoading}
+                          >
+                            <Trash2 size={18} color={colors.danger} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Poll Duration */}
+                  <View style={{ marginTop: spacing.md }}>
+                    <Text style={styles.fieldLabel}>VOTING DURATION</Text>
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                      {POLL_DURATIONS.map((dur) => {
+                        const isSelected = pollDurationDays === dur.days;
+                        return (
+                          <TouchableOpacity
+                            key={dur.days}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: isSelected }}
+                            accessibilityLabel={`Duration ${dur.label}`}
+                            style={[
+                              styles.durPill,
+                              {
+                                backgroundColor: isSelected ? colors.primary : colors.surface,
+                                borderColor: isSelected ? colors.primary : colors.border,
+                              },
+                            ]}
+                            onPress={() => setPollDurationDays(dur.days)}
+                          >
+                            <Text
+                              style={[
+                                styles.durPillText,
+                                { color: isSelected ? colors.text : colors.textMuted },
+                              ]}
+                            >
+                              {dur.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <View style={styles.actionsRow}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title="Cancel"
+                    variant="secondary"
+                    onPress={onClose}
+                    disabled={createPostMutation.isLoading}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    title={createPostMutation.isLoading ? 'Publishing...' : 'Publish Post'}
+                    variant="primary"
+                    disabled={createPostMutation.isLoading}
+                    onPress={handlePublish}
+                  />
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -407,170 +440,195 @@ export function CreatePostModal({ visible, onClose, onSuccessCreated }: CreatePo
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 5, 10, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
+  keyboardAvoid: {
+    width: '100%',
+  },
   container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderWidth: 1,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     maxHeight: '92%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   iconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   closeBtn: {
-    padding: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
   },
   sectionLabel: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginBottom: 8,
+    letterSpacing: 0.5,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   typeSelectorScroll: {
-    gap: 8,
-    paddingBottom: 14,
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
   },
   typeSelectorBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   typeSelectorText: {
-    fontSize: 12,
+    fontSize: typography.small.fontSize,
   },
   fieldGroup: {
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginBottom: 6,
+    letterSpacing: 0.5,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
   },
   input: {
-    borderRadius: 10,
+    minHeight: 48,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.small.fontSize,
+    color: colors.text,
   },
   textArea: {
-    borderRadius: 10,
+    minHeight: 96,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    minHeight: 80,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.small.fontSize,
+    color: colors.text,
     textAlignVertical: 'top',
   },
   pollConfigCard: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 14,
-    gap: 8,
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  pollHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   pollHeading: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   addOptionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    gap: spacing.xs,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
   },
   addOptionText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
+    color: colors.primary,
   },
   pollOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   optionIndexBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionIndexText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
+    color: colors.textMuted,
   },
   pollOptionInput: {
     flex: 1,
-    height: 38,
-    borderRadius: 8,
+    minHeight: 48,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    fontSize: 13,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.small.fontSize,
+    color: colors.text,
   },
   deleteOptionBtn: {
-    padding: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   durPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
     borderWidth: 1,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   durPillText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
   },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 20,
-  },
-  cancelActionBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  cancelActionText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  publishBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  publishBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
 });

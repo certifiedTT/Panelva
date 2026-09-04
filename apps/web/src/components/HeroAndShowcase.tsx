@@ -2,6 +2,8 @@ import Link from "next/link";
 import React from "react";
 import Image from "next/image";
 import { SeriesCard } from "./SeriesCard";
+import { Button, Badge } from "@panelva/ui";
+import { Sparkles, Play, Flame } from "lucide-react";
 
 export interface SeriesItem {
   id: string;
@@ -50,13 +52,13 @@ export default function HeroAndShowcase({
   const isGradient = !featuredSeries?.bannerUrl && featuredSeries?.coverBg && (featuredSeries.coverBg.startsWith("linear-gradient") || featuredSeries.coverBg.startsWith("radial-gradient"));
 
   return (
-    <main className="min-h-screen bg-[#0b0c10] pt-16 text-white">
+    <main className="min-h-screen bg-slate-950 pt-16 text-white">
       
       {/* Immersive Hero Section */}
       <section className="relative h-[480px] w-full overflow-hidden">
         {/* Deep, professional background styling */}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-zinc-950/90 to-transparent z-10" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c10] to-transparent z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent z-10" />
         
         {/* Dynamic artwork background with fallback */}
         {isGradient ? (
@@ -79,15 +81,18 @@ export default function HeroAndShowcase({
 
         {/* Hero Content Area */}
         <div className="relative z-20 mx-auto max-w-7xl px-6 md:px-8 w-full flex h-full flex-col justify-center">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-blue-400 border border-blue-500/20 w-fit mb-4">
-            ✨ Featured Original
+          <div className="mb-4">
+            <Badge variant="primary" size="sm">
+              <Sparkles className="w-3.5 h-3.5 mr-1.5 text-blue-400" />
+              Featured Original
+            </Badge>
           </div>
           
           <h1 className="max-w-xl text-4xl font-extrabold tracking-tight md:text-5xl lg:text-6xl leading-[1.1]">
             {heroTitle === "Dive into New Dimensions" ? (
               <>
                 Dive into New <br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">Dimensions</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-200">Dimensions</span>
               </>
             ) : (
               heroTitle
@@ -100,14 +105,21 @@ export default function HeroAndShowcase({
 
           <div className="mt-8 flex items-center gap-4">
             <Link href={startReadingLink}>
-              <button className="flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-bold text-black hover:bg-zinc-200 transition">
-                ▶ Start Reading
-              </button>
+              <Button
+                variant="primary"
+                size="lg"
+                leftIcon={<Play className="w-4 h-4 fill-current" />}
+              >
+                Start Reading
+              </Button>
             </Link>
             <Link href={viewDetailsLink}>
-              <button className="rounded-full bg-zinc-800/80 border border-zinc-700/50 px-6 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700 transition">
+              <Button
+                variant="secondary"
+                size="lg"
+              >
                 View Details
-              </button>
+              </Button>
             </Link>
           </div>
         </div>
@@ -117,8 +129,9 @@ export default function HeroAndShowcase({
       <section className="mx-auto max-w-7xl px-6 md:px-8 w-full py-12">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-            🔥 Trending Series 
-            <Link href="/comics" className="text-xs text-blue-500 hover:underline cursor-pointer font-normal">
+            <Flame className="w-5 h-5 text-amber-500" />
+            <span>Trending Series</span>
+            <Link href="/comics" className="text-xs text-blue-500 hover:underline cursor-pointer font-normal ml-1">
               View All
             </Link>
           </h2>

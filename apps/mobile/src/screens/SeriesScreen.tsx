@@ -6,20 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
 } from 'react-native';
-import { useTheme } from '../theme/ThemeContext';
 import { trpc } from '../../lib/trpc';
 import { ContentCard } from '../components/common/ContentCard';
 import {
-  SearchIcon,
-  FilterIcon,
-  CloseIcon,
-  ComicsIcon,
-  NovelsIcon,
-  BookOpenIcon,
-} from '../components/common/Icons';
-
+  Search,
+  X,
+  BookOpen,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../components/common/Card';
+import { Button } from '../components/common/Button';
 import { MOCK_PLATFORM_SERIES } from '../data/mockData';
 import { getLocalFeedCache, setLocalFeedCache, CACHE_KEYS } from '../hooks/useFeedPrefetch';
 
@@ -45,19 +42,52 @@ const GENRES = [
 
 const SORT_OPTIONS = ['Popularity', 'Likes', 'Newest', 'Alphabetical'] as const;
 
+function GridSkeleton({ cardWidth, gridGap }: { cardWidth: number; gridGap: number }) {
+  return (
+    <View style={[styles.gridContainer, { gap: gridGap }]}>
+      {[1, 2, 3, 4, 5, 6].map((key) => (
+        <View key={key} style={{ width: cardWidth, gap: spacing.xs }}>
+          <View
+            style={{
+              width: cardWidth,
+              height: cardWidth * 1.4,
+              borderRadius: radius.md,
+              backgroundColor: colors.surface,
+            }}
+          />
+          <View
+            style={{
+              width: '70%',
+              height: 16,
+              borderRadius: radius.sm,
+              backgroundColor: colors.surface,
+            }}
+          />
+          <View
+            style={{
+              width: '40%',
+              height: 12,
+              borderRadius: radius.sm,
+              backgroundColor: colors.surface,
+            }}
+          />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export function SeriesScreen({
   onSelectSeries,
   initialGenre = 'All',
   cardWidth,
   gridGap,
 }: SeriesScreenProps) {
-  const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState(initialGenre);
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'COMIC' | 'NOVEL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONGOING' | 'COMPLETED'>('ALL');
   const [sortBy, setSortBy] = useState<'Popularity' | 'Likes' | 'Newest' | 'Alphabetical'>('Popularity');
-  const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [cachedSeries, setCachedSeries] = useState<any[]>([]);
 
   // Instant local cache loader (0ms render)
@@ -87,7 +117,13 @@ export function SeriesScreen({
 
   // Sync fresh series to cache
   useEffect(() => {
-    if (dbSeriesList && dbSeriesList.length > 0 && !searchQuery.trim() && typeFilter === 'ALL' && selectedGenre === 'All') {
+    if (
+      dbSeriesList &&
+      dbSeriesList.length > 0 &&
+      !searchQuery.trim() &&
+      typeFilter === 'ALL' &&
+      selectedGenre === 'All'
+    ) {
       setLocalFeedCache(CACHE_KEYS.SERIES_ALL, dbSeriesList);
     }
   }, [dbSeriesList, searchQuery, typeFilter, selectedGenre]);
@@ -98,30 +134,37 @@ export function SeriesScreen({
     { enabled: searchQuery.trim().length > 1 }
   );
 
-  const fallbackFiltered = (cachedSeries.length > 0 ? cachedSeries : MOCK_PLATFORM_SERIES).filter((s) => {
-    if (typeFilter !== 'ALL' && s.type !== typeFilter) return false;
-    if (selectedGenre !== 'All' && s.genre !== selectedGenre) return false;
-    if (searchQuery.trim() && !s.title.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
-    return true;
-  });
+  const fallbackFiltered = (cachedSeries.length > 0 ? cachedSeries : MOCK_PLATFORM_SERIES).filter(
+    (s) => {
+      if (typeFilter !== 'ALL' && s.type !== typeFilter) return false;
+      if (selectedGenre !== 'All' && s.genre !== selectedGenre) return false;
+      if (
+        searchQuery.trim() &&
+        !s.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      )
+        return false;
+      return true;
+    }
+  );
 
-  const displayList = (searchQuery.trim().length > 1 && searchResults && searchResults.length > 0)
-    ? searchResults
-    : (dbSeriesList && dbSeriesList.length > 0)
-    ? dbSeriesList
-    : fallbackFiltered;
+  const displayList =
+    searchQuery.trim().length > 1 && searchResults && searchResults.length > 0
+      ? searchResults
+      : dbSeriesList && dbSeriesList.length > 0
+      ? dbSeriesList
+      : fallbackFiltered;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View style={styles.container}>
       {/* Header with Search */}
-      <View style={[styles.header, { backgroundColor: colors.header, borderBottomColor: colors.borderSubtle }]}>
-        <Text style={[styles.pageTitle, { color: colors.text }]}>Discover Series</Text>
+      <View style={styles.header}>
+        <Text style={styles.pageTitle}>Discover Series</Text>
 
         <View style={styles.searchRow}>
-          <View style={[styles.searchBox, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <SearchIcon size={18} color={colors.textMuted} />
+          <View style={styles.searchBox}>
+            <Search size={18} color={colors.textMuted} />
             <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
+              style={styles.searchInput}
               placeholder="Search series by title or author..."
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
@@ -129,8 +172,13 @@ export function SeriesScreen({
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
-                <CloseIcon size={16} color={colors.textMuted} />
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search input"
+              >
+                <X size={16} color={colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -146,13 +194,21 @@ export function SeriesScreen({
                 style={[
                   styles.formatPill,
                   {
-                    backgroundColor: isSelected ? colors.primary : colors.surfaceElevated,
-                    borderColor: isSelected ? colors.primaryDark : colors.border,
+                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
                   },
                 ]}
                 onPress={() => setTypeFilter(fmt)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`Filter by ${fmt}`}
               >
-                <Text style={[styles.formatPillText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
+                <Text
+                  style={[
+                    styles.formatPillText,
+                    { color: isSelected ? colors.text : colors.textMuted },
+                  ]}
+                >
                   {fmt === 'ALL' ? 'All Types' : fmt === 'COMIC' ? 'Comics' : 'Novels'}
                 </Text>
               </TouchableOpacity>
@@ -174,16 +230,22 @@ export function SeriesScreen({
                 style={[
                   styles.genrePill,
                   {
-                    backgroundColor: isSelected ? colors.primaryMuted : colors.surfaceElevated,
+                    backgroundColor: isSelected ? colors.card : colors.surface,
                     borderColor: isSelected ? colors.primary : colors.border,
                   },
                 ]}
                 onPress={() => setSelectedGenre(g)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`Select genre ${g}`}
               >
                 <Text
                   style={[
                     styles.genrePillText,
-                    { color: isSelected ? colors.primary : colors.textMuted, fontWeight: isSelected ? '700' : '500' },
+                    {
+                      color: isSelected ? colors.primary : colors.textMuted,
+                      fontWeight: isSelected ? '700' : '500',
+                    },
                   ]}
                 >
                   {g}
@@ -196,38 +258,46 @@ export function SeriesScreen({
 
       {/* Main Grid View */}
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Results Bar & Sort Control */}
+        {/* Results Bar & Horizontal Sort Control */}
         <View style={styles.resultsBar}>
-          <Text style={[styles.resultsCount, { color: colors.textMuted }]}>
-            {displayList.length} Series Available
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
+          <Text style={styles.resultsCount}>{displayList.length} Series Available</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: spacing.xs }}
+          >
             {SORT_OPTIONS.map((sort) => (
               <TouchableOpacity
                 key={sort}
                 style={[
                   styles.sortBtn,
                   {
-                    backgroundColor: sortBy === sort ? colors.primaryMuted : 'transparent',
-                    borderColor: sortBy === sort ? colors.primary : 'transparent',
+                    backgroundColor: sortBy === sort ? colors.card : colors.surface,
+                    borderColor: sortBy === sort ? colors.primary : colors.border,
                   },
                 ]}
                 onPress={() => setSortBy(sort)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: sortBy === sort }}
+                accessibilityLabel={`Sort by ${sort}`}
               >
                 <Text
                   style={[
                     styles.sortBtnText,
-                    { color: sortBy === sort ? colors.primary : colors.textMuted, fontWeight: sortBy === sort ? '700' : '500' },
+                    {
+                      color: sortBy === sort ? colors.primary : colors.textMuted,
+                      fontWeight: sortBy === sort ? '700' : '500',
+                    },
                   ]}
                 >
                   {sort}
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {displayList.length > 0 ? (
@@ -239,7 +309,7 @@ export function SeriesScreen({
                 rating={series.rating || '9.8'}
                 genre={series.genre || 'General'}
                 type={series.type === 'NOVEL' ? 'Novel' : 'Manhwa'}
-                coverBg={series.coverBg || (series.type === 'NOVEL' ? '#0f172a' : '#1e3a8a')}
+                coverBg={series.coverBg || colors.surface}
                 coverUrl={series.coverUrl}
                 views={series.views ? `${(series.views / 1000).toFixed(0)}k` : '1.2k'}
                 chapters={series.chapters ? `${series.chapters.length} Chapters` : 'Ongoing'}
@@ -250,26 +320,27 @@ export function SeriesScreen({
             ))}
           </View>
         ) : isLoading ? (
-          <View style={{ padding: 50, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <GridSkeleton cardWidth={cardWidth} gridGap={gridGap} />
         ) : (
-          <View style={styles.emptyContainer}>
-            <BookOpenIcon size={40} color={colors.textMuted} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No series match your search</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              Try adjusting your genre filter, keyword search, or category format.
-            </Text>
-            <TouchableOpacity
-              style={[styles.resetBtn, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                setSearchQuery('');
-                setSelectedGenre('All');
-                setTypeFilter('ALL');
-              }}
-            >
-              <Text style={styles.resetBtnText}>Reset Filters</Text>
-            </TouchableOpacity>
+          <View style={{ paddingHorizontal: spacing.md, marginTop: spacing.lg }}>
+            <Card style={styles.emptyCard}>
+              <BookOpen size={40} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>No Series Match Your Search</Text>
+              <Text style={styles.emptySubtitle}>
+                Try adjusting your genre filter, keyword search, or category format.
+              </Text>
+              <View style={{ marginTop: spacing.sm }}>
+                <Button
+                  title="Reset Filters"
+                  variant="primary"
+                  onPress={() => {
+                    setSearchQuery('');
+                    setSelectedGenre('All');
+                    setTypeFilter('ALL');
+                  }}
+                />
+              </View>
+            </Card>
           </View>
         )}
       </ScrollView>
@@ -280,119 +351,118 @@ export function SeriesScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    gap: 10,
+    borderBottomColor: colors.border,
+    gap: spacing.sm,
   },
   pageTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
+    fontWeight: '700',
     letterSpacing: -0.5,
+    color: colors.text,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    height: 42,
-    borderRadius: 10,
+    height: 40,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    gap: 8,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: typography.caption.fontSize,
     height: '100%',
+    color: colors.text,
   },
   formatRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   formatPill: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   formatPillText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   genreScroll: {
-    gap: 8,
-    paddingVertical: 4,
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   genrePill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   genrePillText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
   },
   resultsBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
-    flexWrap: 'wrap',
-    gap: 8,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   resultsCount: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.textMuted,
   },
   sortBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
     borderWidth: 1,
   },
   sortBtnText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  emptyContainer: {
+  emptyCard: {
+    padding: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
-    gap: 8,
+    gap: spacing.xs,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
     fontWeight: '700',
-    marginTop: 8,
+    color: colors.text,
+    marginTop: spacing.xs,
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
     textAlign: 'center',
-    lineHeight: 18,
-  },
-  resetBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 14,
-  },
-  resetBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    color: colors.textMuted,
   },
 });

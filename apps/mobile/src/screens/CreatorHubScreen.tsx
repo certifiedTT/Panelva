@@ -6,34 +6,33 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
   Alert,
   Share,
   Platform,
   RefreshControl,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { useTheme } from '../theme/ThemeContext';
 import { trpc } from '../../lib/trpc';
 import {
-  CreatorHubIcon,
-  SparklesIcon,
-  PaletteIcon,
-  UsersIcon,
-  HeartIcon,
-  BookmarkIcon,
-  CommentIcon,
-  ShareIcon,
-  UserPlusIcon,
-  TrendingUpIcon,
-  CheckIcon,
-  PlusIcon,
-  BookOpenIcon,
-  EyeIcon,
-} from '../components/common/Icons';
-import { MOCK_CREATOR_POSTS } from '../data/mockData';
+  Compass,
+  Heart,
+  Bookmark,
+  MessageSquare,
+  Share2,
+  Plus,
+  Check,
+  Sparkles,
+  X,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card, Button, Badge, Skeleton, EmptyState, CreatorCard } from '@panelva/ui';
+import { MOCK_CREATOR_POSTS, MOCK_CREATORS } from '../data/mockData';
 import { isCreatorRole } from '../data/mockRoles';
 import { getLocalFeedCache, setLocalFeedCache, CACHE_KEYS } from '../hooks/useFeedPrefetch';
+import { CommentSection } from '../components/comments/CommentSection';
+import { StickerManagerView } from '../components/creator/StickerManagerView';
 
 interface CreatorHubScreenProps {
   sessionToken: string | null;
@@ -54,14 +53,13 @@ export function CreatorHubScreen({
   onViewCreatorProfile,
   onOpenCreatePost,
 }: CreatorHubScreenProps) {
-  const { colors } = useTheme();
-
   const currentRole = dbUser?.role || sessionUser?.role || 'USER';
   const isCreator = isCreatorRole(currentRole);
 
-  // Reader Hub Feeds (Discover, following, featured only - Recent removed)
+  // Reader Hub Feeds (Discover, following, featured)
   const [readerFeedTab, setReaderFeedTab] = useState<'discover' | 'following' | 'featured'>('discover');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [showStickerManager, setShowStickerManager] = useState(false);
 
   // Cached posts for instant 0ms render
   const [cachedPosts, setCachedPosts] = useState<any[]>([]);
@@ -224,29 +222,26 @@ export function CreatorHubScreen({
   };
 
   // Instant fallback priority: Fresh backend data > Local cache > Mock
-  const rawPosts = (hubFeedData?.items && hubFeedData.items.length > 0)
-    ? hubFeedData.items
-    : cachedPosts.length > 0
-    ? cachedPosts
-    : MOCK_CREATOR_POSTS;
+  const rawPosts =
+    hubFeedData?.items && hubFeedData.items.length > 0
+      ? hubFeedData.items
+      : cachedPosts.length > 0
+      ? cachedPosts
+      : MOCK_CREATOR_POSTS;
 
-  const hashtags = [
-    '#ConceptArt',
-    '#BehindTheScenes',
-    '#ChapterPreview',
-    '#Announcement',
-    '#Poll',
-  ];
+  const hashtags = ['#ConceptArt', '#BehindTheScenes', '#ChapterPreview', '#Announcement', '#Poll'];
 
   const filteredPosts = rawPosts.filter((post: any) => {
     if (!selectedTag) return true;
     return (post.content || '').includes(selectedTag) || (post.title || '').includes(selectedTag);
   });
 
+  const isLoadingInitial = feedLoading && cachedPosts.length === 0;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -258,40 +253,60 @@ export function CreatorHubScreen({
         }
       >
         {/* Social Feed Header */}
-        <View style={[styles.header, { backgroundColor: colors.header, borderBottomColor: colors.borderSubtle }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <CreatorHubIcon size={22} color={colors.primary} />
+        <View style={styles.header}>
+          <View style={styles.headerTopRow}>
+            <View style={styles.headerTitleGroup}>
+              <Compass size={22} color={colors.primary} />
               <View>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Creator Hub</Text>
-                <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+                <Text style={styles.headerTitle}>Creator Hub</Text>
+                <Text style={styles.headerSubtitle}>
                   Community social feed • Sketches, polls & updates
                 </Text>
               </View>
             </View>
 
-            {/* Post button for creators */}
+            {/* Actions for creators */}
             {isCreator && (
-              <TouchableOpacity
-                style={[styles.createPostPill, { backgroundColor: colors.primary }]}
-                onPress={onOpenCreatePost}
-                activeOpacity={0.8}
-              >
-                <PlusIcon size={14} color="#FFFFFF" />
-                <Text style={styles.createPostPillText}>Post</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <TouchableOpacity
+                  style={[styles.createPostPill, { backgroundColor: '#1e293b', borderColor: '#334155' }]}
+                  onPress={() => setShowStickerManager(true)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Manage Stickers"
+                >
+                  <Sparkles size={14} color="#60a5fa" />
+                  <Text style={[styles.createPostPillText, { color: '#60a5fa' }]}>Stickers</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.createPostPill}
+                  onPress={onOpenCreatePost}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Create Post"
+                >
+                  <Plus size={14} color={colors.text} />
+                  <Text style={styles.createPostPillText}>Post</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>
 
         {/* Feed Filter Tabs */}
-        <View style={[styles.feedTabsRow, { borderBottomColor: colors.borderSubtle }]}>
+        <View style={styles.feedTabsRow}>
           {(['discover', 'following', 'featured'] as const).map((tab) => {
             const isSelected = readerFeedTab === tab;
             return (
               <TouchableOpacity
                 key={tab}
-                style={[styles.feedTabBtn, isSelected && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                accessibilityRole="button"
+                accessibilityLabel={`${tab} tab`}
+                style={[
+                  styles.feedTabBtn,
+                  isSelected && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
+                ]}
                 onPress={() => {
                   setReaderFeedTab(tab);
                   setSelectedTag(null);
@@ -300,7 +315,10 @@ export function CreatorHubScreen({
                 <Text
                   style={[
                     styles.feedTabText,
-                    { color: isSelected ? colors.primary : colors.textMuted, fontWeight: isSelected ? '700' : '500' },
+                    {
+                      color: isSelected ? colors.primary : colors.textMuted,
+                      fontWeight: isSelected ? '700' : '500',
+                    },
                   ]}
                 >
                   {tab === 'discover' ? 'Discover' : tab === 'following' ? 'Following' : 'Featured'}
@@ -311,18 +329,29 @@ export function CreatorHubScreen({
         </View>
 
         {/* Hot Topics Hashtags */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tagBar}
+        >
           <TouchableOpacity
             style={[
               styles.tagPill,
               {
-                backgroundColor: selectedTag === null ? colors.primary : colors.surfaceElevated,
+                backgroundColor: selectedTag === null ? colors.primary : colors.surface,
                 borderColor: selectedTag === null ? colors.primary : colors.border,
               },
             ]}
             onPress={() => setSelectedTag(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Show all topics"
           >
-            <Text style={[styles.tagText, { color: selectedTag === null ? '#FFFFFF' : colors.textMuted }]}>
+            <Text
+              style={[
+                styles.tagText,
+                { color: selectedTag === null ? colors.text : colors.textMuted },
+              ]}
+            >
               All Topics
             </Text>
           </TouchableOpacity>
@@ -332,23 +361,67 @@ export function CreatorHubScreen({
               style={[
                 styles.tagPill,
                 {
-                  backgroundColor: selectedTag === tag ? colors.primary : colors.surfaceElevated,
+                  backgroundColor: selectedTag === tag ? colors.primary : colors.surface,
                   borderColor: selectedTag === tag ? colors.primary : colors.border,
                 },
               ]}
               onPress={() => setSelectedTag(selectedTag === tag ? null : tag)}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${tag}`}
             >
-              <Text style={[styles.tagText, { color: selectedTag === tag ? '#FFFFFF' : colors.textMuted }]}>
+              <Text
+                style={[
+                  styles.tagText,
+                  { color: selectedTag === tag ? colors.text : colors.textMuted },
+                ]}
+              >
                 {tag}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
+        {/* Featured Creators Showcase (Featured Tab) */}
+        {readerFeedTab === 'featured' && (
+          <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.md, gap: spacing.sm }}>
+            <Text style={{ ...typography.h3, color: colors.text }}>Featured Creators</Text>
+            {MOCK_CREATORS.slice(0, 3).map((creator) => (
+              <CreatorCard
+                key={creator.id}
+                name={creator.penName}
+                handle={creator.user?.username}
+                avatarUrl={creator.user?.avatarUrl}
+                isVerified={creator.isVetted}
+                followersCount={creator.followerCount}
+                isFollowing={!!localFollows[creator.id]}
+                onFollowToggle={() => handleToggleFollow(creator.id, !!localFollows[creator.id])}
+                onPress={() => onViewCreatorProfile(creator.id)}
+              />
+            ))}
+          </View>
+        )}
+
         {/* Feed Posts */}
-        <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
-          {filteredPosts.length > 0 ? (
-            <View style={{ gap: 16 }}>
+        <View style={styles.feedContainer}>
+          {isLoadingInitial ? (
+            /* Skeleton Loader per Panelva Engineering Standards */
+            <View style={{ gap: spacing.md }}>
+              {[1, 2, 3].map((placeholder) => (
+                <Card key={placeholder} style={{ gap: spacing.md }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Skeleton width={40} height={40} borderRadius={radius.full} />
+                    <View style={{ gap: spacing.xs, flex: 1 }}>
+                      <Skeleton width="45%" height={12} borderRadius={radius.sm} />
+                      <Skeleton width="25%" height={8} borderRadius={radius.sm} />
+                    </View>
+                  </View>
+                  <Skeleton width="70%" height={16} borderRadius={radius.sm} />
+                  <Skeleton width="100%" height={64} borderRadius={radius.md} />
+                </Card>
+              ))}
+            </View>
+          ) : filteredPosts.length > 0 ? (
+            <View style={{ gap: spacing.md }}>
               {filteredPosts.map((post: any) => {
                 const media = (() => {
                   if (Array.isArray(post.mediaUrls)) return post.mediaUrls;
@@ -367,7 +440,8 @@ export function CreatorHubScreen({
                   }
                 })();
                 const pollVotes = (() => {
-                  if (typeof post.pollVotes === 'object' && post.pollVotes !== null) return post.pollVotes;
+                  if (typeof post.pollVotes === 'object' && post.pollVotes !== null)
+                    return post.pollVotes;
                   try {
                     return JSON.parse(post.pollVotes || '{}');
                   } catch {
@@ -375,97 +449,115 @@ export function CreatorHubScreen({
                   }
                 })();
 
-                const userVotedChoice = localPollVotes[post.id] !== undefined
-                  ? localPollVotes[post.id]
-                  : dbUser?.id
-                  ? pollVotes[dbUser.id]
-                  : undefined;
+                const userVotedChoice =
+                  localPollVotes[post.id] !== undefined
+                    ? localPollVotes[post.id]
+                    : dbUser?.id
+                    ? pollVotes[dbUser.id]
+                    : undefined;
 
                 const isAuthor = dbUser?.id && post.creatorProfile?.userId === dbUser.id;
                 const serverFollow = post.isFollowing ?? false;
-                const isFollowed = localFollows[post.creatorProfileId] !== undefined
-                  ? localFollows[post.creatorProfileId]
-                  : serverFollow;
+                const isFollowed =
+                  localFollows[post.creatorProfileId] !== undefined
+                    ? localFollows[post.creatorProfileId]
+                    : serverFollow;
 
-                const serverLiked = post.isLiked ?? (dbUser?.id ? post.likes?.some((l: any) => l.userId === dbUser.id) : false);
-                const isLiked = localLikes[post.id] !== undefined ? localLikes[post.id] : serverLiked;
+                const serverLiked =
+                  post.isLiked ??
+                  (dbUser?.id ? post.likes?.some((l: any) => l.userId === dbUser.id) : false);
+                const isLiked =
+                  localLikes[post.id] !== undefined ? localLikes[post.id] : serverLiked;
                 const rawLikesCount = post.likes?.length || 0;
-                const likesCount = isLiked === serverLiked ? rawLikesCount : isLiked ? rawLikesCount + 1 : Math.max(0, rawLikesCount - 1);
+                const likesCount =
+                  isLiked === serverLiked
+                    ? rawLikesCount
+                    : isLiked
+                    ? rawLikesCount + 1
+                    : Math.max(0, rawLikesCount - 1);
 
-                const serverBookmarked = post.isBookmarked ?? (dbUser?.id ? post.bookmarks?.some((b: any) => b.userId === dbUser.id) : false);
-                const isBookmarked = localBookmarks[post.id] !== undefined ? localBookmarks[post.id] : serverBookmarked;
+                const serverBookmarked =
+                  post.isBookmarked ??
+                  (dbUser?.id ? post.bookmarks?.some((b: any) => b.userId === dbUser.id) : false);
+                const isBookmarked =
+                  localBookmarks[post.id] !== undefined
+                    ? localBookmarks[post.id]
+                    : serverBookmarked;
 
                 return (
-                  <View
-                    key={post.id}
-                    style={[styles.postCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-                  >
+                  <Card key={post.id} style={{ gap: spacing.md }}>
                     {/* Creator Header & Direct Follow */}
                     <View style={styles.postAuthorRow}>
                       <TouchableOpacity
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}
+                        style={styles.authorProfileButton}
                         onPress={() => onViewCreatorProfile(post.creatorProfileId)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ${post.creatorProfile?.penName || 'creator'} profile`}
                       >
-                        <View style={[styles.postAvatar, { backgroundColor: colors.primary }]}>
+                        <View style={styles.postAvatar}>
                           <Text style={styles.postAvatarText}>
                             {post.creatorProfile?.penName?.charAt(0).toUpperCase() || 'C'}
                           </Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[styles.postAuthorName, { color: colors.text }]}>
+                          <View style={styles.authorNameRow}>
+                            <Text style={styles.postAuthorName}>
                               {post.creatorProfile?.penName || 'Creator'}
                             </Text>
                             {post.creatorProfile?.isVetted && (
-                              <View style={[styles.verifiedTag, { backgroundColor: colors.primaryMuted }]}>
-                                <Text style={[styles.verifiedTagText, { color: colors.primary }]}>Verified</Text>
-                              </View>
+                              <Badge variant="primary" size="sm">
+                                Verified
+                              </Badge>
                             )}
                           </View>
-                          <Text style={[styles.postDate, { color: colors.textMuted }]}>
-                            {new Date(post.createdAt).toLocaleDateString()} • {post.type?.replace('_', ' ')}
+                          <Text style={styles.postDate}>
+                            {new Date(post.createdAt).toLocaleDateString()} •{' '}
+                            {post.type?.replace('_', ' ')}
                           </Text>
                         </View>
                       </TouchableOpacity>
 
                       {/* Direct Follow Button */}
                       {!isAuthor && (
-                        <TouchableOpacity
-                          style={[
-                            styles.postFollowBtn,
-                            {
-                              backgroundColor: isFollowed ? colors.surface : colors.primary,
-                              borderColor: isFollowed ? colors.border : colors.primary,
-                            },
-                          ]}
-                          onPress={() => handleToggleFollow(post.creatorProfileId, isFollowed, post.creatorProfile?.penName)}
-                          activeOpacity={0.7}
+                        <Button
+                          size="sm"
+                          variant={isFollowed ? "outline" : "primary"}
+                          onPress={() => handleToggleFollow(post.creatorProfileId, isFollowed)}
+                          leftIcon={
+                            isFollowed ? (
+                              <Check size={12} color={colors.text} />
+                            ) : (
+                              <Plus size={12} color={colors.text} />
+                            )
+                          }
                         >
-                          <Text style={[styles.postFollowText, { color: isFollowed ? colors.textMuted : '#FFFFFF' }]}>
-                            {isFollowed ? 'Following' : '+ Follow'}
-                          </Text>
-                        </TouchableOpacity>
+                          {isFollowed ? 'Following' : 'Follow'}
+                        </Button>
                       )}
                     </View>
 
                     {/* Post Content */}
-                    <Text style={[styles.postTitle, { color: colors.text }]}>{post.title}</Text>
-                    <Text style={[styles.postBody, { color: colors.textSecondary }]}>{post.content}</Text>
+                    <Text style={styles.postTitle}>{post.title}</Text>
+                    <Text style={styles.postBody}>{post.content}</Text>
 
                     {/* Media Artwork Image */}
                     {media.length > 0 && (
                       <View style={styles.postMediaContainer}>
-                        <ExpoImage source={{ uri: media[0] }} style={styles.postMediaImg} contentFit="cover" />
+                        <ExpoImage
+                          source={{ uri: media[0] }}
+                          style={styles.postMediaImg}
+                          contentFit="cover"
+                        />
                       </View>
                     )}
 
                     {/* Poll Component */}
                     {pollOpts.length > 0 && (
-                      <View style={[styles.pollBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <Text style={[styles.pollHeading, { color: colors.textSecondary }]}>Interactive Poll</Text>
-                          <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>Active Voting</Text>
+                      <View style={styles.pollBox}>
+                        <View style={styles.pollHeadingRow}>
+                          <Text style={styles.pollHeading}>Interactive Poll</Text>
+                          <Text style={styles.pollActiveTag}>Active Voting</Text>
                         </View>
                         {pollOpts.map((opt: string, idx: number) => {
                           const isSelected = userVotedChoice === idx;
@@ -475,16 +567,25 @@ export function CreatorHubScreen({
                               style={[
                                 styles.pollOptionBtn,
                                 {
-                                  backgroundColor: isSelected ? colors.primaryMuted : colors.surfaceElevated,
+                                  backgroundColor: isSelected ? colors.card : colors.surface,
                                   borderColor: isSelected ? colors.primary : colors.border,
                                 },
                               ]}
                               onPress={() => handleVotePoll(post.id, idx)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Vote for ${opt}`}
                             >
-                              <Text style={{ fontSize: 12, color: colors.text, fontWeight: isSelected ? '700' : '500' }}>
+                              <Text
+                                style={{
+                                  fontSize: typography.caption.fontSize,
+                                  lineHeight: typography.caption.lineHeight,
+                                  color: colors.text,
+                                  fontWeight: isSelected ? '700' : '500',
+                                }}
+                              >
                                 {opt}
                               </Text>
-                              {isSelected && <CheckIcon size={14} color={colors.primary} />}
+                              {isSelected && <Check size={14} color={colors.primary} />}
                             </TouchableOpacity>
                           );
                         })}
@@ -492,18 +593,26 @@ export function CreatorHubScreen({
                     )}
 
                     {/* Action Bar: Likes, Comments, Bookmark, Share */}
-                    <View style={[styles.actionBar, { borderTopColor: colors.borderSubtle }]}>
+                    <View style={styles.actionBar}>
                       <TouchableOpacity
                         style={styles.actionBtn}
                         onPress={() => handleLikePost(post.id, serverLiked)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Like post"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <HeartIcon
+                        <Heart
                           size={18}
-                          color={isLiked ? colors.error : colors.textMuted}
-                          fill={isLiked ? colors.error : 'none'}
+                          color={isLiked ? colors.danger : colors.textMuted}
+                          fill={isLiked ? colors.danger : 'transparent'}
                         />
-                        <Text style={[styles.actionBtnText, { color: isLiked ? colors.error : colors.textMuted }]}>
+                        <Text
+                          style={[
+                            styles.actionBtnText,
+                            { color: isLiked ? colors.danger : colors.textMuted },
+                          ]}
+                        >
                           {likesCount}
                         </Text>
                       </TouchableOpacity>
@@ -514,8 +623,11 @@ export function CreatorHubScreen({
                           setActiveCommentPostId(activeCommentPostId === post.id ? null : post.id)
                         }
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="View comments"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <CommentIcon size={18} color={colors.textMuted} />
+                        <MessageSquare size={18} color={colors.textMuted} />
                         <Text style={[styles.actionBtnText, { color: colors.textMuted }]}>
                           {post.comments?.length || 0}
                         </Text>
@@ -525,11 +637,14 @@ export function CreatorHubScreen({
                         style={styles.actionBtn}
                         onPress={() => handleBookmarkPost(post.id, serverBookmarked)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Bookmark post"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <BookmarkIcon
+                        <Bookmark
                           size={18}
                           color={isBookmarked ? colors.primary : colors.textMuted}
-                          fill={isBookmarked ? colors.primary : 'none'}
+                          fill={isBookmarked ? colors.primary : 'transparent'}
                         />
                       </TouchableOpacity>
 
@@ -537,60 +652,81 @@ export function CreatorHubScreen({
                         style={styles.actionBtn}
                         onPress={() => handleSharePost(post)}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Share post"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <ShareIcon size={18} color={colors.textMuted} />
+                        <Share2 size={18} color={colors.textMuted} />
                       </TouchableOpacity>
                     </View>
 
-                    {/* Comment Input Box */}
+                    {/* Shared Interactive TikTok-Style Comment System */}
                     {activeCommentPostId === post.id && (
-                      <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
-                        {post.comments && post.comments.length > 0 && (
-                          <View style={{ gap: 6, marginBottom: 8 }}>
-                            {post.comments.map((c: any) => (
-                              <View key={c.id} style={{ flexDirection: 'row', gap: 6 }}>
-                                <Text style={[styles.commentAuthor, { color: colors.primary }]}>
-                                  @{c.user?.username || 'Reader'}:
-                                </Text>
-                                <Text style={[styles.commentBody, { color: colors.textSecondary }]}> {c.content}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        )}
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                          <TextInput
-                            style={[styles.commentInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                            placeholder="Write a comment..."
-                            placeholderTextColor={colors.textMuted}
-                            value={commentText}
-                            onChangeText={setCommentText}
-                          />
-                          <TouchableOpacity
-                            style={[styles.sendCommentBtn, { backgroundColor: colors.primary }]}
-                            onPress={() => handleSendComment(post.id)}
-                          >
-                            <Text style={styles.sendCommentBtnText}>Post</Text>
-                          </TouchableOpacity>
-                        </View>
+                      <View style={{ marginTop: spacing.sm, height: 380, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+                        <CommentSection
+                          contextType="post"
+                          targetId={post.id}
+                          sessionToken={sessionToken}
+                          currentUser={dbUser}
+                          onRequireAuth={onRequireAuth}
+                          title="Post Comments"
+                          subtitle={post.title}
+                        />
                       </View>
                     )}
-                  </View>
+                  </Card>
                 );
               })}
             </View>
           ) : (
-            <View style={styles.emptyFeedBox}>
-              <CreatorHubIcon size={44} color={colors.textMuted} />
-              <Text style={[styles.emptyFeedTitle, { color: colors.text }]}>No Updates Found</Text>
-              <Text style={[styles.emptyFeedSub, { color: colors.textMuted }]}>
-                {readerFeedTab === 'following'
+            <EmptyState
+              icon={<Compass size={36} color={colors.primary} />}
+              title="No Updates Found"
+              description={
+                readerFeedTab === 'following'
                   ? 'Follow creators to see their latest illustrations, novels, and polls here.'
-                  : 'Be the first to explore discover & featured creator updates.'}
-              </Text>
-            </View>
+                  : 'Be the first to explore discover & featured creator updates.'
+              }
+              actionLabel={readerFeedTab === 'following' ? 'Explore Discover Feed' : undefined}
+              onAction={readerFeedTab === 'following' ? () => setReaderFeedTab('discover') : undefined}
+            />
           )}
         </View>
       </ScrollView>
+
+      {/* Creator Studio Sticker Packs Manager Modal */}
+      <Modal
+        visible={showStickerManager}
+        animationType="slide"
+        onRequestClose={() => setShowStickerManager(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#0f172a' }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              borderBottomWidth: 1,
+              borderBottomColor: '#1e293b',
+            }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
+              Creator Studio • Sticker Packs
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowStickerManager(false)}
+              style={{ padding: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close Sticker Manager"
+            >
+              <X size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
+          <StickerManagerView />
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -598,210 +734,267 @@ export function CreatorHubScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
   },
   headerSubtitle: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   createPostPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
   createPostPillText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    color: colors.text,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   feedTabsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   feedTabBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginRight: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.sm,
   },
   feedTabText: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
   },
   tagBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   tagPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   tagText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
-  postCard: {
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
+  feedContainer: {
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
   },
   postAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
+    justifyContent: 'space-between',
+  },
+  authorProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  authorNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   postAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   postAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  postAuthorName: {
-    fontSize: 14,
+    color: colors.text,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
   },
-  verifiedTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  verifiedTagText: {
-    fontSize: 9,
-    fontWeight: '800',
+  postAuthorName: {
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   postFollowBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   postFollowText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   postDate: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   postTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: typography.h3.fontWeight,
+    color: colors.text,
   },
   postBody: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    color: colors.textMuted,
   },
   postMediaContainer: {
-    marginTop: 10,
-    borderRadius: 10,
+    borderRadius: radius.md,
     overflow: 'hidden',
     height: 200,
+    backgroundColor: colors.surface,
   },
   postMediaImg: {
     width: '100%',
     height: '100%',
   },
   pollBox: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 10,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
-    gap: 8,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  pollHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
   },
   pollHeading: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
     textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  pollActiveTag: {
+    fontSize: typography.caption.fontSize,
+    color: colors.primary,
+    fontWeight: '700',
   },
   pollOptionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
   },
   actionBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 10,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    minHeight: 40,
   },
   actionBtnText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
+  commentSection: {
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
   commentAuthor: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
+    color: colors.primary,
   },
   commentBody: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   commentInput: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 12,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.caption.fontSize,
+    color: colors.text,
   },
   sendCommentBtn: {
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 40,
   },
   sendCommentBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    color: colors.text,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   emptyFeedBox: {
-    padding: 30,
+    padding: spacing.xl,
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.md,
   },
   emptyFeedTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
+    fontWeight: typography.h2.fontWeight,
+    color: colors.text,
   },
   emptyFeedSub: {
-    fontSize: 12,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
     textAlign: 'center',
-    lineHeight: 16,
+    color: colors.textMuted,
   },
 });

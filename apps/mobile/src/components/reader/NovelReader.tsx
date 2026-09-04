@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 import { Chapter } from '../../types';
-import { ChevronRightIcon } from '../common/Icons';
+import { ChevronRight } from 'lucide-react-native';
 
 export interface NovelReaderProps {
   chapter: Chapter;
@@ -135,7 +135,7 @@ export function NovelReader({
               activeOpacity={0.85}
             >
               <Text style={styles.nextChapterBtnText}>Read Next Chapter</Text>
-              <ChevronRightIcon size={16} color="#FFFFFF" />
+              <ChevronRight size={16} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>

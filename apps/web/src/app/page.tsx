@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { GlowingShadow } from "../components/GlowingShadow";
+import { Card, Button } from "@panelva/ui";
+import { Sparkles } from "lucide-react";
 import { CarouselSection } from "../components/CarouselSection";
 import HeroAndShowcase from "../components/HeroAndShowcase";
 import { comics, novels, bingeSeries, seasonReturns, earlyAccess, originals } from "@/lib/mockData";
@@ -180,19 +181,22 @@ export default async function HomePage() {
           seeAllLink="/premium"
         />}
 
-        {/* Premium Promo Section showcasing the Glowing Shadow Card */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2rem", marginTop: "4rem", borderTop: "1px solid var(--border-color)", paddingTop: "4rem", paddingBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.35rem", fontWeight: 750, margin: 0, textAlign: "center", color: "var(--text-color, #fff)", fontFamily: "var(--font-display)" }}>Experience Panelva Premium</h2>
-          <p style={{ color: "var(--text-muted-color)", textAlign: "center", margin: 0, maxWidth: "500px" }}>
-            Get unlimited access to exclusive chapters, ad-free reading, and premium splits with creator support.
-          </p>
-          
-          <GlowingShadow>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center", textAlign: "center", color: "#fff" }}>
-              <span style={{ fontSize: "1.5rem", fontWeight: 900 }}>Panelva +</span>
-              <span style={{ fontSize: "0.85rem", color: "#a78bfa" }}>Unlock All Features</span>
+        {/* Premium Promo Section */}
+        <div className="mt-16 pt-16 pb-8 border-t border-slate-800/80 flex flex-col items-center">
+          <Card className="p-8 max-w-xl w-full flex flex-col items-center text-center gap-4 border border-slate-800">
+            <div className="w-12 h-12 rounded-xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-blue-400" />
             </div>
-          </GlowingShadow>
+            <h2 className="text-xl font-bold text-white">Experience Panelva Premium</h2>
+            <p className="text-sm text-slate-400 max-w-md leading-relaxed">
+              Get unlimited access to exclusive chapters, ad-free reading, and premium splits with direct creator support.
+            </p>
+            <Link href="/premium" className="mt-2">
+              <Button variant="primary" size="lg" leftIcon={<Sparkles className="w-4 h-4" />}>
+                Unlock Panelva +
+              </Button>
+            </Link>
+          </Card>
         </div>
 
       </div>

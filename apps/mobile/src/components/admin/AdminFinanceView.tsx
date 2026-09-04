@@ -5,38 +5,47 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useTheme } from '../../theme/ThemeContext';
-import { trpc } from '../../../lib/trpc';
 import {
-  CreditsIcon,
-  RefreshCwIcon,
-  ActivityIcon,
-  CheckIcon,
-  CloseIcon,
-  SparklesIcon,
-  TrendingUpIcon,
-  BookmarkIcon,
-  UsersIcon,
-} from '../common/Icons';
+  TrendingUp,
+  Coins,
+  Activity,
+  FileText,
+  Bookmark,
+  Sparkles,
+  Download,
+  AlertCircle,
+  Clock,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
+import { Badge } from '@panelva/ui';
+import { trpc } from '../../../lib/trpc';
 import { MOCK_FINANCIAL_OVERVIEW } from '../../data/mockData';
 
 type FinanceSubSection = 'platform_earnings' | 'payouts' | 'transactions' | 'reports';
 
+function FinanceSkeleton() {
+  return (
+    <View style={[styles.container, { padding: spacing.md, gap: spacing.md }]}>
+      <Card style={{ height: 48, backgroundColor: colors.surface }} />
+      <Card style={{ height: 96, backgroundColor: colors.surface }} />
+      <Card style={{ height: 240, backgroundColor: colors.surface }} />
+      <Card style={{ height: 160, backgroundColor: colors.surface }} />
+    </View>
+  );
+}
+
 export function AdminFinanceView() {
-  const { colors } = useTheme();
   const [activeSection, setActiveSection] = useState<FinanceSubSection>('platform_earnings');
 
   // Filters
   const [dateRange, setDateRange] = useState<'Today' | '7D' | '30D' | '90D' | '1Y'>('30D');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCurrency, setSelectedCurrency] = useState('USD ($)');
-  const [selectedProvider, setSelectedProvider] = useState('All Providers');
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Payouts state
   const [payoutList, setPayoutList] = useState([
@@ -105,12 +114,16 @@ export function AdminFinanceView() {
   };
 
   const handleExport = (format: string) => {
-    Alert.alert('Export Generated', `Financial Report (${format}) exported with active filter: ${dateRange}, ${selectedRegion}, ${selectedProvider}.`);
+    Alert.alert('Export Generated', `Financial Report (${format}) exported with active filter: ${dateRange}, ${selectedRegion}, ${selectedCurrency}.`);
   };
+
+  if (isLoading && !effectiveFinance) {
+    return <FinanceSkeleton />;
+  }
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.bg }]}
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -122,7 +135,7 @@ export function AdminFinanceView() {
       }
     >
       {/* Sub-Section Navigation Tabs */}
-      <View style={[styles.subTabsRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.borderSubtle }]}>
+      <View style={styles.subTabsRow}>
         {[
           { id: 'platform_earnings', label: 'Platform Earnings' },
           { id: 'payouts', label: 'Creator Payouts' },
@@ -133,6 +146,9 @@ export function AdminFinanceView() {
           return (
             <TouchableOpacity
               key={tab.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSelected }}
+              accessibilityLabel={tab.label}
               style={[
                 styles.subTabBtn,
                 {
@@ -145,8 +161,8 @@ export function AdminFinanceView() {
                 style={[
                   styles.subTabText,
                   {
-                    color: isSelected ? '#FFFFFF' : colors.textMuted,
-                    fontWeight: isSelected ? '800' : '600',
+                    color: isSelected ? colors.text : colors.textMuted,
+                    fontWeight: isSelected ? '700' : '500',
                   },
                 ]}
               >
@@ -158,100 +174,111 @@ export function AdminFinanceView() {
       </View>
 
       {/* Global Filter Bar */}
-      <View style={[styles.filterCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.borderSubtle }]}>
+      <Card style={styles.filterCard}>
         <View style={styles.filterTopRow}>
-          <Text style={[styles.filterLabel, { color: colors.textMuted }]}>TIMEFRAME:</Text>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {(['Today', '7D', '30D', '90D', '1Y'] as const).map((r) => (
-              <TouchableOpacity
-                key={r}
-                style={[
-                  styles.rangeBtn,
-                  {
-                    backgroundColor: dateRange === r ? colors.primary : colors.surface,
-                    borderColor: dateRange === r ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setDateRange(r)}
-              >
-                <Text style={{ fontSize: 10, fontWeight: '800', color: dateRange === r ? '#FFFFFF' : colors.text }}>
-                  {r}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <Text style={styles.filterLabel}>TIMEFRAME</Text>
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            {(['Today', '7D', '30D', '90D', '1Y'] as const).map((r) => {
+              const isSelected = dateRange === r;
+              return (
+                <TouchableOpacity
+                  key={r}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`Filter by ${r}`}
+                  style={[
+                    styles.rangeBtn,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setDateRange(r)}
+                >
+                  <Text
+                    style={[
+                      styles.rangeBtnText,
+                      { color: isSelected ? colors.text : colors.textMuted },
+                    ]}
+                  >
+                    {r}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-          <View style={[styles.selectBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.selectText, { color: colors.text }]}>{selectedRegion}</Text>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+          <View style={styles.selectBox}>
+            <Text style={styles.selectText}>{selectedRegion}</Text>
           </View>
-          <View style={[styles.selectBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.selectText, { color: colors.text }]}>{selectedCurrency}</Text>
+          <View style={styles.selectBox}>
+            <Text style={styles.selectText}>{selectedCurrency}</Text>
           </View>
         </View>
-      </View>
+      </Card>
 
       {/* ─── 1. PLATFORM EARNINGS SUBSECTION ─── */}
       {activeSection === 'platform_earnings' && (
-        <View style={{ gap: 16 }}>
+        <View style={{ gap: spacing.md }}>
           {/* Platform Revenue KPI Grid */}
-          <View style={[styles.kpiCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Platform Revenue Summary ({dateRange})</Text>
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Platform Revenue Summary ({dateRange})</Text>
             <View style={styles.kpiGrid}>
-              <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                <Text style={[styles.kpiVal, { color: colors.text }]}>${platformEarnings.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Gross Volume</Text>
+              <View style={styles.kpiBox}>
+                <Text style={styles.kpiVal}>${platformEarnings.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                <Text style={styles.kpiLabel}>Gross Volume</Text>
               </View>
-              <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+              <View style={styles.kpiBox}>
                 <Text style={[styles.kpiVal, { color: colors.success }]}>${platformEarnings.netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Net Platform Cut</Text>
+                <Text style={styles.kpiLabel}>Net Platform Cut</Text>
               </View>
-              <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+              <View style={styles.kpiBox}>
                 <Text style={[styles.kpiVal, { color: colors.primary }]}>${platformEarnings.creatorPayouts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Creator Earnings</Text>
+                <Text style={styles.kpiLabel}>Creator Earnings</Text>
               </View>
-              <View style={[styles.kpiBox, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                <Text style={[styles.kpiVal, { color: colors.error }]}>${platformEarnings.refunds.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Refunds & Disputes</Text>
+              <View style={styles.kpiBox}>
+                <Text style={[styles.kpiVal, { color: colors.danger }]}>${platformEarnings.refunds.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                <Text style={styles.kpiLabel}>Refunds & Disputes</Text>
               </View>
             </View>
 
             {/* MRR / ARR / ARPU Indicators */}
             <View style={styles.metricsRow}>
               <View style={styles.metricItem}>
-                <Text style={[styles.metricSub, { color: colors.textMuted }]}>MRR</Text>
-                <Text style={[styles.metricMain, { color: colors.text }]}>${platformEarnings.mrr.toLocaleString()}</Text>
+                <Text style={styles.metricSub}>MRR</Text>
+                <Text style={styles.metricMain}>${platformEarnings.mrr.toLocaleString()}</Text>
               </View>
               <View style={styles.metricItem}>
-                <Text style={[styles.metricSub, { color: colors.textMuted }]}>ARR</Text>
-                <Text style={[styles.metricMain, { color: colors.text }]}>${platformEarnings.arr.toLocaleString()}</Text>
+                <Text style={styles.metricSub}>ARR</Text>
+                <Text style={styles.metricMain}>${platformEarnings.arr.toLocaleString()}</Text>
               </View>
               <View style={styles.metricItem}>
-                <Text style={[styles.metricSub, { color: colors.textMuted }]}>ARPU</Text>
-                <Text style={[styles.metricMain, { color: colors.text }]}>${platformEarnings.arpu.toFixed(2)}</Text>
+                <Text style={styles.metricSub}>ARPU</Text>
+                <Text style={styles.metricMain}>${platformEarnings.arpu.toFixed(2)}</Text>
               </View>
               <View style={styles.metricItem}>
-                <Text style={[styles.metricSub, { color: colors.textMuted }]}>ARPPU</Text>
-                <Text style={[styles.metricMain, { color: colors.text }]}>${platformEarnings.arppu.toFixed(2)}</Text>
+                <Text style={styles.metricSub}>ARPPU</Text>
+                <Text style={styles.metricMain}>${platformEarnings.arppu.toFixed(2)}</Text>
               </View>
             </View>
-          </View>
+          </Card>
 
           {/* Revenue Streams Breakdown */}
-          <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Tracked Revenue Streams</Text>
-            <View style={{ gap: 10, marginTop: 12 }}>
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Tracked Revenue Streams</Text>
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
               {revenueStreams.map((stream, idx) => (
-                <View key={idx} style={[styles.streamRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+                <View key={idx} style={styles.streamRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.streamName, { color: colors.text }]}>{stream.name}</Text>
-                    <Text style={[styles.streamCat, { color: colors.textMuted }]}>
+                    <Text style={styles.streamName}>{stream.name}</Text>
+                    <Text style={styles.streamCat}>
                       {stream.category} • Platform Share: {stream.platformCut}
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.streamVal, { color: colors.text }]}>
+                    <Text style={styles.streamVal}>
                       ${stream.gross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Text>
                     <Text style={[styles.streamGrowth, { color: colors.success }]}>{stream.growth}</Text>
@@ -259,176 +286,181 @@ export function AdminFinanceView() {
                 </View>
               ))}
             </View>
-          </View>
+          </Card>
         </View>
       )}
 
       {/* ─── 2. CREATOR PAYOUTS SUBSECTION ─── */}
       {activeSection === 'payouts' && (
-        <View style={{ gap: 16 }}>
-          <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Payout Requests Queue ({payoutList.length})</Text>
+        <View style={{ gap: spacing.md }}>
+          <Card style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.sectionTitle}>Payout Requests Queue ({payoutList.length})</Text>
               <TouchableOpacity
-                style={[styles.exportBtn, { backgroundColor: colors.primaryMuted }]}
+                accessibilityRole="button"
+                accessibilityLabel="Export Payouts CSV"
+                style={styles.exportBtn}
                 onPress={() => handleExport('CSV')}
               >
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>Export Payouts</Text>
+                <Download size={14} color={colors.primary} />
+                <Text style={styles.exportBtnText}>Export</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={{ gap: 12, marginTop: 14 }}>
-              {payoutList.map((p) => (
-                <View key={p.id} style={[styles.payoutCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View>
-                      <Text style={[styles.payoutId, { color: colors.primary }]}>{p.id}</Text>
-                      <Text style={[styles.payoutCreator, { color: colors.text }]}>@{p.penName} ({p.creator})</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor:
-                            p.status === 'PAID'
-                              ? colors.success + '25'
-                              : p.status === 'APPROVED'
-                              ? colors.primaryMuted
-                              : p.status === 'PENDING'
-                              ? (colors.accentGold || '#F59E0B') + '25'
-                              : colors.error + '25',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.statusBadgeText,
-                          {
-                            color:
-                              p.status === 'PAID'
-                                ? colors.success
-                                : p.status === 'APPROVED'
-                                ? colors.primary
-                                : p.status === 'PENDING'
-                                ? colors.accentGold || '#F59E0B'
-                                : colors.error,
-                          },
-                        ]}
+            {payoutList.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Coins size={36} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>No Payout Requests</Text>
+                <Text style={styles.emptySub}>
+                  All creator disbursements have been cleared for this settlement cycle.
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                {payoutList.map((p) => (
+                  <View key={p.id} style={styles.payoutCard}>
+                    <View style={styles.payoutHeaderRow}>
+                      <View>
+                        <Text style={styles.payoutId}>{p.id}</Text>
+                        <Text style={styles.payoutCreator}>@{p.penName} ({p.creator})</Text>
+                      </View>
+                      <Badge
+                        variant={
+                          p.status === 'PAID'
+                            ? 'success'
+                            : p.status === 'APPROVED'
+                            ? 'primary'
+                            : p.status === 'PENDING'
+                            ? 'warning'
+                            : 'danger'
+                        }
+                        size="sm"
                       >
                         {p.status}
+                      </Badge>
+                    </View>
+
+                    <View style={styles.payoutDetailRow}>
+                      <Text style={styles.payoutMethod}>{p.method} • {p.date}</Text>
+                      <Text style={styles.payoutAmount}>
+                        ${p.net.toFixed(2)}{' '}
+                        <Text style={styles.payoutFeeText}>(Fee: ${p.fee.toFixed(2)})</Text>
                       </Text>
                     </View>
-                  </View>
 
-                  <View style={[styles.payoutDetailRow, { borderTopColor: colors.borderSubtle }]}>
-                    <Text style={[styles.payoutMethod, { color: colors.textMuted }]}>{p.method} • {p.date}</Text>
-                    <Text style={[styles.payoutAmount, { color: colors.text }]}>
-                      ${p.net.toFixed(2)} <Text style={{ fontSize: 10, color: colors.textMuted }}>(Fee: ${p.fee.toFixed(2)})</Text>
-                    </Text>
+                    {p.status === 'PENDING' && (
+                      <View style={styles.payoutActionRow}>
+                        <View style={{ flex: 1 }}>
+                          <Button
+                            title="Approve Payout"
+                            variant="primary"
+                            onPress={() => handleApprovePayout(p.id)}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Button
+                            title="Reject"
+                            variant="secondary"
+                            onPress={() => handleRejectPayout(p.id)}
+                          />
+                        </View>
+                      </View>
+                    )}
                   </View>
-
-                  {p.status === 'PENDING' && (
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                      <TouchableOpacity
-                        style={[styles.payoutActionBtn, { backgroundColor: colors.success, flex: 1 }]}
-                        onPress={() => handleApprovePayout(p.id)}
-                      >
-                        <Text style={styles.payoutActionBtnText}>Approve Payout</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.payoutActionBtn, { backgroundColor: colors.error, flex: 1 }]}
-                        onPress={() => handleRejectPayout(p.id)}
-                      >
-                        <Text style={styles.payoutActionBtnText}>Reject</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
+                ))}
+              </View>
+            )}
+          </Card>
         </View>
       )}
 
       {/* ─── 3. TRANSACTIONS LEDGER SUBSECTION ─── */}
       {activeSection === 'transactions' && (
-        <View style={{ gap: 16 }}>
-          <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Real-Time Transactions Ledger</Text>
-            <Text style={[styles.helperText, { color: colors.textMuted }]}>
+        <View style={{ gap: spacing.md }}>
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Real-Time Transactions Ledger</Text>
+            <Text style={styles.helperText}>
               Immutable double-entry coin circulation and virtual currency flow.
             </Text>
 
-            <View style={{ gap: 10, marginTop: 14 }}>
-              {(effectiveFinance?.recentLedgerEntries || []).slice(0, 10).map((entry: any) => (
-                <View key={entry.id} style={[styles.streamRow, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.streamName, { color: colors.text }]}>{entry.type}</Text>
-                    <Text style={[styles.streamCat, { color: colors.textMuted }]}>
-                      {entry.description || `Ledger Tx #${entry.id.substring(0, 8)}`}
+            {(effectiveFinance?.recentLedgerEntries || []).length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Activity size={36} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>No Transactions Found</Text>
+                <Text style={styles.emptySub}>
+                  No recent ledger entries recorded in this active reporting window.
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                {(effectiveFinance?.recentLedgerEntries || []).slice(0, 10).map((entry: any) => (
+                  <View key={entry.id} style={styles.streamRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.streamName}>{entry.type}</Text>
+                      <Text style={styles.streamCat}>
+                        {entry.description || `Ledger Tx #${entry.id.substring(0, 8)}`}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.streamVal,
+                        { color: entry.type === 'RECHARGE' ? colors.success : colors.text },
+                      ]}
+                    >
+                      {entry.type === 'RECHARGE' ? '+' : ''}{entry.amount} Credits
                     </Text>
                   </View>
-                  <Text style={[styles.streamVal, { color: entry.type === 'RECHARGE' ? colors.success : colors.text }]}>
-                    {entry.type === 'RECHARGE' ? '+' : ''}{entry.amount} Credits
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
+                ))}
+              </View>
+            )}
+          </Card>
         </View>
       )}
 
       {/* ─── 4. FINANCIAL REPORTS SUBSECTION ─── */}
       {activeSection === 'reports' && (
-        <View style={{ gap: 16 }}>
-          <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Financial Operations & Tax Exports</Text>
-            <Text style={[styles.helperText, { color: colors.textMuted }]}>
+        <View style={{ gap: spacing.md }}>
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Financial Operations & Tax Exports</Text>
+            <Text style={styles.helperText}>
               Generate audited profit & loss statements, creator disbursement ledgers, and tax compliance data.
             </Text>
 
-            <View style={{ gap: 12, marginTop: 16 }}>
+            <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
               {[
-                { title: 'Profit & Loss Statement (P&L)', desc: 'Quarterly GAAP revenue, platform expenses & creator cut', icon: TrendingUpIcon },
-                { title: 'Creator 1099-MISC & Tax Ledger', desc: 'Disbursement withholding reports for international creators', icon: BookmarkIcon },
-                { title: 'Virtual Currency Circulation Audit', desc: 'Authoritative double-entry CoinLedger balance sheet', icon: CreditsIcon },
-                { title: 'Subscription Churn & LTV Analysis', desc: 'Cohort retention across Plus and Premium subscribers', icon: ActivityIcon },
+                { title: 'Profit & Loss Statement (P&L)', desc: 'Quarterly GAAP revenue, platform expenses & creator cut', icon: TrendingUp },
+                { title: 'Creator 1099-MISC & Tax Ledger', desc: 'Disbursement withholding reports for international creators', icon: Bookmark },
+                { title: 'Virtual Currency Circulation Audit', desc: 'Authoritative double-entry CoinLedger balance sheet', icon: Coins },
+                { title: 'Subscription Churn & LTV Analysis', desc: 'Cohort retention across Plus and Premium subscribers', icon: Activity },
               ].map((rep, idx) => {
                 const IconComponent = rep.icon;
                 return (
-                  <View key={idx} style={[styles.reportCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                  <View key={idx} style={styles.reportCard}>
+                    <View style={styles.reportIconWrap}>
                       <IconComponent size={20} color={colors.primary} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.reportTitle, { color: colors.text }]}>{rep.title}</Text>
-                      <Text style={[styles.reportDesc, { color: colors.textMuted }]}>{rep.desc}</Text>
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                        <TouchableOpacity
-                          style={[styles.miniExportPill, { backgroundColor: colors.primaryMuted }]}
-                          onPress={() => handleExport('CSV')}
-                        >
-                          <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '700' }}>CSV</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.miniExportPill, { backgroundColor: colors.primaryMuted }]}
-                          onPress={() => handleExport('Excel')}
-                        >
-                          <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '700' }}>Excel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.miniExportPill, { backgroundColor: colors.primaryMuted }]}
-                          onPress={() => handleExport('PDF')}
-                        >
-                          <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '700' }}>PDF</Text>
-                        </TouchableOpacity>
+                      <Text style={styles.reportTitle}>{rep.title}</Text>
+                      <Text style={styles.reportDesc}>{rep.desc}</Text>
+                      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                        {(['CSV', 'Excel', 'PDF'] as const).map((fmt) => (
+                          <TouchableOpacity
+                            key={fmt}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Export ${rep.title} as ${fmt}`}
+                            style={styles.miniExportPill}
+                            onPress={() => handleExport(fmt)}
+                          >
+                            <Text style={styles.miniExportPillText}>{fmt}</Text>
+                          </TouchableOpacity>
+                        ))}
                       </View>
                     </View>
                   </View>
                 );
               })}
             </View>
-          </View>
+          </Card>
         </View>
       )}
     </ScrollView>
@@ -438,33 +470,35 @@ export function AdminFinanceView() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   contentContainer: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: spacing.md,
+    paddingBottom: spacing.xxl,
   },
   subTabsRow: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    padding: 4,
-    marginBottom: 14,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    padding: spacing.xs,
+    marginBottom: spacing.md,
   },
   subTabBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   subTabText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
   },
   filterCard: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   filterTopRow: {
     flexDirection: 'row',
@@ -472,188 +506,273 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   filterLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
     letterSpacing: 0.5,
+    color: colors.textMuted,
   },
   rangeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
     borderWidth: 1,
+    minHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rangeBtnText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
   },
   selectBox: {
     flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   selectText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.text,
   },
   card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
+    gap: spacing.sm,
   },
-  kpiCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: '600',
+    color: colors.text,
   },
   helperText: {
-    fontSize: 11,
-    marginTop: 2,
-    lineHeight: 15,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   kpiBox: {
     flex: 1,
     minWidth: '45%',
-    padding: 12,
-    borderRadius: 10,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   kpiVal: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   kpiLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    marginTop: spacing.xs,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: colors.textMuted,
   },
   metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 14,
-    paddingTop: 12,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: colors.border,
   },
   metricItem: {
     alignItems: 'center',
   },
   metricSub: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   metricMain: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 2,
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.xs,
   },
   streamRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 10,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   streamName: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '600',
+    color: colors.text,
   },
   streamCat: {
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   streamVal: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   streamGrowth: {
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 2,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    marginTop: spacing.xs,
   },
   exportBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  exportBtnText: {
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    color: colors.primary,
   },
   payoutCard: {
-    padding: 14,
-    borderRadius: 12,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  payoutHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   payoutId: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
+    color: colors.primary,
   },
   payoutCreator: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: spacing.xs,
   },
   payoutDetailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 8,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   payoutMethod: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   payoutAmount: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
-  payoutActionBtn: {
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  payoutFeeText: {
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
+    fontWeight: '400',
   },
-  payoutActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+  payoutActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   reportCard: {
     flexDirection: 'row',
-    padding: 14,
-    borderRadius: 12,
+    padding: spacing.md,
+    borderRadius: radius.md,
     borderWidth: 1,
-    gap: 12,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: spacing.md,
     alignItems: 'flex-start',
   },
+  reportIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   reportTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: typography.small.fontSize,
+    lineHeight: typography.small.lineHeight,
+    fontWeight: '600',
+    color: colors.text,
   },
   reportDesc: {
-    fontSize: 11,
-    marginTop: 2,
-    lineHeight: 15,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   miniExportPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  miniExportPillText: {
+    color: colors.primary,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  emptyTitle: {
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.xs,
+  },
+  emptySub: {
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

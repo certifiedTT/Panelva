@@ -52,7 +52,7 @@ export default function RedeemPage() {
         {/* Header Section */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            Redeem <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">Promo Code</span>
+            Redeem <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">Promo Code</span>
           </h1>
           <p className="mt-3 text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
             Enter your 16-character code below to instantly activate your Panelva Plus or Premium subscription.

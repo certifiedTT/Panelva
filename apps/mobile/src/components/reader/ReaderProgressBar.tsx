@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
+import { spacing } from '@panelva/theme';
 
 export interface ReaderProgressBarProps {
   progress: number; // 0 to 1
@@ -30,7 +31,7 @@ export function ReaderProgressBar({ progress }: ReaderProgressBarProps) {
 
 const styles = StyleSheet.create({
   track: {
-    height: 3,
+    height: spacing.xs,
     width: '100%',
     zIndex: 49,
     overflow: 'hidden',

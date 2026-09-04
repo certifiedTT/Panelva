@@ -7,34 +7,25 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
-  Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../theme/ThemeContext';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../common/Card';
 import {
   MOCK_ACCOUNTS_MAP,
   MOCK_ACCOUNTS_LIST,
   MockRoleKey,
-  MockAccountProfile,
 } from '../../data/mockRoles';
+
+// Lucide Line Icons
 import {
-  CloseIcon,
-  CrownIcon,
-  CreatorHubIcon,
-  ShieldIcon,
-  ShieldAlertIcon,
-  UsersIcon,
-  DollarSignIcon,
-  SparklesIcon,
-  CheckIcon,
-  HelpCircleIcon,
-  SunIcon,
-} from '../common/Icons';
+  X,
+  Check,
+  Sparkles,
+  Crown,
+} from 'lucide-react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-interface DevRoleSwitcherModalProps {
+export interface DevRoleSwitcherModalProps {
   visible: boolean;
   onClose: () => void;
   activeRole: MockRoleKey | string | null;
@@ -47,7 +38,6 @@ export function DevRoleSwitcherModal({
   activeRole,
   onSelectRole,
 }: DevRoleSwitcherModalProps) {
-  const { colors } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   if (!__DEV__) return null;
@@ -73,27 +63,32 @@ export function DevRoleSwitcherModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.bg }]}>
+      <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={[styles.header, { backgroundColor: colors.header, borderBottomColor: colors.borderSubtle }]}>
+        <View style={styles.header}>
           <View style={styles.headerTitleRow}>
-            <View style={[styles.devBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: '#EF4444' }]}>
+            <View style={styles.devBadge}>
               <Text style={styles.devBadgeText}>DEV ONLY</Text>
             </View>
             <View>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>Role Preview Switcher</Text>
-              <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+              <Text style={styles.headerTitle}>Role Preview Switcher</Text>
+              <Text style={styles.headerSubtitle}>
                 Switch between 12 mock accounts to preview permissions in real time
               </Text>
             </View>
           </View>
-          <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.surfaceSecondary }]}>
-            <CloseIcon size={18} color={colors.text} />
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close Role Switcher Modal"
+          >
+            <X size={18} color={colors.text} />
           </TouchableOpacity>
         </View>
 
         {/* Category Filter Pills */}
-        <View style={[styles.categoryBar, { backgroundColor: colors.surfaceElevated, borderBottomColor: colors.borderSubtle }]}>
+        <View style={styles.categoryBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
             {categories.map((cat) => {
               const isSelected = selectedCategory === cat;
@@ -104,15 +99,17 @@ export function DevRoleSwitcherModal({
                     styles.catPill,
                     {
                       backgroundColor: isSelected ? colors.primary : colors.surface,
-                      borderColor: isSelected ? colors.primaryDark : colors.border,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                   onPress={() => {
                     triggerHaptic();
                     setSelectedCategory(cat);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filter by ${cat}`}
                 >
-                  <Text style={[styles.catPillText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
+                  <Text style={[styles.catPillText, { color: isSelected ? colors.text : colors.textMuted }]}>
                     {cat}
                   </Text>
                 </TouchableOpacity>
@@ -130,90 +127,95 @@ export function DevRoleSwitcherModal({
               return (
                 <TouchableOpacity
                   key={profile.roleKey}
-                  style={[
-                    styles.roleCard,
-                    {
-                      backgroundColor: colors.surfaceElevated,
-                      borderColor: isActive ? profile.badgeColor : colors.borderSubtle,
-                      borderWidth: isActive ? 2 : 1,
-                    },
-                  ]}
                   onPress={() => handleChooseRole(profile.roleKey)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Switch to ${profile.roleLabel} role`}
                 >
-                  {/* Top Row: Role Header, Badge, Active Pill */}
-                  <View style={styles.cardHeader}>
-                    <View style={styles.cardHeaderLeft}>
-                      <View style={[styles.roleDot, { backgroundColor: profile.badgeColor }]} />
-                      <Text style={[styles.roleTitle, { color: colors.text }]}>{profile.roleLabel}</Text>
+                  <Card
+                    style={[
+                      styles.roleCard,
+                      {
+                        borderColor: isActive ? profile.badgeColor : colors.border,
+                        borderWidth: isActive ? 2 : 1,
+                      },
+                    ]}
+                  >
+                    {/* Top Row: Role Header, Badge, Active Pill */}
+                    <View style={styles.cardHeader}>
+                      <View style={styles.cardHeaderLeft}>
+                        <View style={[styles.roleDot, { backgroundColor: profile.badgeColor }]} />
+                        <Text style={styles.roleTitle}>{profile.roleLabel}</Text>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                        <View style={styles.categoryBadge}>
+                          <Text style={styles.categoryBadgeText}>{profile.category}</Text>
+                        </View>
+                        {isActive && (
+                          <View style={[styles.activePill, { backgroundColor: profile.badgeColor }]}>
+                            <Check size={12} color={colors.text} strokeWidth={3} />
+                            <Text style={styles.activePillText}>ACTIVE</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
 
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View style={[styles.categoryBadge, { backgroundColor: colors.surfaceSecondary }]}>
-                        <Text style={[styles.categoryBadgeText, { color: colors.textMuted }]}>{profile.category}</Text>
+                    {/* Profile info: username, email */}
+                    <View style={styles.profileRow}>
+                      <View style={[styles.avatarCircle, { backgroundColor: profile.badgeColor }]}>
+                        <Text style={styles.avatarText}>{profile.username.charAt(0).toUpperCase()}</Text>
                       </View>
-                      {isActive && (
-                        <View style={[styles.activePill, { backgroundColor: profile.badgeColor }]}>
-                          <CheckIcon size={12} color="#FFFFFF" strokeWidth={3} />
-                          <Text style={styles.activePillText}>ACTIVE</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.profileName}>
+                          {profile.displayName}{' '}
+                          <Text style={{ color: colors.textMuted, fontWeight: '500', fontSize: typography.caption.fontSize }}>
+                            (@{profile.username})
+                          </Text>
+                        </Text>
+                        <Text style={styles.profileEmail}>{profile.email}</Text>
+                      </View>
+                    </View>
+
+                    {/* Description */}
+                    <Text style={styles.roleDesc}>{profile.description}</Text>
+
+                    {/* Capabilities Tags */}
+                    <View style={styles.capabilitiesRow}>
+                      {profile.hasCreatorStudioAccess && (
+                        <View style={[styles.capTag, { borderColor: colors.success }]}>
+                          <Sparkles size={12} color={colors.success} />
+                          <Text style={[styles.capTagText, { color: colors.success }]}>Creator Studio</Text>
+                        </View>
+                      )}
+                      {profile.hasAdminDashboardAccess && (
+                        <View style={[styles.capTag, { borderColor: colors.primary }]}>
+                          <Crown size={12} color={colors.primary} />
+                          <Text style={[styles.capTagText, { color: colors.primary }]}>
+                            Admin Dashboard ({profile.visibleAdminTabs.length} tabs)
+                          </Text>
+                        </View>
+                      )}
+                      {profile.subscription === 'PREMIUM' && (
+                        <View style={[styles.capTag, { borderColor: colors.warning }]}>
+                          <Text style={[styles.capTagText, { color: colors.warning }]}>Premium Reader</Text>
                         </View>
                       )}
                     </View>
-                  </View>
 
-                  {/* Profile info: username, email */}
-                  <View style={styles.profileRow}>
-                    <View style={[styles.avatarCircle, { backgroundColor: profile.badgeColor }]}>
-                      <Text style={styles.avatarText}>{profile.username.charAt(0).toUpperCase()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.profileName, { color: colors.text }]}>
-                        {profile.displayName}{' '}
-                        <Text style={{ color: colors.textMuted, fontWeight: '500', fontSize: 12 }}>
-                          (@{profile.username})
-                        </Text>
-                      </Text>
-                      <Text style={[styles.profileEmail, { color: colors.textMuted }]}>{profile.email}</Text>
-                    </View>
-                  </View>
-
-                  {/* Description */}
-                  <Text style={[styles.roleDesc, { color: colors.textSecondary }]}>{profile.description}</Text>
-
-                  {/* Capabilities Tags */}
-                  <View style={styles.capabilitiesRow}>
-                    {profile.hasCreatorStudioAccess && (
-                      <View style={[styles.capTag, { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: '#10B981' }]}>
-                        <SparklesIcon size={11} color="#10B981" />
-                        <Text style={[styles.capTagText, { color: '#10B981' }]}>Creator Studio</Text>
+                    {/* Permissions List */}
+                    <View style={styles.permissionsContainer}>
+                      <Text style={styles.permHeader}>Simulated Permissions:</Text>
+                      <View style={styles.permPillsWrap}>
+                        {profile.permissions.map((perm, pIdx) => (
+                          <View key={pIdx} style={[styles.permPill, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                            <Check size={10} color={colors.primary} strokeWidth={2.5} />
+                            <Text style={styles.permPillText}>{perm}</Text>
+                          </View>
+                        ))}
                       </View>
-                    )}
-                    {profile.hasAdminDashboardAccess && (
-                      <View style={[styles.capTag, { backgroundColor: 'rgba(59, 130, 246, 0.12)', borderColor: '#3B82F6' }]}>
-                        <CrownIcon size={11} color="#3B82F6" />
-                        <Text style={[styles.capTagText, { color: '#3B82F6' }]}>
-                          Admin Dashboard ({profile.visibleAdminTabs.length} tabs)
-                        </Text>
-                      </View>
-                    )}
-                    {profile.subscription === 'PREMIUM' && (
-                      <View style={[styles.capTag, { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: '#F59E0B' }]}>
-                        <Text style={[styles.capTagText, { color: '#F59E0B' }]}>Premium Reader</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Permissions List */}
-                  <View style={styles.permissionsContainer}>
-                    <Text style={[styles.permHeader, { color: colors.textMuted }]}>Simulated Permissions:</Text>
-                    <View style={styles.permPillsWrap}>
-                      {profile.permissions.map((perm, pIdx) => (
-                        <View key={pIdx} style={[styles.permPill, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
-                          <Text style={[styles.permPillText, { color: colors.textMuted }]}>✓ {perm}</Text>
-                        </View>
-                      ))}
                     </View>
-                  </View>
+                  </Card>
                 </TouchableOpacity>
               );
             })}
@@ -223,6 +225,8 @@ export function DevRoleSwitcherModal({
     </Modal>
   );
 }
+
+export { FloatingDevOrb } from './FloatingDevOrb';
 
 /**
  * Floating draggable/docked Dev Role Pill rendered in development mode.
@@ -244,12 +248,12 @@ export function DevFloatingRolePill({
       style={[
         styles.floatingPill,
         {
-          backgroundColor: '#1E1B4B',
           borderColor: profile.badgeColor,
         },
       ]}
       onPress={onPress}
       activeOpacity={0.85}
+      accessibilityRole="button"
       accessibilityLabel="Open development role switcher"
     >
       <View style={[styles.floatingDot, { backgroundColor: profile.badgeColor }]} />
@@ -269,121 +273,135 @@ export function DevFloatingRolePill({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   headerTitleRow: {
     flex: 1,
-    marginRight: 10,
-    gap: 4,
+    marginRight: spacing.sm,
+    gap: spacing.xs,
   },
   devBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: radius.sm,
     borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.surface,
   },
   devBadgeText: {
-    color: '#EF4444',
-    fontSize: 9,
+    color: colors.danger,
+    fontSize: typography.caption.fontSize,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   closeBtn: {
-    padding: 6,
-    borderRadius: 18,
+    padding: spacing.xs,
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
   },
   categoryBar: {
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   categoryScroll: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   catPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   catPillText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
   listContent: {
-    padding: 14,
-    paddingBottom: 40,
+    padding: spacing.md,
+    paddingBottom: spacing.xxl,
   },
   cardsGrid: {
-    gap: 12,
+    gap: spacing.md,
   },
   roleCard: {
-    padding: 14,
-    borderRadius: 14,
+    gap: spacing.sm,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   cardHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
     flex: 1,
   },
   roleDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  roleTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  categoryBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    width: 8,
+    height: 8,
     borderRadius: 4,
   },
+  roleTitle: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  categoryBadge: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: radius.sm,
+    backgroundColor: colors.background,
+  },
   categoryBadgeText: {
-    fontSize: 10,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
+    color: colors.textMuted,
   },
   activePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: radius.full,
   },
   activePillText: {
-    color: '#FFFFFF',
-    fontSize: 10,
+    color: colors.text,
+    fontSize: typography.caption.fontSize,
     fontWeight: '800',
   },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   avatarCircle: {
     width: 32,
@@ -393,83 +411,87 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.text,
+    fontSize: typography.small.fontSize,
     fontWeight: '800',
   },
   profileName: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.text,
   },
   profileEmail: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
   roleDesc: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 10,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
   },
   capabilitiesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   capTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
     borderWidth: 1,
+    backgroundColor: colors.background,
   },
   capTagText: {
-    fontSize: 10,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   permissionsContainer: {
-    paddingTop: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    gap: 4,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.xs,
   },
   permHeader: {
-    fontSize: 10,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
     textTransform: 'uppercase',
+    color: colors.textMuted,
   },
   permPillsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: spacing.xs,
   },
   permPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: radius.sm,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
   permPillText: {
-    fontSize: 10,
+    fontSize: typography.caption.fontSize,
+    color: colors.textMuted,
   },
-  // Floating pill
+  // Floating pill with subtle border and zero heavy shadows
   floatingPill: {
     position: 'absolute',
-    bottom: 74,
-    right: 14,
+    bottom: 80,
+    right: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
     borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 8,
-    gap: 8,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
     zIndex: 999,
   },
   floatingDot: {
@@ -478,21 +500,21 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   floatingRoleText: {
-    color: '#FFFFFF',
-    fontSize: 11,
+    color: colors.text,
+    fontSize: typography.caption.fontSize,
   },
   floatingSubText: {
-    color: '#94A3B8',
-    fontSize: 9,
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
   },
   floatingTag: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: radius.sm,
   },
   floatingTagText: {
-    color: '#FFFFFF',
-    fontSize: 9,
+    color: colors.text,
+    fontSize: typography.caption.fontSize,
     fontWeight: '900',
   },
 });

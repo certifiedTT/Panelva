@@ -5,19 +5,21 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useTheme } from '../theme/ThemeContext';
 import { trpc } from '../../lib/trpc';
 import {
-  AlertsIcon,
-  BookOpenIcon,
-  SparklesIcon,
-  UsersIcon,
-  CheckIcon,
-  CloseIcon,
-} from '../components/common/Icons';
+  Bell,
+  BookOpen,
+  Sparkles,
+  Users,
+  Check,
+  X,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
+import { Card } from '../components/common/Card';
+import { Button } from '../components/common/Button';
+import { Badge } from '@panelva/ui';
 import { MOCK_NOTIFICATIONS } from '../data/mockData';
 
 interface AlertsScreenProps {
@@ -26,8 +28,24 @@ interface AlertsScreenProps {
   onSelectSeries?: (series: any) => void;
 }
 
+function AlertsSkeleton() {
+  return (
+    <View style={{ gap: spacing.md }}>
+      {[1, 2, 3, 4].map((i) => (
+        <Card key={i} style={styles.skeletonCard}>
+          <View style={styles.skeletonAvatar} />
+          <View style={styles.skeletonTextCol}>
+            <View style={styles.skeletonTitle} />
+            <View style={styles.skeletonBody} />
+            <View style={styles.skeletonDate} />
+          </View>
+        </Card>
+      ))}
+    </View>
+  );
+}
+
 export function AlertsScreen({ sessionToken, onRequireAuth, onSelectSeries }: AlertsScreenProps) {
-  const { colors } = useTheme();
   const [activeSegment, setActiveSegment] = useState<'updates' | 'announcements' | 'invitations'>('updates');
 
   // Query reader notifications
@@ -45,7 +63,10 @@ export function AlertsScreen({ sessionToken, onRequireAuth, onSelectSeries }: Al
   const respondInvitationMutation = trpc.collaboration.respondToInvitation.useMutation({
     onSuccess: (_, vars) => {
       refetchInvitations();
-      Alert.alert('Invitation Updated', `You have ${vars.response === 'ACCEPT' ? 'accepted' : 'declined'} the collaboration invitation.`);
+      Alert.alert(
+        'Invitation Updated',
+        `You have ${vars.response === 'ACCEPT' ? 'accepted' : 'declined'} the collaboration invitation.`
+      );
     },
     onError: (err) => Alert.alert('Error', err.message),
   });
@@ -69,60 +90,62 @@ export function AlertsScreen({ sessionToken, onRequireAuth, onSelectSeries }: Al
 
   if (!sessionToken) {
     return (
-      <View style={[styles.container, styles.centerContent, { backgroundColor: colors.bg }]}>
-        <View style={[styles.iconCircle, { backgroundColor: colors.primaryMuted }]}>
-          <AlertsIcon size={32} color={colors.primary} />
+      <View style={[styles.container, styles.centerContent]}>
+        <View style={styles.iconCircle}>
+          <Bell size={32} color={colors.primary} />
         </View>
-        <Text style={[styles.authTitle, { color: colors.text }]}>Sign in to view your alerts</Text>
-        <Text style={[styles.authSubtitle, { color: colors.textMuted }]}>
+        <Text style={styles.authTitle}>Sign in to view your alerts</Text>
+        <Text style={styles.authSubtitle}>
           Get notified when followed creators publish new chapters, launch collaboration requests, or post announcements.
         </Text>
-        <TouchableOpacity
-          style={[styles.authBtn, { backgroundColor: colors.primary }]}
-          onPress={onRequireAuth}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.authBtnText}>Sign In / Register</Text>
-        </TouchableOpacity>
+        <View style={{ marginTop: spacing.md, width: '100%', maxWidth: 280 }}>
+          <Button title="Sign In / Register" variant="primary" onPress={onRequireAuth} />
+        </View>
       </View>
     );
   }
 
   // Filter notifications by segment
-  const allNotifs = (notificationsList && notificationsList.length > 0)
-    ? notificationsList
-    : MOCK_NOTIFICATIONS;
+  const allNotifs =
+    notificationsList && notificationsList.length > 0 ? notificationsList : MOCK_NOTIFICATIONS;
 
-  const updateNotifs = allNotifs.filter((n: any) => 
-    n.type === 'new_chapter' || 
-    n.type === 'new_series' || 
-    (!n.type && !n.title?.includes('Sale') && !n.title?.includes('Policy') && !n.title?.includes('Status') && !n.title?.includes('Hiatus') && !n.title?.includes('Season'))
+  const updateNotifs = allNotifs.filter(
+    (n: any) =>
+      n.type === 'new_chapter' ||
+      n.type === 'new_series' ||
+      (!n.type &&
+        !n.title?.includes('Sale') &&
+        !n.title?.includes('Policy') &&
+        !n.title?.includes('Status') &&
+        !n.title?.includes('Hiatus') &&
+        !n.title?.includes('Season'))
   );
 
-  const announcementNotifs = allNotifs.filter((n: any) => 
-    n.type === 'series_status' || 
-    n.type === 'creator_application' || 
-    n.title?.includes('Status') ||
-    n.title?.includes('Hiatus') ||
-    n.title?.includes('Season') ||
-    n.title?.includes('Coming Soon') ||
-    n.title?.includes('Sale') || 
-    n.title?.includes('Policy') || 
-    n.title?.includes('Announcement') || 
-    n.title?.includes('Approved')
+  const announcementNotifs = allNotifs.filter(
+    (n: any) =>
+      n.type === 'series_status' ||
+      n.type === 'creator_application' ||
+      n.title?.includes('Status') ||
+      n.title?.includes('Hiatus') ||
+      n.title?.includes('Season') ||
+      n.title?.includes('Coming Soon') ||
+      n.title?.includes('Sale') ||
+      n.title?.includes('Policy') ||
+      n.title?.includes('Announcement') ||
+      n.title?.includes('Approved')
   );
 
   const collabs = invitationsList || [];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.header, borderBottomColor: colors.borderSubtle }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={[styles.headerIconBg, { backgroundColor: colors.primary }]}>
-            <AlertsIcon size={20} color="#FFFFFF" />
+      <View style={styles.header}>
+        <View style={styles.headerTitleRow}>
+          <View style={styles.headerIconBg}>
+            <Bell size={18} color={colors.text} />
           </View>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Alerts & Activity</Text>
+          <Text style={styles.headerTitle}>Alerts & Activity</Text>
         </View>
 
         {/* Segments */}
@@ -135,14 +158,26 @@ export function AlertsScreen({ sessionToken, onRequireAuth, onSelectSeries }: Al
                 style={[
                   styles.segmentBtn,
                   {
-                    backgroundColor: isSelected ? colors.primary : colors.surfaceElevated,
-                    borderColor: isSelected ? colors.primaryDark : colors.border,
+                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
                   },
                 ]}
                 onPress={() => setActiveSegment(seg)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`${seg} segment`}
               >
-                <Text style={[styles.segmentBtnText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
-                  {seg === 'updates' ? 'Releases' : seg === 'announcements' ? 'Announcements & Status' : 'Invitations'}
+                <Text
+                  style={[
+                    styles.segmentBtnText,
+                    { color: isSelected ? colors.text : colors.textMuted },
+                  ]}
+                >
+                  {seg === 'updates'
+                    ? 'Releases'
+                    : seg === 'announcements'
+                    ? 'Announcements'
+                    : 'Invitations'}
                 </Text>
               </TouchableOpacity>
             );
@@ -151,167 +186,173 @@ export function AlertsScreen({ sessionToken, onRequireAuth, onSelectSeries }: Al
       </View>
 
       {/* Main List */}
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xxl }}
+        showsVerticalScrollIndicator={false}
+      >
         {activeSegment === 'updates' && (
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: spacing.md }}>
             {notifsLoading ? (
-              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+              <AlertsSkeleton />
             ) : updateNotifs.length > 0 ? (
               updateNotifs.map((notif: any) => {
                 const isUnread = notif.isRead === false || notif.read === false;
                 return (
                   <TouchableOpacity
                     key={notif.id}
-                    style={[
-                      styles.alertCard, 
-                      { 
-                        backgroundColor: isUnread ? (colors.surfaceElevated || '#161822') : colors.surface, 
-                        borderColor: isUnread ? (colors.primary || '#3b82f6') : colors.border 
-                      }
-                    ]}
                     onPress={() => handlePressNotif(notif)}
                     activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${isUnread ? 'Unread release' : 'Release'}: ${notif.title}`}
                   >
-                    <View style={[styles.alertIconBg, { backgroundColor: colors.primaryMuted }]}>
-                      <BookOpenIcon size={20} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={[styles.alertCardTitle, { color: colors.text }]}>{notif.title}</Text>
-                        {isUnread && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary }} />}
+                    <Card
+                      style={[
+                        styles.alertCard,
+                        { borderColor: isUnread ? colors.primary : colors.border },
+                      ]}
+                    >
+                      <View style={styles.alertIconBg}>
+                        <BookOpen size={18} color={colors.primary} />
                       </View>
-                      <Text style={[styles.alertCardMsg, { color: colors.textSecondary }]}>{notif.body || notif.message}</Text>
-                      <Text style={[styles.alertCardDate, { color: colors.textMuted }]}>
-                        {new Date(notif.createdAt).toLocaleDateString()}
-                      </Text>
-                    </View>
+                      <View style={{ flex: 1, gap: spacing.xs }}>
+                        <View style={styles.cardHeaderRow}>
+                          <Text style={styles.alertCardTitle}>{notif.title}</Text>
+                          {isUnread && <View style={styles.unreadDot} />}
+                        </View>
+                        <Text style={styles.alertCardMsg}>
+                          {notif.body || notif.message}
+                        </Text>
+                        <Text style={styles.alertCardDate}>
+                          {new Date(notif.createdAt).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </Card>
                   </TouchableOpacity>
                 );
               })
             ) : (
-              <View style={styles.emptyContainer}>
-                <BookOpenIcon size={36} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>No new content updates</Text>
-                <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+              <Card style={styles.emptyCard}>
+                <BookOpen size={36} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>No New Content Updates</Text>
+                <Text style={styles.emptySub}>
                   Follow creators and series to receive alerts as soon as new episodes and series are published.
                 </Text>
-              </View>
+              </Card>
             )}
           </View>
         )}
 
         {activeSegment === 'announcements' && (
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: spacing.md }}>
             {notifsLoading ? (
-              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+              <AlertsSkeleton />
             ) : announcementNotifs.length > 0 ? (
               announcementNotifs.map((notif: any) => {
                 const isUnread = notif.isRead === false || notif.read === false;
                 return (
                   <TouchableOpacity
                     key={notif.id}
-                    style={[
-                      styles.alertCard, 
-                      { 
-                        backgroundColor: isUnread ? (colors.surfaceElevated || '#161822') : colors.surface, 
-                        borderColor: isUnread ? (colors.accentGold || '#f59e0b') : colors.border 
-                      }
-                    ]}
                     onPress={() => handlePressNotif(notif)}
                     activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${isUnread ? 'Unread announcement' : 'Announcement'}: ${notif.title}`}
                   >
-                    <View style={[styles.alertIconBg, { backgroundColor: colors.primaryMuted }]}>
-                      <SparklesIcon size={20} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={[styles.alertCardTitle, { color: colors.text }]}>{notif.title}</Text>
-                        {isUnread && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accentGold || '#f59e0b' }} />}
+                    <Card
+                      style={[
+                        styles.alertCard,
+                        { borderColor: isUnread ? colors.warning : colors.border },
+                      ]}
+                    >
+                      <View style={styles.alertIconBg}>
+                        <Sparkles size={18} color={colors.warning} />
                       </View>
-                      <Text style={[styles.alertCardMsg, { color: colors.textSecondary }]}>{notif.body || notif.message}</Text>
-                      <Text style={[styles.alertCardDate, { color: colors.textMuted }]}>
-                        {new Date(notif.createdAt).toLocaleDateString()}
-                      </Text>
-                    </View>
+                      <View style={{ flex: 1, gap: spacing.xs }}>
+                        <View style={styles.cardHeaderRow}>
+                          <Text style={styles.alertCardTitle}>{notif.title}</Text>
+                          {isUnread && <View style={[styles.unreadDot, { backgroundColor: colors.warning }]} />}
+                        </View>
+                        <Text style={styles.alertCardMsg}>
+                          {notif.body || notif.message}
+                        </Text>
+                        <Text style={styles.alertCardDate}>
+                          {new Date(notif.createdAt).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </Card>
                   </TouchableOpacity>
                 );
               })
             ) : (
-              <View style={styles.emptyContainer}>
-                <SparklesIcon size={36} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>No announcements</Text>
-                <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+              <Card style={styles.emptyCard}>
+                <Sparkles size={36} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>No Announcements</Text>
+                <Text style={styles.emptySub}>
                   Platform news, series status updates, hiatus alerts, and new seasons will show up here.
                 </Text>
-              </View>
+              </Card>
             )}
           </View>
         )}
 
         {activeSegment === 'invitations' && (
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: spacing.md }}>
             {collabsLoading ? (
-              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+              <AlertsSkeleton />
             ) : collabs.length > 0 ? (
               collabs.map((inv: any) => (
-                <View
-                  key={inv.id}
-                  style={[styles.collabCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={[styles.alertIconBg, { backgroundColor: colors.primaryMuted }]}>
-                      <UsersIcon size={20} color={colors.primary} />
+                <Card key={inv.id} style={styles.collabCard}>
+                  <View style={styles.collabHeaderRow}>
+                    <View style={styles.alertIconBg}>
+                      <Users size={18} color={colors.primary} />
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.alertCardTitle, { color: colors.text }]}>
+                    <View style={{ flex: 1, gap: spacing.xs }}>
+                      <Text style={styles.alertCardTitle}>
                         Collaboration Invitation: {inv.series?.title || 'Untitled'}
                       </Text>
-                      <Text style={[styles.collabRoleText, { color: colors.primary }]}>
+                      <Text style={styles.collabRoleText}>
                         Offered Role: {inv.role} ({inv.shareRatio}% split)
                       </Text>
                     </View>
                   </View>
 
                   {inv.message && (
-                    <Text style={[styles.collabMsgText, { color: colors.textSecondary }]}>"{inv.message}"</Text>
+                    <Text style={styles.collabMsgText}>"{inv.message}"</Text>
                   )}
 
                   {inv.status === 'PENDING' ? (
                     <View style={styles.collabActionRow}>
-                      <TouchableOpacity
-                        style={[styles.collabBtn, { backgroundColor: colors.primary }]}
-                        onPress={() => handleRespond(inv.id, 'ACCEPT')}
-                        disabled={respondInvitationMutation.isLoading}
-                      >
-                        <CheckIcon size={16} color="#FFFFFF" />
-                        <Text style={styles.collabBtnText}>Accept</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.collabBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
-                        onPress={() => handleRespond(inv.id, 'DECLINE')}
-                        disabled={respondInvitationMutation.isLoading}
-                      >
-                        <CloseIcon size={16} color={colors.textMuted} />
-                        <Text style={[styles.collabBtnText, { color: colors.textSecondary }]}>Decline</Text>
-                      </TouchableOpacity>
+                      <View style={{ flex: 1 }}>
+                        <Button
+                          title="Accept"
+                          variant="primary"
+                          onPress={() => handleRespond(inv.id, 'ACCEPT')}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Button
+                          title="Decline"
+                          variant="secondary"
+                          onPress={() => handleRespond(inv.id, 'DECLINE')}
+                        />
+                      </View>
                     </View>
                   ) : (
-                    <View style={[styles.statusBadge, { backgroundColor: inv.status === 'ACCEPTED' ? colors.successMuted : colors.surface }]}>
-                      <Text style={{ color: inv.status === 'ACCEPTED' ? colors.success : colors.textMuted, fontSize: 12, fontWeight: '700' }}>
+                    <View style={{ alignSelf: 'flex-start', marginTop: spacing.xs }}>
+                      <Badge variant={inv.status === 'ACCEPTED' ? 'success' : 'primary'} size="sm">
                         Status: {inv.status}
-                      </Text>
+                      </Badge>
                     </View>
                   )}
-                </View>
+                </Card>
               ))
             ) : (
-              <View style={styles.emptyContainer}>
-                <UsersIcon size={36} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>No collaboration invitations</Text>
-                <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+              <Card style={styles.emptyCard}>
+                <Users size={36} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>No Collaboration Invitations</Text>
+                <Text style={styles.emptySub}>
                   When creators invite you to collaborate as an artist, writer, colorist, or editor, their invitations will appear here.
                 </Text>
-              </View>
+              </Card>
             )}
           </View>
         )}
@@ -323,159 +364,197 @@ export function AlertsScreen({ sessionToken, onRequireAuth, onSelectSeries }: Al
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   centerContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
   },
   iconCircle: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   authTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
+    fontWeight: '700',
     textAlign: 'center',
+    color: colors.text,
   },
   authSubtitle: {
-    fontSize: 13,
+    fontSize: typography.small.fontSize,
     textAlign: 'center',
-    lineHeight: 18,
-    marginTop: 8,
-  },
-  authBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 18,
-  },
-  authBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    lineHeight: typography.small.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    gap: 12,
+    borderBottomColor: colors.border,
+    gap: spacing.md,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   headerIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
+    fontWeight: '700',
+    color: colors.text,
   },
   segmentBar: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   segmentBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   segmentBtnText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   alertCard: {
     flexDirection: 'row',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
+    gap: spacing.md,
+    alignItems: 'flex-start',
   },
   alertIconBg: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   alertCardTitle: {
-    fontSize: 14,
+    fontSize: typography.small.fontSize,
     fontWeight: '700',
+    color: colors.text,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
   alertCardMsg: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginTop: 3,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   alertCardDate: {
-    fontSize: 10,
-    marginTop: 6,
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   collabCard: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 10,
+    gap: spacing.sm,
+  },
+  collabHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   collabRoleText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginTop: 2,
+    color: colors.primary,
   },
   collabMsgText: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     fontStyle: 'italic',
-    lineHeight: 16,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
   },
   collabActionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
-  collabBtn: {
-    flex: 1,
-    flexDirection: 'row',
+  emptyCard: {
+    padding: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  collabBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  statusBadge: {
-    padding: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
-    gap: 8,
+    gap: spacing.xs,
   },
   emptyTitle: {
-    fontSize: 15,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
-    marginTop: 6,
+    color: colors.text,
+    marginTop: spacing.xs,
   },
   emptySub: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: typography.caption.lineHeight,
+    color: colors.textMuted,
+  },
+  skeletonCard: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'center',
+  },
+  skeletonAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
+  skeletonTextCol: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  skeletonTitle: {
+    width: '60%',
+    height: 16,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  skeletonBody: {
+    width: '90%',
+    height: 12,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  skeletonDate: {
+    width: '30%',
+    height: 12,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
   },
 });

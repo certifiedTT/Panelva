@@ -355,7 +355,7 @@ export function InvitationModal({ invitation, onClose, onResponse }: InvitationM
           <button
             onClick={() => onResponse("ACCEPT")}
             style={{
-              background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               border: "none",
               color: "#fff",
               padding: "10px 24px",

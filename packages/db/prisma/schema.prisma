@@ -316,6 +316,12 @@ model Comment {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content       String
   priorityScore Int      @default(0)
+  stickerId     String?
+  gifId         String?
+  gifUrl        String?
+  giftId        String?
+  giftCredits   Int?     @default(0)
+  giftTier      Int?     @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -599,6 +605,12 @@ model CreatorPostComment {
   parentId         String?
   isPinned         Boolean                @default(false)
   isHearted        Boolean                @default(false)
+  stickerId        String?
+  gifId            String?
+  gifUrl           String?
+  giftId           String?
+  giftCredits      Int?                   @default(0)
+  giftTier         Int?                   @default(0)
   createdAt        DateTime               @default(now())
 
   @@index([postId])
@@ -671,3 +683,66 @@ model Notification {
   @@index([userId, createdAt(Desc)])
   @@index([seriesId])
 }
+
+model StickerPack {
+  id           String            @id @default(uuid())
+  creatorId    String
+  title        String
+  description  String
+  coverImage   String
+  accessType   String            @default("FREE") // FREE, PAID, MEMBERSHIP, PLUS, PREMIUM
+  price        Int               @default(0)
+  status       String            @default("DRAFT") // DRAFT, REVIEW, PUBLISHED, ARCHIVED
+  stickerCount Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  stickers      Sticker[]
+  userLibraries UserPackLibrary[]
+
+  @@index([creatorId])
+  @@index([status])
+  @@index([accessType])
+}
+
+model Sticker {
+  id        String      @id @default(uuid())
+  packId    String
+  pack      StickerPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  name      String      @default("")
+  imageUrl  String
+  animated  Boolean     @default(false)
+  width     Int         @default(128)
+  height    Int         @default(128)
+  order     Int         @default(0)
+  createdAt DateTime    @default(now())
+
+  @@index([packId])
+}
+
+model UserPackLibrary {
+  id        String      @id @default(uuid())
+  userId    String
+  packId    String
+  pack      StickerPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  source    String      @default("CLAIM") // PURCHASE, CLAIM, MEMBERSHIP, PLUS, PREMIUM
+  expiresAt DateTime?
+  createdAt DateTime    @default(now())
+
+  @@unique([userId, packId])
+  @@index([userId])
+}
+
+model FavoriteMedia {
+  id        String   @id @default(uuid())
+  userId    String
+  mediaType String   // STICKER, GIF
+  mediaId   String
+  provider  String   @default("Panelva") // Panelva, Tenor
+  metadata  String?  // JSON string
+  createdAt DateTime @default(now())
+
+  @@unique([userId, mediaType, mediaId])
+  @@index([userId])
+}
+

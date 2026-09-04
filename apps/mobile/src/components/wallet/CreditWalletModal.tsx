@@ -78,7 +78,7 @@ export function CreditWalletModal({
   // Promo code mutation
   const redeemPromoMutation = trpc.user.redeemPromoCode.useMutation({
     onSuccess: (data) => {
-      Alert.alert('Promo Code Redeemed! 🎉', data.message || 'Promo reward activated successfully.');
+      Alert.alert('Promo Code Redeemed', data.message || 'Promo reward activated successfully.');
       setPromoCodeInput('');
       if (onSuccessRecharge) onSuccessRecharge();
       refetchHistory();

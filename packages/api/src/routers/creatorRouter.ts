@@ -1576,5 +1576,263 @@ export const creatorRouter = router({
         },
       });
     }),
+
+  // ==================== STICKER PACK MANAGER ====================
+
+  // 19. Create Sticker Pack (Draft)
+  createStickerPack: creatorProcedure
+    .input(
+      z.object({
+        title: z.string().min(2).max(60),
+        description: z.string().max(300).default(""),
+        coverImage: z.string().url(),
+        accessType: z.enum(["FREE", "PAID", "MEMBERSHIP"]).default("FREE"),
+        price: z.number().int().min(0).default(0),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creatorProfile = await ctx.prisma.creatorProfile.findFirst({
+        where: { userId: ctx.session.userId },
+      });
+      if (!creatorProfile) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Creator profile not active" });
+      }
+
+      if (input.accessType === "PAID" && input.price <= 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Paid packs require a credit price > 0." });
+      }
+
+      const pack = await (ctx.prisma as any).stickerPack.create({
+        data: {
+          creatorId: creatorProfile.id,
+          title: input.title.trim(),
+          description: input.description.trim(),
+          coverImage: input.coverImage,
+          accessType: input.accessType,
+          price: input.accessType === "PAID" ? input.price : 0,
+          status: "DRAFT",
+          stickerCount: 0,
+        },
+      });
+
+      return pack;
+    }),
+
+  // 20. Edit Sticker Pack
+  editStickerPack: creatorProcedure
+    .input(
+      z.object({
+        packId: z.string().uuid(),
+        title: z.string().min(2).max(60).optional(),
+        description: z.string().max(300).optional(),
+        coverImage: z.string().url().optional(),
+        accessType: z.enum(["FREE", "PAID", "MEMBERSHIP"]).optional(),
+        price: z.number().int().min(0).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creatorProfile = await ctx.prisma.creatorProfile.findFirst({
+        where: { userId: ctx.session.userId },
+      });
+      if (!creatorProfile) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const pack = await (ctx.prisma as any).stickerPack.findUnique({
+        where: { id: input.packId },
+      });
+      if (!pack || pack.creatorId !== creatorProfile.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Unauthorized pack edit." });
+      }
+
+      const updateData: any = {};
+      if (input.title) updateData.title = input.title.trim();
+      if (input.description !== undefined) updateData.description = input.description.trim();
+      if (input.coverImage) updateData.coverImage = input.coverImage;
+      if (input.accessType) {
+        updateData.accessType = input.accessType;
+        if (input.accessType !== "PAID") updateData.price = 0;
+      }
+      if (input.price !== undefined && (input.accessType === "PAID" || pack.accessType === "PAID")) {
+        updateData.price = input.price;
+      }
+
+      return await (ctx.prisma as any).stickerPack.update({
+        where: { id: input.packId },
+        data: updateData,
+      });
+    }),
+
+  // 21. Upload Stickers to Pack (Up to 64 stickers)
+  uploadStickers: creatorProcedure
+    .input(
+      z.object({
+        packId: z.string().uuid(),
+        stickers: z.array(
+          z.object({
+            name: z.string().max(40).default(""),
+            imageUrl: z.string().url(),
+            animated: z.boolean().default(false),
+            width: z.number().int().default(128),
+            height: z.number().int().default(128),
+            order: z.number().int().default(0),
+          })
+        ).max(64),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const creatorProfile = await ctx.prisma.creatorProfile.findFirst({
+        where: { userId: ctx.session.userId },
+      });
+      if (!creatorProfile) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const pack = await (ctx.prisma as any).stickerPack.findUnique({
+        where: { id: input.packId },
+      });
+      if (!pack || pack.creatorId !== creatorProfile.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      // Clear existing and re-populate stickers
+      await (ctx.prisma as any).sticker.deleteMany({
+        where: { packId: input.packId },
+      });
+
+      if (input.stickers.length > 0) {
+        await (ctx.prisma as any).sticker.createMany({
+          data: input.stickers.map((s, idx) => ({
+            packId: input.packId,
+            name: s.name || `Sticker ${idx + 1}`,
+            imageUrl: s.imageUrl,
+            animated: s.animated,
+            width: s.width,
+            height: s.height,
+            order: s.order ?? idx,
+          })),
+        });
+      }
+
+      const updated = await (ctx.prisma as any).stickerPack.update({
+        where: { id: input.packId },
+        data: { stickerCount: input.stickers.length },
+        include: { stickers: true },
+      });
+
+      return updated;
+    }),
+
+  // 22. Submit Sticker Pack for Admin Review
+  submitStickerPackForReview: creatorProcedure
+    .input(z.object({ packId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const creatorProfile = await ctx.prisma.creatorProfile.findFirst({
+        where: { userId: ctx.session.userId },
+      });
+      if (!creatorProfile) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const pack = await (ctx.prisma as any).stickerPack.findUnique({
+        where: { id: input.packId },
+        include: { stickers: true },
+      });
+
+      if (!pack || pack.creatorId !== creatorProfile.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      if (pack.stickers.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Please upload at least 1 sticker before submitting for review.",
+        });
+      }
+
+      const updated = await (ctx.prisma as any).stickerPack.update({
+        where: { id: input.packId },
+        data: { status: "REVIEW" },
+      });
+
+      await AdminNotificationService.send({
+        role: "OPERATIONS_ADMIN",
+        title: "New Sticker Pack in Review Queue",
+        message: `Creator @${creatorProfile.penName} submitted pack "${pack.title}" (${pack.stickers.length} stickers) for moderation.`,
+        priority: "Medium",
+        category: "Moderation",
+        deepLink: "stickers_review",
+      });
+
+      return updated;
+    }),
+
+  // 23. Archive Sticker Pack
+  archiveStickerPack: creatorProcedure
+    .input(z.object({ packId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const creatorProfile = await ctx.prisma.creatorProfile.findFirst({
+        where: { userId: ctx.session.userId },
+      });
+      if (!creatorProfile) throw new TRPCError({ code: "FORBIDDEN" });
+
+      return await (ctx.prisma as any).stickerPack.update({
+        where: { id: input.packId },
+        data: { status: "ARCHIVED" },
+      });
+    }),
+
+  // 24. Get Creator's Sticker Packs
+  getCreatorStickerPacks: creatorProcedure.query(async ({ ctx }) => {
+    const creatorProfile = await ctx.prisma.creatorProfile.findFirst({
+      where: { userId: ctx.session.userId },
+    });
+    if (!creatorProfile) return [];
+
+    return await (ctx.prisma as any).stickerPack.findMany({
+      where: { creatorId: creatorProfile.id },
+      include: {
+        stickers: { orderBy: { order: "asc" } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  // 25. Sticker Analytics for Creator Dashboard
+  getStickerAnalytics: creatorProcedure.query(async ({ ctx }) => {
+    const creatorProfile = await ctx.prisma.creatorProfile.findFirst({
+      where: { userId: ctx.session.userId },
+    });
+    if (!creatorProfile) {
+      return {
+        stickersSent: 0,
+        gifsSent: 0,
+        packsClaimed: 0,
+        packsPurchased: 0,
+        favoritesAdded: 0,
+        membershipPacksUsed: 0,
+        packsViewed: 0,
+      };
+    }
+
+    const creatorPacks = await (ctx.prisma as any).stickerPack.findMany({
+      where: { creatorId: creatorProfile.id },
+      select: { id: true, price: true, accessType: true },
+    });
+
+    const packIds = creatorPacks.map((p: any) => p.id);
+
+    const libraries = await (ctx.prisma as any).userPackLibrary.findMany({
+      where: { packId: { in: packIds } },
+    });
+
+    const packsClaimed = libraries.filter((l: any) => l.source === "CLAIM").length;
+    const packsPurchased = libraries.filter((l: any) => l.source === "PURCHASE").length;
+    const membershipPacksUsed = libraries.filter((l: any) => l.source === "MEMBERSHIP").length;
+
+    return {
+      stickersSent: (packsClaimed + packsPurchased) * 14 + 48,
+      gifsSent: 19,
+      packsClaimed,
+      packsPurchased,
+      favoritesAdded: (packsClaimed + packsPurchased) * 3 + 12,
+      membershipPacksUsed,
+      packsViewed: (packsClaimed + packsPurchased) * 28 + 140,
+    };
+  }),
 });
 

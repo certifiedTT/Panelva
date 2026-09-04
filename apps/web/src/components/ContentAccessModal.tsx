@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { X, Crown, Check, Tv, Sparkles, Download, ArrowRight, ShieldCheck } from "lucide-react";
+import { X, Crown, Check, Tv } from "lucide-react";
+import { Button, Badge } from "@panelva/ui";
 
 export interface Plan {
   id: "PLUS" | "PREMIUM";
@@ -28,8 +29,8 @@ const DEFAULT_PLANS: Plan[] = [
     name: "Panelva Plus",
     price: "$4.99",
     period: "/ month",
-    highlightColor: "#a78bfa",
-    badgeBg: "rgba(167, 139, 250, 0.15)",
+    highlightColor: "#3b82f6",
+    badgeBg: "rgba(59, 130, 246, 0.15)",
     features: [
       { title: "Early access 2 hours after Premium", subtitle: "Read newly published releases 2 hours after Premium subscribers" },
       { title: "Basic offline downloads", subtitle: "Save up to 10 chapters encrypting at rest" },
@@ -68,118 +69,56 @@ export const ContentAccessModal: React.FC<ContentAccessModalProps> = ({
   const currentPlan = plans.find((p) => p.id === selectedPlanId) || plans[1];
 
   return (
-    <div style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: "rgba(10, 10, 15, 0.85)",
-      backdropFilter: "blur(8px)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 10000,
-      padding: "20px"
-    }}>
+    <div 
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[10000]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="access-modal-title"
+    >
       {/* Modal Container */}
-      <div className="glass-panel" style={{
-        background: "#12121a",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: "16px",
-        width: "100%",
-        maxWidth: "460px",
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.8)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        fontFamily: "var(--font-sans, system-ui, sans-serif)",
-        color: "#ffffff"
-      }}>
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-[460px] flex flex-col overflow-hidden text-white">
         
         {/* Header */}
-        <div style={{
-          padding: "1.25rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid rgba(255,255,255,0.06)"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
-              backgroundColor: accessType === "PREMIUM" ? "rgba(251, 191, 36, 0.12)" : "rgba(52, 152, 219, 0.12)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color: accessType === "PREMIUM" ? "#fbbf24" : "#3498db"
-            }}>
+        <div className="p-4 flex items-center justify-between border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              accessType === "PREMIUM" ? "bg-amber-500/10 text-amber-400" : "bg-blue-500/10 text-blue-400"
+            }`}>
               {accessType === "PREMIUM" ? <Crown size={20} /> : <Tv size={20} />}
             </div>
             <div>
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, lineHeight: 1.2 }}>
+              <h3 id="access-modal-title" className="text-base font-bold leading-tight">
                 {accessType === "PREMIUM" ? "Premium only" : "Ad-supported unlock"}
               </h3>
-              <span style={{ fontSize: "0.8rem", color: "var(--text-muted-color, #8e8e9f)" }}>
+              <span className="text-xs text-slate-400">
                 {seriesTitle} &bull; {chapterTitle}
               </span>
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#8e8e9f",
-              cursor: "pointer",
-              padding: "4px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              transition: "background 0.2s"
-            }}
-            className="hover:bg-white/5"
+            aria-label="Close modal"
+            className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Plan Segmented Toggle Control */}
-        <div style={{
-          padding: "1rem 1.25rem 0.5rem 1.25rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px"
-        }}>
-          <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8e8e9f" }}>
+        <div className="p-4 pb-2 flex flex-col gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Subscription Tiers
           </span>
-          <div style={{
-            display: "flex",
-            backgroundColor: "rgba(255,255,255,0.04)",
-            padding: "4px",
-            borderRadius: "10px",
-            border: "1px solid rgba(255,255,255,0.04)"
-          }}>
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
             {plans.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setSelectedPlanId(p.id)}
-                style={{
-                  flex: 1,
-                  padding: "8px",
-                  borderRadius: "8px",
-                  border: "none",
-                  backgroundColor: selectedPlanId === p.id ? "rgba(108, 92, 231, 0.15)" : "transparent",
-                  color: selectedPlanId === p.id ? "#c084fc" : "#8e8e9f",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  transition: "all 0.2s"
-                }}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
+                  selectedPlanId === p.id 
+                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30" 
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
               >
                 {p.name}
               </button>
@@ -187,39 +126,29 @@ export const ContentAccessModal: React.FC<ContentAccessModalProps> = ({
           </div>
         </div>
 
-        {/* Dynamic Highlight Card (replicates gold card design) */}
-        <div style={{ padding: "0.5rem 1.25rem" }}>
-          <div style={{
-            background: `linear-gradient(135deg, ${currentPlan.id === "PREMIUM" ? "rgba(251, 191, 36, 0.08)" : "rgba(167, 139, 250, 0.08)"}, rgba(18, 18, 26, 0.95))`,
-            border: `1px solid ${currentPlan.id === "PREMIUM" ? "rgba(251, 191, 36, 0.25)" : "rgba(167, 139, 250, 0.25)"}`,
-            borderRadius: "12px",
-            padding: "1rem",
-            display: "flex",
-            gap: "12px",
-            alignItems: "center"
-          }}>
-            <div style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "8px",
-              backgroundColor: currentPlan.id === "PREMIUM" ? "rgba(251, 191, 36, 0.15)" : "rgba(167, 139, 250, 0.15)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color: currentPlan.highlightColor,
-              flexShrink: 0
-            }}>
+        {/* Dynamic Highlight Card */}
+        <div className="px-4 py-2">
+          <div className={`p-4 rounded-xl border flex items-center gap-3 ${
+            currentPlan.id === "PREMIUM" 
+              ? "bg-amber-500/10 border-amber-500/30" 
+              : "bg-blue-500/10 border-blue-500/30"
+          }`}>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+              currentPlan.id === "PREMIUM" ? "bg-amber-500/20 text-amber-400" : "bg-blue-500/20 text-blue-400"
+            }`}>
               <Crown size={18} />
             </div>
             <div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-                <strong style={{ color: currentPlan.highlightColor, fontSize: "0.9rem", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+              <div className="flex items-baseline gap-2">
+                <strong className={`text-sm font-bold uppercase tracking-wider ${
+                  currentPlan.id === "PREMIUM" ? "text-amber-400" : "text-blue-400"
+                }`}>
                   {currentPlan.name}
                 </strong>
-                <span style={{ fontSize: "1rem", fontWeight: 800 }}>{currentPlan.price}</span>
-                <span style={{ fontSize: "0.72rem", color: "#8e8e9f" }}>{currentPlan.period}</span>
+                <span className="text-base font-extrabold">{currentPlan.price}</span>
+                <span className="text-xs text-slate-400">{currentPlan.period}</span>
               </div>
-              <p style={{ margin: "2px 0 0 0", fontSize: "0.78rem", color: "#d1d1e0", lineHeight: "1.3" }}>
+              <p className="mt-1 text-xs text-slate-300 leading-relaxed">
                 Unlock premium chapters instantly and enjoy offline AES-256 secure downloads.
               </p>
             </div>
@@ -227,36 +156,20 @@ export const ContentAccessModal: React.FC<ContentAccessModalProps> = ({
         </div>
 
         {/* Feature List (Vertical stack) */}
-        <div style={{
-          padding: "0.75rem 1.25rem 1.25rem 1.25rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px"
-        }}>
+        <div className="p-4 flex flex-col gap-2">
           {currentPlan.features.map((feature, idx) => (
-            <div key={idx} style={{
-              display: "flex",
-              gap: "12px",
-              alignItems: "flex-start",
-              backgroundColor: "rgba(255, 255, 255, 0.02)",
-              border: "1px solid rgba(255, 255, 255, 0.04)",
-              borderRadius: "8px",
-              padding: "10px 12px"
-            }}>
-              <div style={{
-                color: currentPlan.highlightColor,
-                marginTop: "2px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}>
+            <div 
+              key={idx} 
+              className="flex items-start gap-3 bg-slate-950/60 border border-slate-800/80 rounded-xl p-3"
+            >
+              <div className={`mt-0.5 shrink-0 ${currentPlan.id === "PREMIUM" ? "text-amber-400" : "text-blue-400"}`}>
                 <Check size={14} strokeWidth={3} />
               </div>
               <div>
-                <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#f3f4f6" }}>
+                <div className="text-xs font-bold text-slate-100">
                   {feature.title}
                 </div>
-                <div style={{ fontSize: "0.72rem", color: "#8e8e9f", marginTop: "1px" }}>
+                <div className="text-xs text-slate-400 mt-0.5">
                   {feature.subtitle}
                 </div>
               </div>
@@ -265,86 +178,47 @@ export const ContentAccessModal: React.FC<ContentAccessModalProps> = ({
         </div>
 
         {/* Actions Footer */}
-        <div style={{
-          padding: "1rem 1.25rem",
-          backgroundColor: "rgba(0,0,0,0.2)",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          display: "flex",
-          gap: "12px"
-        }}>
+        <div className="p-4 bg-slate-950/80 border-t border-slate-800 flex items-center gap-3">
           {accessType === "AD_SUPPORTED" ? (
             <>
-              {/* Ad Supported State Buttons */}
-              <button
+              <Button
+                variant="secondary"
+                size="md"
+                className="flex-1"
                 onClick={onUnlockWithAds}
-                style={{
-                  flex: 1,
-                  background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
-                  color: "#ffffff",
-                  border: "none",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  fontWeight: 750,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(124, 58, 237, 0.25)"
-                }}
+                leftIcon={<Tv className="w-4 h-4" />}
               >
-                🎬 Unlock with Ads
-              </button>
-              <button
+                Unlock with Ads
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="flex-1"
                 onClick={() => onUpgradeSubscription(selectedPlanId)}
-                style={{
-                  flex: 1,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#ffffff",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                  cursor: "pointer"
-                }}
+                leftIcon={<Crown className="w-4 h-4" />}
               >
-                👑 Go Premium
-              </button>
+                Go Premium
+              </Button>
             </>
           ) : (
             <>
-              {/* Premium Only State Buttons */}
-              <button
+              <Button
+                variant="outline"
+                size="md"
+                className="flex-1"
                 onClick={onClose}
-                style={{
-                  flex: 1,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "#ffffff",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                  cursor: "pointer"
-                }}
               >
                 Not Now
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="flex-1"
                 onClick={() => onUpgradeSubscription(selectedPlanId)}
-                style={{
-                  flex: 1,
-                  background: `linear-gradient(135deg, ${currentPlan.id === "PREMIUM" ? "#fbbf24, #d97706" : "#a78bfa, #7c3aed"})`,
-                  color: currentPlan.id === "PREMIUM" ? "#000000" : "#ffffff",
-                  border: "none",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  fontWeight: 800,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  boxShadow: `0 4px 14px ${currentPlan.id === "PREMIUM" ? "rgba(251, 191, 36, 0.3)" : "rgba(167, 139, 250, 0.3)"}`
-                }}
+                leftIcon={<Crown className="w-4 h-4" />}
               >
                 Upgrade to {selectedPlanId === "PREMIUM" ? "Premium" : "Plus"}
-              </button>
+              </Button>
             </>
           )}
         </div>

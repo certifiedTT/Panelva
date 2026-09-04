@@ -163,9 +163,7 @@ export function WorkspaceLayout({
             <div
               className={cn(
                 "hidden md:flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border",
-                isCreator
-                  ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                  : "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                "bg-blue-500/10 text-blue-400 border-blue-500/20"
               )}
             >
               {isCreator ? (
@@ -178,7 +176,7 @@ export function WorkspaceLayout({
           )}
 
           {/* User Avatar */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border border-white/10 flex items-center justify-center text-xs font-black text-white shadow-inner">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-700 to-blue-500 border border-white/10 flex items-center justify-center text-xs font-black text-white shadow-inner">
             {userIdentifier.charAt(0).toUpperCase()}
           </div>
 

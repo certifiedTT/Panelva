@@ -12,7 +12,7 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import { useTheme } from '../../theme/ThemeContext';
 import { Chapter } from '../../types';
-import { BookOpenIcon, ChevronRightIcon } from '../common/Icons';
+import { BookOpen, ChevronRight } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -80,7 +80,7 @@ export function ComicReader({
           })
         ) : (
           <View style={styles.fallbackCanvas}>
-            <BookOpenIcon size={48} color={colors.primary} />
+            <BookOpen size={48} color={colors.primary} />
             <Text style={[styles.fallbackTitle, { color: '#FFFFFF' }]}>Comic Pages Loading</Text>
             <Text style={[styles.fallbackSubtitle, { color: colors.textMuted }]}>
               {chapter.title || `Chapter ${chapter.chapterIndex}`}
@@ -104,7 +104,7 @@ export function ComicReader({
               activeOpacity={0.85}
             >
               <Text style={styles.nextChapterBtnText}>Read Next Chapter</Text>
-              <ChevronRightIcon size={16} color="#FFFFFF" />
+              <ChevronRight size={16} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>

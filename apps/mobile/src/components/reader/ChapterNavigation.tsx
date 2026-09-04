@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import { useTheme } from '../../theme/ThemeContext';
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MessageSquareIcon,
-  BookmarkIcon,
-} from '../common/Icons';
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  Bookmark,
+} from 'lucide-react-native';
+import { colors, spacing, radius, typography } from '@panelva/theme';
 
 export interface ChapterNavigationProps {
   progressPct: number; // 0 to 100
@@ -40,11 +40,9 @@ export function ChapterNavigation({
   isBookmarked,
   onToggleBookmark,
 }: ChapterNavigationProps) {
-  const { colors } = useTheme();
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.card }]}>
-      <View style={[styles.navContainer, { borderTopColor: colors.borderSubtle }]}>
+      <View style={[styles.navContainer, { borderTopColor: colors.border }]}>
         {/* Previous Chapter */}
         <TouchableOpacity
           style={[styles.navBtn, !hasPrevChapter && styles.disabledBtn]}
@@ -54,7 +52,7 @@ export function ChapterNavigation({
           accessibilityRole="button"
           accessibilityLabel="Previous Chapter"
         >
-          <ChevronLeftIcon size={20} color={hasPrevChapter ? colors.text : colors.textMuted} />
+          <ChevronLeft size={20} color={hasPrevChapter ? colors.text : colors.textMuted} />
           <Text style={[styles.navBtnText, { color: hasPrevChapter ? colors.text : colors.textMuted }]}>
             Prev
           </Text>
@@ -63,7 +61,7 @@ export function ChapterNavigation({
         {/* Center Actions: Progress %, Comments, Bookmark */}
         <View style={styles.centerActionsRow}>
           {/* Progress Indicator */}
-          <View style={[styles.progressPill, { backgroundColor: colors.surfaceElevated }]}>
+          <View style={[styles.progressPill, { backgroundColor: colors.surface }]}>
             <Text style={[styles.progressText, { color: colors.primary }]}>
               {Math.round(progressPct)}% Read
             </Text>
@@ -71,15 +69,15 @@ export function ChapterNavigation({
 
           {/* Comments Modal Trigger */}
           <TouchableOpacity
-            style={[styles.iconActionBtn, { backgroundColor: colors.surfaceElevated }]}
+            style={[styles.iconActionBtn, { backgroundColor: colors.surface }]}
             onPress={onOpenComments}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Open Comments"
           >
-            <MessageSquareIcon size={16} color={colors.text} />
+            <MessageSquare size={16} color={colors.text} />
             {commentCount > 0 && (
-              <Text style={[styles.badgeText, { color: colors.textSecondary }]}>
+              <Text style={[styles.badgeText, { color: colors.textMuted }]}>
                 {commentCount > 99 ? '99+' : commentCount}
               </Text>
             )}
@@ -89,14 +87,17 @@ export function ChapterNavigation({
           <TouchableOpacity
             style={[
               styles.iconActionBtn,
-              { backgroundColor: isBookmarked ? 'rgba(37, 99, 235, 0.15)' : colors.surfaceElevated },
+              {
+                backgroundColor: isBookmarked ? colors.card : colors.surface,
+                borderColor: isBookmarked ? colors.primary : colors.border,
+              },
             ]}
             onPress={onToggleBookmark}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Bookmark Series"
           >
-            <BookmarkIcon size={16} color={isBookmarked ? colors.primary : colors.text} />
+            <Bookmark size={16} color={isBookmarked ? colors.primary : colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -112,7 +113,7 @@ export function ChapterNavigation({
           <Text style={[styles.navBtnText, { color: hasNextChapter ? colors.text : colors.textMuted }]}>
             Next
           </Text>
-          <ChevronRightIcon size={20} color={hasNextChapter ? colors.text : colors.textMuted} />
+          <ChevronRight size={20} color={hasNextChapter ? colors.text : colors.textMuted} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -124,52 +125,57 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   navContainer: {
-    height: 52,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     borderTopWidth: 1,
   },
   navBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
   },
   disabledBtn: {
     opacity: 0.35,
   },
   navBtnText: {
-    fontSize: 13,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   centerActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   progressPill: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   progressText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '700',
   },
   iconActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    minHeight: 40,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
 });
